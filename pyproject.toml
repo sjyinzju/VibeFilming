@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "movie-agent-core"
+version = "0.1.0"
+description = "Model-, frontend-, and deployment-agnostic AI film production core"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2.10,<3"]
+
+[project.scripts]
+movie-agent-mock = "movie_agent.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["movie_agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
