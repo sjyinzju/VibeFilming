@@ -2,6 +2,8 @@
 
 ## Adapter rule
 
+Phase 2A implements this boundary as `OpenAICompatibleLLMProvider` using httpx. It consumes the existing endpoint through configuration, defaults thinking off, exports strict target schemas and records final content/usage without reasoning. See `llm_provider.md` for timeout, status, cancellation and error semantics. Media providers remain mocks.
+
 Real integrations implement one of `LLMProvider`, `VisionProvider`, `ImageProvider`, `VideoProvider`, or `AudioProvider`. Business services must never call provider endpoints or SDKs directly.
 
 Each adapter implements:

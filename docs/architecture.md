@@ -2,7 +2,7 @@
 
 ## Decision summary
 
-Movie Agent Core is a Python 3.12 and Pydantic v2 domain framework. It deliberately contains no model SDK, HTTP server, frontend, GPU runtime, or deployment assumption. The central design is one Showrunner coordinating role-labelled workflow nodes while deterministic code owns graph validation, continuity, scheduling, retries, artifacts, checkpoints, and events.
+Movie Agent Core is a Python 3.12 and Pydantic v2 domain framework. The domain remains independent of transport, model SDKs, frontend and GPU runtime. Phase 2A adds an external-endpoint LLM provider plus an application service and FastAPI/SSE adapter. One Showrunner coordinates role-labelled workflow nodes while deterministic code owns graph validation, continuity, scheduling, retries, artifacts, checkpoints, and events.
 
 The domain does not depend on an orchestration engine. `WorkflowGraph` is the durable contract; `ProductionGraph` is the current local adapter. A future LangGraph, queue, database, or remote provider adapter must translate at the boundary instead of replacing the domain types.
 
@@ -50,7 +50,9 @@ flowchart TB
     G[Deterministic Graph / Jobs / Scheduler] --- S
 ```
 
-Roles are `RoleSpec` descriptors and workflow responsibilities, not independently deployed conversational agents. A role can later be implemented by a skill, local function, subgraph, or provider call. Provider choice remains outside the role contract.
+Phase 1 `RoleSpec` descriptors remain intact. Phase 2A executes six `RoleDefinition` records through one `RoleRunner`, role-specific context, structured decoding and three-level validation. Provider choice remains outside the role contract. Typed outputs commit through the Showrunner; the provider cannot add nodes or change scheduler state.
+
+For Cinematographer, the provider target is a request-only `ShotPlanDraft`. Core supplies the authoritative `CanonicalChainContext`; the model supplies scene-local state deltas and creative shot decisions. A deterministic mapper owns shot/chain IDs, ordering, complete canonical snapshots, and previous/next topology before the existing semantic and continuity validators run. The final Domain IR remains `Shot[]` plus `ContinuityChain[]`.
 
 ## 3. Production DAG
 
@@ -95,7 +97,9 @@ Evaluation is structured evidence, not a Boolean. Repair actions route from issu
 
 ```mermaid
 flowchart LR
-    S0[Chain Initial State] --> V1[validate_transition]
+    S0[Core Canonical Chain State] --> M[Apply validated ShotLocalDelta]
+    D[LLM ShotPlanDraft] --> M
+    M --> V1[validate_transition]
     V1 --> Q1[Shot N]
     Q1 --> E1[apply_shot_effects]
     E1 --> L1[Shot N Last Frame Artifact]
@@ -143,7 +147,7 @@ flowchart LR
     ENV --> NOTIFY[Notification consumer]
 ```
 
-The local event bus provides an ordered in-memory stream. A future frontend should subscribe through a transport adapter and project node, edge, job, artifact, evaluation, repair, and review events into its own view state. UI coordinates and CSS do not belong in the backend node contract.
+The original local bus remains available for tests. Phase 2A uses `DurableLocalEventBus`, atomically publishing ordered event files, and serves replay/live SSE through FastAPI. A future frontend combines graph snapshots with cursor-based events. UI coordinates and CSS remain outside the backend contract.
 
 ## Deterministic execution
 
@@ -167,4 +171,4 @@ No vector database is required for these contracts. Retrieval or embedding can b
 
 ## Deferred by design
 
-This phase does not include Spark/DGX integration, model downloads, ModelScope, ComfyUI, vLLM, a formal server deployment, React, authentication, or real media generation. None is needed to execute and verify the mock film pipeline.
+Phase 2A consumes an already-running OpenAI-compatible reasoning endpoint. Spark, model downloads, serving process management, ModelScope, ComfyUI, vLLM deployment, public deployment, React, authentication and real media generation remain external/deferred. See `p2a_runtime.md` for local execution and API behavior.

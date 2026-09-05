@@ -38,7 +38,9 @@ class LocalCheckpointStore(CheckpointStore):
         temporary = target.with_suffix(".tmp")
         temporary.write_text(snapshot.model_dump_json(indent=2), encoding="utf-8")
         temporary.replace(target)
-        (project_dir / "LATEST").write_text(snapshot.checkpoint_id, encoding="utf-8")
+        marker = project_dir / "LATEST.tmp"
+        marker.write_text(snapshot.checkpoint_id, encoding="utf-8")
+        marker.replace(project_dir / "LATEST")
         return snapshot
 
     def load(self, project_id: str, checkpoint_id: str) -> CheckpointSnapshot:
@@ -74,4 +76,3 @@ class LocalCheckpointStore(CheckpointStore):
             for job in snapshot.active_jobs
         ]
         return snapshot.model_copy(update={"active_jobs": jobs}, deep=True)
-

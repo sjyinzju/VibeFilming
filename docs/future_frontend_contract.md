@@ -4,6 +4,8 @@
 
 The core does not include a web application. It already exposes the stable data a future input console, workflow canvas, inspector, approval panel, and artifact/version browser need.
 
+Phase 2A now supplies the FastAPI backend and SSE transport. P2B can directly consume the complete endpoint list in `p2a_runtime.md`; no frontend has been implemented. OpenAPI documentation is served by FastAPI at `/docs` and `/openapi.json`.
+
 ## Input console
 
 Render `ProjectBrief.model_json_schema()` into sections matching basic, story, characters, world, visual, cinematography, audio, and production. Preserve the semantic distinction between:
@@ -45,6 +47,8 @@ Recommended frontend read models are projections, not new source-of-truth domain
 ## Future transport boundary
 
 A server adapter may expose REST for snapshots/commands and a streamed event transport for changes. Commands should refer to stable IDs and validate through domain contracts. Example commands include submit brief, cancel job, resolve review, select artifact version, request retry, and resume project.
+
+The implemented adapter supports project creation/start/pause/resume, review resolution and job cancellation, plus project/workflow/shot/job/artifact reads. Version selection and arbitrary revision commands are not exposed over REST yet. Use graph/project snapshot `event_cursor` with `Last-Event-ID` on the SSE endpoint. Unknown cursors return 409. Events survive restart; `follow=false` provides a finite replay for clients/tests.
 
 Transport acknowledgements must not be treated as production completion; completion is represented by persisted job/node state and events. Reconnection should fetch a current graph/project snapshot, then continue from the event cursor. The current `LocalEventBus` can be replaced without changing event payload contracts.
 

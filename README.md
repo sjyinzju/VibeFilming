@@ -1,8 +1,34 @@
 # Movie Agent Core
 
-Movie Agent Core is a model-agnostic, frontend-agnostic, and deployment-agnostic foundation for long-running AI film production. This phase contains typed cinematic contracts, deterministic orchestration and execution infrastructure, mock providers, and a fully local mock production flow. It does not connect to real models, Spark, ComfyUI, vLLM, or a web frontend.
+Movie Agent Core is a model-agnostic foundation for long-running AI film production. Phase 2A adds six real reasoning roles through a configurable OpenAI-compatible endpoint and a FastAPI/SSE backend. Typed cinematic contracts, deterministic execution, checkpoints and mock downstream media are shared with Phase 1. The repository does not manage serving infrastructure or include a frontend.
 
 See `docs/architecture.md` for the design and `tests/fixtures/sample_brief.json` for the mock workflow input.
+
+## Phase 2A
+
+**Phase 2A is complete and frozen.** The accepted `workspace/p2a-real` run used the real OpenAI-compatible reasoning provider for all five upstream roles and all three scene-level Cinematographer plans. It produced three validated real Shots (18 seconds total), then completed the existing mock frame/image/video/critic/audio/post/final pipeline and emitted `WORKFLOW_COMPLETED`. P2B, frontend work, serving changes, and real media providers remain out of scope.
+
+Configure `.env` from `.env.example` and keep the existing serving tunnel available. Use a Python 3.12+ virtual environment. Full runtime/API documentation is in [docs/p2a_runtime.md](docs/p2a_runtime.md); role and provider contracts are in [docs/role_runtime.md](docs/role_runtime.md) and [docs/llm_provider.md](docs/llm_provider.md).
+
+The final acceptance evidence, request-contract ownership model, real invocation metrics, hash checks, and freeze checkpoint are recorded in [docs/p2a_verification.md](docs/p2a_verification.md).
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe scripts/run_p2a.py --workspace workspace/p2a-demo
+.\.venv\Scripts\python.exe -m uvicorn movie_agent.api.app:create_app --factory --host 127.0.0.1 --port 8080 --workers 1
+```
+
+The backend exposes project start/pause/resume, workflow/shot/job/artifact snapshots, human review resolution and replayable SSE events. API human gates require explicit approval. The CLI auto-approves demonstration gates. Media remains placeholder output.
+
+To stop before Director and verify inference reuse:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/run_p2a.py --workspace workspace/p2a-resume --stop-after-node bibles
+.\.venv\Scripts\python.exe scripts/run_p2a.py --workspace workspace/p2a-resume --resume
+```
+
+Regular tests never require the LLM endpoint. Opt in with `MOVIE_AGENT_RUN_INTEGRATION=1` when running `tests/test_p2a_integration.py`.
 
 ## Run locally
 

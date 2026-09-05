@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from threading import RLock
@@ -82,6 +83,10 @@ class LocalArtifactStore(ArtifactStore):
         """Materialize a small placeholder and register a never-overwritten version."""
 
         stable_id = artifact_id or new_id("artifact")
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,255}", stable_id):
+            raise ValueError("artifact_id must be a safe opaque path component")
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", extension.lstrip(".")):
+            raise ValueError("artifact extension must not contain path separators")
         with self._lock:
             version = len(self.list_versions(stable_id)) + 1
             artifact_dir = self.data_dir / stable_id
@@ -143,4 +148,3 @@ class LocalArtifactStore(ArtifactStore):
             self._artifacts = updated
             self._persist()
             return target
-

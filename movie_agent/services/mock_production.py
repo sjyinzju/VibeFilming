@@ -39,6 +39,7 @@ from movie_agent.domain import (
     HumanReviewRequest,
     JSONValue,
     JobStatus,
+    ReviewStatus,
     LightingSpec,
     Location,
     LocationState,
@@ -125,6 +126,9 @@ class MockMovieProduction:
         self.repair_plans: list[RepairPlan] = []
         self._restored_jobs: dict[str, GenerationJob] = {}
         self._latest_checkpoint_id: str | None = None
+        self.pause_requested = False
+        self.current_project: Project | None = None
+        self.current_production: ProductionGraph | None = None
 
     @staticmethod
     def load_brief(path: str | Path) -> ProjectBrief:
@@ -139,17 +143,20 @@ class MockMovieProduction:
         resume: bool = False,
         stop_after_node: str | None = None,
         auto_approve: bool = True,
+        project: Project | None = None,
     ) -> MockProductionResult:
         """Run, deliberately stop after a node, or resume from the latest checkpoint."""
 
         if resume:
             project, production = self._restore()
         else:
-            if brief is None:
+            if brief is None and project is None:
                 raise ValueError("brief is required for a new production")
-            project = Project(brief=brief)
+            project = project or Project(brief=brief)
             production = build_production_graph(project.project_id, self.event_bus, self.trace_id)
-            self._emit(EventType.PROJECT_CREATED, project.project_id, {"title": brief.title})
+            self._emit(EventType.PROJECT_CREATED, project.project_id, {"title": project.brief.title})
+
+        self.current_project, self.current_production = project, production
 
         self.job_manager = JobManager(self.event_bus, self.trace_id)
 
@@ -160,6 +167,11 @@ class MockMovieProduction:
             current = production.node(node.node_id)
             if current.status == WorkflowNodeStatus.SUCCEEDED:
                 continue
+            if self.pause_requested:
+                self._save_checkpoint(project, production)
+                return self._result(False, project, production)
+            if not all(production.node(dep).status == WorkflowNodeStatus.SUCCEEDED for dep in current.dependencies):
+                raise RuntimeError(f"Unsatisfied node dependencies: {node.node_id}")
             production.activate_incoming_edges(node.node_id)
             production.set_status(node.node_id, WorkflowNodeStatus.RUNNING, progress=0.05)
             try:
@@ -229,6 +241,12 @@ class MockMovieProduction:
             "final_gate": HumanGateType.FINAL_CUT_APPROVAL,
         }
         if node_id in gate_types:
+            resolved = [r for r in self.human_gates.all() if r.node_id == node_id]
+            if resolved and resolved[-1].status == ReviewStatus.APPROVED:
+                return True
+            if resolved and resolved[-1].status == ReviewStatus.REJECTED:
+                production.set_status(node_id, WorkflowNodeStatus.WAITING_HUMAN)
+                return False
             production.set_status(node_id, WorkflowNodeStatus.WAITING_HUMAN, progress=0.5)
             review = self.human_gates.pending_for_node(node_id)
             if review is None:
@@ -1157,6 +1175,7 @@ class MockMovieProduction:
             project_id=project.project_id,
             workflow_graph=production.graph.model_dump(mode="json"),
             project_state={
+                **self._checkpoint_extra(),
                 "project": project.model_dump(mode="json"),
                 "human_reviews": [
                     review.model_dump(mode="json") for review in self.human_gates.all()
@@ -1175,6 +1194,10 @@ class MockMovieProduction:
         )
         self.checkpoint_store.save(snapshot)
         self._latest_checkpoint_id = snapshot.checkpoint_id
+
+    def _checkpoint_extra(self) -> dict[str, JSONValue]:
+        """Application adapters may persist additional versioned state without altering Project."""
+        return {}
 
     def _restore(self) -> tuple[Project, ProductionGraph]:
         markers = list(self.checkpoint_store.root.glob("*/LATEST"))
@@ -1198,7 +1221,11 @@ class MockMovieProduction:
             for payload in reviews_payload:
                 self.human_gates.restore(HumanReviewRequest.model_validate(payload))
         self._latest_checkpoint_id = snapshot.checkpoint_id
+        self._restore_extra(snapshot.project_state)
         return project, ProductionGraph(graph, self.event_bus, self.trace_id)
+
+    def _restore_extra(self, state: dict[str, JSONValue]) -> None:
+        """Restore application-owned state; Phase 1 has no additional state."""
 
     def _result(
         self,

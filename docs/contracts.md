@@ -42,3 +42,15 @@ Validation occurs when briefs enter the system, graphs are constructed/restored,
 ## Event envelope
 
 All lifecycle notifications use the same envelope fields: event ID/type/time, project and trace IDs, optional node/job IDs, versioned payload, and schema version. Payload content is deliberately JSON-only so it can cross future WebSocket, queue, or log transports without importing backend classes.
+
+## Phase 2A additive contracts and migration reasoning
+
+Repository inspection found no typed screenplay or role plan wrapper. `domain.planning` adds `Dialogue`, `ScreenplayScene`, `Screenplay`, `PlanningCommitments`, `ScenePlan` and `ShotPlan`. Screenplay declares canonical entities; ScenePlan/ShotPlan contain the existing Scene/Shot/ContinuityChain contracts. There is no parallel model-specific cinematic schema.
+
+`Project.screenplay` is the only added persisted Project field and defaults to null. Old Phase 1 snapshots therefore validate unchanged; tests continue exercising the original schema round-trip. `STRUCTURED_TEXT` extends the strategy enum so the existing GenerationRequest can represent reasoning without pretending it generates video. Existing enum values and serialized field names are unchanged.
+
+New EventType values describe provider request start/completion, role output receipt/validation success/failure and checkpoint creation. EventEnvelope itself is unchanged. Runtime state (`RoleResult`, attempts, validation reports, role selection and explicit revision history) is stored in the existing checkpoint `project_state` extension envelope. Missing P2A state defaults to empty when reading Phase 1 snapshots.
+
+Schemas retain version 1.0.0 because the reader changes are additive and defaulted. A future incompatible change requires explicit versioned migration. Serving strictness is an adapter concern: defaulted fields are required in the generated serving Schema but remain backward-compatible in persisted Pydantic contracts.
+
+The Cinematographer has a deliberately separate request-only contract. `CanonicalChainContext` is Core-owned input, while `ShotPlanDraft`/`ShotLocalStateDraft` contain only LLM-owned cinematic choices and scene-local deltas. The output Schema cannot express a continuity chain, canonical snapshot, shot identity, or previous/next topology. `CinematographerDraftMapper` validates local IDs and deterministically maps the draft into the existing persisted `ShotPlan`, `Shot`, `ContinuityState`, and `ContinuityChain` contracts. This changes ownership at the provider boundary without creating a second persisted Cinematic IR.

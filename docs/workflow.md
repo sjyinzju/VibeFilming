@@ -77,3 +77,11 @@ python scripts/run_mock.py tests/fixtures/sample_brief.json --workspace workspac
 ```
 
 The run produces typed planning artifacts, six frame placeholders, three first-pass videos, an intentional semantic failure for `shot_002`, a repaired second version, audio/timeline/final placeholders, checkpoints, provenance, and a workflow-completed event.
+
+## Phase 2A execution
+
+`ReasoningMovieProduction` reuses the same graph and downstream media handlers. The first six creative stages call a unified RoleRunner; StoryBible is committed in story_planning and is not overwritten by Visual Director. Screenwriter declares typed entities/scenes, Director creates ScenePlan, and Cinematographer creates one typed ShotPlan per scene.
+
+The executor checks dependencies before starting each node. API pause takes effect at the next node boundary. Successful roles and per-scene cinematography commits are checkpointed; resume bypasses them even if their parent node was interrupted. Validation failures are checkpointed with finite repair counters, while exhausted failures stop the node. The API restores explicit approved reviews and will not bypass a rejected or pending gate.
+
+REST manages commands/snapshots and SSE projects events; details and endpoint paths are in `p2a_runtime.md`. The Phase 1 mock CLI remains runnable without LLM configuration.

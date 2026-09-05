@@ -86,6 +86,7 @@ class AnchorKind(StrEnum):
 
 
 class GenerationStrategyType(StrEnum):
+    STRUCTURED_TEXT = "structured_text"
     TEXT_TO_VIDEO = "text_to_video"
     IMAGE_TO_VIDEO = "image_to_video"
     FIRST_FRAME_TO_VIDEO = "first_frame_to_video"
@@ -156,6 +157,12 @@ class WorkflowEdgeType(StrEnum):
 
 
 class EventType(StrEnum):
+    PROVIDER_REQUEST_STARTED = "provider_request_started"
+    PROVIDER_REQUEST_COMPLETED = "provider_request_completed"
+    ROLE_OUTPUT_RECEIVED = "role_output_received"
+    ROLE_OUTPUT_VALIDATION_FAILED = "role_output_validation_failed"
+    ROLE_OUTPUT_VALIDATED = "role_output_validated"
+    CHECKPOINT_CREATED = "checkpoint_created"
     PROJECT_CREATED = "project_created"
     NODE_CREATED = "node_created"
     NODE_STARTED = "node_started"
@@ -203,6 +210,7 @@ class ProviderKind(StrEnum):
 
 class ProviderErrorType(StrEnum):
     TIMEOUT = "timeout"
+    REMOTE_COMPLETION_UNCERTAIN = "remote_completion_uncertain"
     UNAVAILABLE = "unavailable"
     RESOURCE_EXHAUSTED = "resource_exhausted"
     INVALID_REQUEST = "invalid_request"

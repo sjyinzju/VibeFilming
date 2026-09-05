@@ -76,6 +76,7 @@ class ProductionGraph:
         *,
         progress: float | None = None,
     ) -> WorkflowNode:
+        previous_status = self.node(node_id).status
         target: WorkflowNode | None = None
         nodes: list[WorkflowNode] = []
         for node in self.graph.nodes:
@@ -106,6 +107,8 @@ class ProductionGraph:
             WorkflowNodeStatus.SUCCEEDED: EventType.NODE_COMPLETED,
             WorkflowNodeStatus.FAILED: EventType.NODE_FAILED,
         }.get(status)
+        if status == WorkflowNodeStatus.RUNNING and previous_status == WorkflowNodeStatus.RUNNING:
+            event_type = None
         if event_type:
             self._emit(event_type, node_id=node_id, payload={"status": status.value})
         if progress is not None and status == WorkflowNodeStatus.RUNNING:
@@ -202,4 +205,3 @@ def build_production_graph(
             )
         previous = node
     return production
-

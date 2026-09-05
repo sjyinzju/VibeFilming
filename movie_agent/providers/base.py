@@ -79,6 +79,10 @@ class Provider(ABC):
 class LLMProvider(Provider):
     """Provider capable of language/reasoning work."""
 
+    def inference_defaults(self):
+        from .inference import RoleInferencePolicy
+        return RoleInferencePolicy(read_timeout=180, max_output_tokens=16000, thinking=False)
+
 
 class VisionProvider(Provider):
     """Provider capable of image/video understanding work."""
@@ -94,4 +98,3 @@ class VideoProvider(Provider):
 
 class AudioProvider(Provider):
     """Provider capable of speech, music, or sound generation."""
-

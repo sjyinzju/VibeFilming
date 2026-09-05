@@ -41,7 +41,7 @@ class MockProvider(Provider):
         return True
 
     async def capabilities(self) -> ProviderCapability:
-        strategies = list(GenerationStrategyType) if self.kind == ProviderKind.VIDEO else []
+        strategies = [s for s in GenerationStrategyType if s != GenerationStrategyType.STRUCTURED_TEXT] if self.kind == ProviderKind.VIDEO else []
         return ProviderCapability(
             provider_id=self.provider_id,
             kind=self.kind,
@@ -104,4 +104,3 @@ class MockProvider(Provider):
 
 
 FakeProvider = MockProvider
-

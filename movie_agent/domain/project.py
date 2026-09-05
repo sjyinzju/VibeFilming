@@ -21,6 +21,7 @@ from movie_agent.domain.enums import (
     Pacing,
     QualityProfile,
 )
+from movie_agent.domain.planning import Screenplay
 
 
 class ProjectBrief(ContractModel):
@@ -168,6 +169,7 @@ class Project(ContractModel):
     creative_direction: CreativeDirection | None = None
     story_bible: StoryBible | None = None
     visual_bible: VisualBible | None = None
+    screenplay: Screenplay | None = None
     characters: list[Character] = Field(default_factory=list)
     locations: list[Location] = Field(default_factory=list)
     props: list[Prop] = Field(default_factory=list)
