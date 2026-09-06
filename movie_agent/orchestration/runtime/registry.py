@@ -45,8 +45,11 @@ class RoleRegistry:
             output_policy=OutputPolicy(max_tokens={"CreativeDirection": 2048, "StoryBible": 4096,
                 "Screenplay": 8192, "VisualBible": 4096, "ScenePlan": 8192,
                 "ShotPlanDraft": 12000}[target]),
-            inference_policy=RoleInferencePolicy(read_timeout=360, max_output_tokens=12000, thinking=False)
-                if rid == RoleId.CINEMATOGRAPHER else RoleInferencePolicy())
+            inference_policy=RoleInferencePolicy(read_timeout=360, total_timeout=480, stream=True,
+                max_output_tokens=12000, thinking=False)
+                if rid == RoleId.CINEMATOGRAPHER else
+                RoleInferencePolicy(read_timeout=360, total_timeout=360, stream=True)
+                if rid in {RoleId.SCREENWRITER, RoleId.DIRECTOR} else RoleInferencePolicy())
             for rid, target, fields, sources, instruction in specs}
 
     def get(self, role_id: RoleId | str) -> RoleDefinition:

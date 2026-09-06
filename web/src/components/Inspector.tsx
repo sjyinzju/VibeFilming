@@ -1,9 +1,10 @@
 import { t, useLocale, localeDate } from '../i18n';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { X, ArrowDown, Check, FileText } from 'lucide-react';
 import { api } from '../api/client';
-import type { Snapshot, Artifact, Review } from '../api/types';
+import type { Snapshot, Artifact, Review, Schema } from '../api/types';
+import { ReviewSubjectRenderer } from './ReviewSubjectRenderer';
 
 export function RawJson({ value }: { value: unknown }) {
   return (
@@ -24,10 +25,14 @@ export function isMock(artifact: Artifact) {
 }
 export function ReviewPanel({
   review,
+  subject,
+  onSource,
   onResolve,
   busy,
 }: {
   review: Review;
+  subject?: Schema['ReviewSubject'];
+  onSource?: (id: string) => void;
   onResolve: (r: Review, approved: boolean, notes: string) => Promise<void>;
   busy: boolean;
 }) {
@@ -38,6 +43,7 @@ export function ReviewPanel({
         {t('HUMAN REVIEW · ')}
         {t(review.status || 'pending')}
       </div>
+      <ReviewSubjectRenderer subject={subject} onSource={onSource} />
       <h3>{t(review.question)}</h3>
       {review.status === 'pending' ? (
         <>
@@ -109,6 +115,7 @@ export function Inspector({
   tab,
   setTab,
   close,
+  onSource,
   onResolve,
   busy,
 }: {
@@ -117,11 +124,13 @@ export function Inspector({
   tab: string;
   setTab: (s: string) => void;
   close: () => void;
+  onSource?: (id: string) => void;
   onResolve: (r: Review, approved: boolean, notes: string) => Promise<void>;
   busy: boolean;
 }) {
   useLocale();
   const [raw, setRaw] = useState(false);
+  useEffect(() => setRaw(false), [selected]);
   const providers = useQuery({
     queryKey: ['providers'],
     queryFn: api.providers,
@@ -182,6 +191,18 @@ export function Inspector({
                   <RawJson value={{ node, scene, shot, roles, jobs, artifacts, reviews }} />
                 ) : (
                   <>
+                    {reviews.map((r) => (
+                      <ReviewPanel
+                        key={r.review_id}
+                        review={r}
+                        subject={snapshot?.review_subjects?.find(
+                          (s) => s.review_id === r.review_id,
+                        )}
+                        onSource={onSource}
+                        onResolve={onResolve}
+                        busy={busy}
+                      />
+                    ))}
                     {node && (
                       <dl>
                         <dt>{t('Role')}</dt>
@@ -214,9 +235,6 @@ export function Inspector({
                         </details>
                       </>
                     )}
-                    {reviews.map((r) => (
-                      <ReviewPanel key={r.review_id} review={r} onResolve={onResolve} busy={busy} />
-                    ))}
                     {node && (
                       <details>
                         <summary>
@@ -286,7 +304,14 @@ export function Inspector({
                 {snapshot?.reviews
                   .filter((r) => r.status === 'pending')
                   .map((r) => (
-                    <ReviewPanel key={r.review_id} review={r} onResolve={onResolve} busy={busy} />
+                    <ReviewPanel
+                      key={r.review_id}
+                      review={r}
+                      subject={snapshot?.review_subjects?.find((s) => s.review_id === r.review_id)}
+                      onSource={onSource}
+                      onResolve={onResolve}
+                      busy={busy}
+                    />
                   ))}
               </div>
             )}

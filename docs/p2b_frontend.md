@@ -35,7 +35,9 @@ Open <http://127.0.0.1:5173>. The default `VITE_API_BASE_URL=/api` goes through 
 
 ### Layout and visual system
 
-The interface defaults to Simplified Chinese. The toolbar's 中文 / English selector switches UI labels immediately and saves the preference locally for refresh/reopen. Interface language is independent of `ProjectBrief.output_language`: switching it does not alter story text, review notes, model outputs, raw JSON, API enum values or canonical production state.
+The interface defaults to Simplified Chinese. The toolbar's 中文 / English selector switches UI labels immediately and saves the preference locally for refresh/reopen. UI language controls the interface; `ProjectBrief.output_language` controls generated creative content. New drafts default to **Follow interface language**: at creation Chinese resolves to `zh-CN` and English to `en`. The Quick Brief and Advanced Basic use the same draft field and allow explicit Simplified Chinese or English. An unset draft field means follow-UI; the UI sentinel is never submitted. Previously saved explicit language choices remain explicit.
+
+After submission the two languages are independent: switching UI locale does not alter canonical output_language, story text, review notes, RoleResults, Shots, raw JSON or API enum values. Existing English projects stay English. Direct/legacy backend clients retain the original `ProjectBrief.output_language = "en"` default; no project migration occurs.
 
 Localization verification (2026-09-06): 18 frontend tests and 4 Mock browser E2E scenarios passed, including Chinese default, English persistence after refresh, unchanged story/output language, and preserved review notes during live switching. `MOVIE_AGENT_STUDIO_TEST_PORT=5174` runs browser tests alongside an existing Studio on 5173.
 
@@ -155,6 +157,39 @@ npm run test:e2e:real
 
 `MOVIE_AGENT_STUDIO_URL` can select an already-running Studio. Without the explicit environment flag the real test skips. It creates one new project, approves three review gates, and requires completed production with real Shots and Mock media. It does not revise or reuse the frozen P2A acceptance project. Ordinary real runtime validation/repair budgets remain in force; failure is reported, not hidden by fallback.
 
-## P3 extension points and present limits
+## Human Review subject projection (P2B UX repair)
+
+`StudioSnapshot.review_subjects` is a read-only projection, not persisted canonical state.
+It resolves incoming `WorkflowEdge.source_node_id` to the producer's `output_refs`,
+then reads the immutable artifact provenance's committed `RoleResult`. Review context
+artifact IDs are also accepted, but the invocation's project/node must match the graph.
+Only versions created at or before `HumanReviewRequest.requested_at` are eligible;
+later versions and mutable project/role state are never substituted for historical evidence.
+The role registry supplies the committed contract (notably `ShotPlanDraft` commits `ShotPlan`).
+No node-ID suffix or stage-name guessing is used by the resolver.
+
+The final-film quality handler now records the actual timeline artifact in its typed
+`input_refs`. Its downstream gate displays that Mock artifact and recorded evaluations,
+never a fabricated video. Legacy gates lacking any reliable relation report unavailable
+instead of guessing. The request and frozen IR/runtime contracts are unchanged.
+
+`ReviewSubjectRenderer` provides deterministic StoryBible, CreativeDirection, Screenplay
+and ShotPlan field renderers, exact committed-output JSON, validation coverage and artifact
+version references. Source navigation selects/centers the producer while preserving layout.
+Chinese/English UI labels do not translate or rewrite the user's committed creative content.
+
+Verification: backend **93 passed, 1 opt-in integration skipped**; frontend **21 passed**;
+isolated browser **5 passed**, including approve/resume through all gates, reconnect,
+raw-output equality, source navigation and historical rejected review restoration.
+The real waiting project was checked read-only (no approval, inference or resume), with
+unchanged role-history hash and review ID after reloading the Studio backend.
+
+```powershell
+# Read-only browser check of an existing waiting Story review:
+cd web
+node scripts/check-review-live.mjs <existing-project-id>
+```
+
+## P3 boundary (unchanged)
 
 P3 can add real providers behind the existing provider boundary, expose safe artifact preview URLs, and enrich provider capabilities. Artifact cards and typed scene/shot inspection already supply identity, version, selection and provenance for previews. No image/video/VLM/audio model, GPU scheduling, ComfyUI, LoRA, download or real final rendering is included here. P2B ends at the Studio boundary; P3 has not started.

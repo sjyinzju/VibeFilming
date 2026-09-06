@@ -1,4 +1,4 @@
-import { t, useLocale } from '../i18n';
+import { t, useLocale, getLanguage, type Language } from '../i18n';
 import { useState } from 'react';
 import { Plus, Trash2, ArrowUpRight } from 'lucide-react';
 import schema from '../api/brief.schema.json';
@@ -109,7 +109,7 @@ export function validateBrief(draft: Draft): string | null {
   }
   return null;
 }
-export function toInput(draft: Draft): CreateInput {
+export function toInput(draft: Draft, language: Language = getLanguage()): CreateInput {
   const defaults = Object.fromEntries(
     Object.entries(fields)
       .filter(([, field]) => field.default !== undefined)
@@ -118,6 +118,7 @@ export function toInput(draft: Draft): CreateInput {
   return {
     ...defaults,
     ...draft,
+    output_language: draft.output_language || (language === 'zh' ? 'zh-CN' : 'en'),
     title: draft.title || 'Untitled film',
     logline: draft.logline || 'A story waiting to unfold.',
     target_duration: draft.target_duration ?? 30,
@@ -251,7 +252,7 @@ export function BriefConsole({
   busy: boolean;
   onStart: () => void;
 }) {
-  useLocale();
+  const language = useLocale();
   const [advanced, setAdvanced] = useState(false);
   const [mode, setMode] = useState('Story-first');
   const update = (key: string, value: unknown) => onChange({ ...draft, [key]: value });
@@ -264,7 +265,26 @@ export function BriefConsole({
     const label = fieldLabel(key);
     const values = field.$ref ? defs[field.$ref.split('/').at(-1)!]?.enum : undefined;
     let control;
-    if (key === 'character_descriptions')
+    if (key === 'output_language')
+      control = (
+        <select
+          id={key}
+          value={draft.output_language || 'follow-ui'}
+          onChange={(e) => update(key, e.target.value === 'follow-ui' ? undefined : e.target.value)}
+        >
+          {!locked && (
+            <option value="follow-ui">
+              {t('Follow interface language')} · {language === 'zh' ? '简体中文' : 'English'}
+            </option>
+          )}
+          <option value="zh-CN">简体中文</option>
+          <option value="en">English</option>
+          {draft.output_language && !['zh-CN', 'en'].includes(draft.output_language) && (
+            <option value={draft.output_language}>{draft.output_language}</option>
+          )}
+        </select>
+      );
+    else if (key === 'character_descriptions')
       control = (
         <Cards label="Character" value={value as string[]} onChange={(v) => update(key, v)} />
       );
@@ -414,7 +434,13 @@ export function BriefConsole({
           ))
         ) : (
           <div className="section-fields">
-            {['title', 'story_description', 'target_duration', 'visual_style'].map(renderField)}
+            {[
+              'title',
+              'story_description',
+              'output_language',
+              'target_duration',
+              'visual_style',
+            ].map(renderField)}
           </div>
         )}
         <HintsEditor

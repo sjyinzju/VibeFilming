@@ -39,6 +39,15 @@ export const api = {
   snapshot: (pid: string) => request<Snapshot>(`/projects/${id(pid)}/studio`),
   command: (pid: string, action: 'start' | 'pause' | 'resume' | 'cancel') =>
     request<Schema['CommandAccepted']>(`/projects/${id(pid)}/${action}`, { method: 'POST' }),
+  reviseTerminal: (pid: string, sceneId: string) =>
+    request<Schema['CommandAccepted']>(`/projects/${id(pid)}/revise-terminal`, {
+      method: 'POST',
+      body: JSON.stringify({
+        scene_id: sceneId,
+        authorization_reference:
+          'Explicit Web Studio Correct planning / Replan action: one semantic revision + at most two repairs',
+      }),
+    }),
   resolve: (rid: string, approved: boolean, notes: string) =>
     request<Schema['HumanReviewRequest']>(`/reviews/${id(rid)}/resolve`, {
       method: 'POST',

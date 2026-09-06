@@ -74,6 +74,20 @@ class RequestContractTypeRevision(ContractModel):
     created_at: datetime = Field(default_factory=utc_now)
 
 
+class SemanticContractRevision(ContractModel):
+    """Single scene-local semantic revision with independently bounded repairs."""
+    kind: Literal["SEMANTIC_CONTRACT_REVISION"] = "SEMANTIC_CONTRACT_REVISION"
+    authorization_reference: str
+    scene_id: str
+    parent_invocation_id: str
+    parent_result_hash: str
+    source_output_hash: str
+    request_schema_hash: str
+    terminal_target_hash: str
+    repair_budget: Literal[2] = 2
+    created_at: datetime = Field(default_factory=utc_now)
+
+
 class RoleInvocation(ContractModel):
     """Stable invocation identity, including the scene scope where appropriate."""
 
@@ -84,6 +98,7 @@ class RoleInvocation(ContractModel):
     scene_id: str | None = None
     contract_revision: ContractSchemaRevision | None = None
     request_contract_revision: RequestContractTypeRevision | None = None
+    semantic_revision: SemanticContractRevision | None = None
 
 
 class RoleContext(ContractModel):
@@ -134,6 +149,8 @@ class RoleAttempt(ContractModel):
     latency_seconds: float
     token_usage: dict[str, int] = Field(default_factory=dict)
     validation: ValidationReport
+    raw_output: str | None = None
+    request_prompt: str | None = None
     timestamp: datetime = Field(default_factory=utc_now)
 
 
@@ -162,6 +179,7 @@ class RoleResult(ContractModel):
     committed: bool = False
     failure_code: str | None = None
     pending_output: str | None = None
+    terminal_repair_base: str | None = None
     inference_records: list["InferenceMetrics"] = Field(default_factory=list)
     validation_replays: list[ValidationReplay] = Field(default_factory=list)
 
@@ -178,6 +196,10 @@ class InferenceMetrics(ContractModel):
     schema_chars: int
     max_output_tokens: int
     read_timeout: float
+    total_timeout: float | None = None
+    inactivity_timeout: float | None = None
+    streaming: bool = False
+    failure_phase: str | None = None
     started_at: datetime
     ended_at: datetime | None = None
     latency_seconds: float = 0

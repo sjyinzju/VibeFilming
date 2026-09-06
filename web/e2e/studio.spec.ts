@@ -28,6 +28,28 @@ test('story-only production, live canvas, human gates, refresh and Mock completi
     const approve = page.getByRole('button', { name: 'Approve & resume' });
     await expect(approve).toBeVisible({ timeout: 30000 });
     if (gate === 0) {
+      const subject = page.locator('.review-subject');
+      await expect(
+        subject.getByRole('heading', { name: 'Story proposal', exact: true }),
+      ).toBeVisible();
+      await expect(subject.getByText('A person chooses truth', { exact: true })).toBeVisible();
+      const pid = new URL(page.url()).searchParams.get('project')!;
+      const snapshot = await (await page.request.get(`/api/projects/${pid}/studio`)).json();
+      const source = snapshot.review_subjects[0].sources[0];
+      await subject.getByRole('button', { name: 'Raw JSON', exact: true }).click();
+      expect(JSON.parse((await subject.getByTestId('review-output').textContent())!)).toEqual(
+        source.role_result.output,
+      );
+      await subject.getByRole('button', { name: 'Summary', exact: true }).click();
+      await subject.getByRole('button', { name: 'View source node' }).click();
+      await expect(page.locator('.inspector h2')).toHaveText('Story Planning');
+      await expect(
+        page.locator(`.react-flow__node[data-id="${source.source_node_id}"]`),
+      ).toHaveClass(/selected/);
+      await page.reload();
+      await expect(
+        page.locator('.review-subject').getByText('A person chooses truth', { exact: true }),
+      ).toBeVisible();
       await page.getByRole('button', { name: 'Focus current stage' }).click();
       const gateNode = page.locator('.react-flow__node[data-id="story_gate"]');
       await expect(gateNode).toBeVisible();
@@ -40,9 +62,17 @@ test('story-only production, live canvas, human gates, refresh and Mock completi
       await page.screenshot({ path: 'test-results/studio-human-review.png', fullPage: true });
       await page.reload();
       await expect(approve).toBeVisible();
+      await expect(
+        page.locator('.review-subject').getByText('A person chooses truth', { exact: true }),
+      ).toBeVisible();
       await expect
         .poll(() => gateNode.evaluate((el) => (el as HTMLElement).style.transform))
         .toBe(position);
+    }
+    if (gate === 1) await expect(page.locator('.review-subject')).toContainText('Shot count');
+    if (gate === 2) {
+      await expect(page.locator('.review-subject .mock')).toBeVisible();
+      await expect(page.locator('.review-subject video')).toHaveCount(0);
     }
     const reviewId = await page.locator('.review-card').getAttribute('data-review-id');
     await approve.click();
@@ -106,6 +136,7 @@ test('offline SSE reconnect recovers events and newly committed scene/shot data'
   await expect(
     page.getByRole('heading', { name: 'Shot Plan Approval', exact: true }),
   ).toBeVisible();
+  await expect(page.locator('.review-subject')).toContainText('Shot count');
 });
 
 test('pause at a boundary, resume, and cancel use backend state', async ({ page }) => {
@@ -125,4 +156,21 @@ test('pause at a boundary, resume, and cancel use backend state', async ({ page 
   await expect(resume).toBeDisabled();
   await page.reload();
   await expect(page.locator('.stage-label')).toHaveText('cancelled');
+});
+
+test('rejected review retains its subject after reload', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Your story').fill('A signal changes a life.');
+  await page.getByRole('button', { name: 'Start Film', exact: true }).click();
+  await expect(page.locator('.review-subject')).toContainText('A person chooses truth');
+  await page.getByLabel('Your notes').fill('Preserve the open ending.');
+  await page.getByRole('button', { name: 'Request revision', exact: true }).click();
+  await expect(page.locator('.review-card')).toContainText('Preserve the open ending.');
+  await expect(page.locator('.review-subject')).toContainText('A person chooses truth');
+  await page.reload();
+  await page.getByRole('button', { name: 'Focus current stage' }).click();
+  await page.locator('.react-flow__node[data-id="story_gate"]').click();
+  await expect(page.locator('.review-subject')).toContainText('A person chooses truth');
+  await expect(page.locator('.review-card')).toContainText('Preserve the open ending.');
+  await expect(page.getByRole('button', { name: 'Approve & resume' })).toHaveCount(0);
 });

@@ -11,11 +11,15 @@ from movie_agent.execution.events import EventBus
 from movie_agent.providers.base import LLMProvider, ProviderFailure
 from movie_agent.providers.openai_compatible import CompletionOptions
 from .contracts import RoleInvocation, RoleResult, RoleAttempt, InferenceMetrics, ValidationReplay
-from .budgets import shot_output_budget
+from .budgets import planning_output_budget
 from .context import ContextBuilder, content_hash
 from .registry import RoleRegistry
+from .language import LanguagePolicy
 from .validation import RoleOutputValidator
 from .cinematographer_drafts import MAPPER_VERSION, ShotPlanDraft
+from .terminal import (TerminalRepairDraft, terminal_delta, terminal_repair_prompt,
+                       merge_terminal_repair, is_terminal_only)
+from .contracts import ValidationReport, OutputIssue, OutputErrorCode
 
 
 class StructuredOutputAdapter:
@@ -108,6 +112,8 @@ class RoleRunner:
     async def run(self, invocation: RoleInvocation, project: Project, *, scene: Scene | None = None,
                   previous: RoleResult | None = None, on_attempt=None) -> RoleResult:
         definition = self.registry.get(invocation.role_id)
+        system_instruction = definition.instruction + '\n\n' + LanguagePolicy.instruction(
+            project.brief.output_language)
         target = self.registry.target(definition)
         context = self.context_builder.build(definition, project, scene=scene)
         result = previous or RoleResult(invocation=invocation, provider_id=self.provider.provider_id,
@@ -131,6 +137,10 @@ class RoleRunner:
         explicit_budget = revision.repair_budget if revision else (
             type_revision.repair_budget if type_revision else definition.output_policy.repair_budget)
         repair_budget = min(definition.output_policy.repair_budget, explicit_budget)
+        if invocation.semantic_revision:
+            repair_budget = min(repair_budget, invocation.semantic_revision.repair_budget)
+            if content_hash(scene.expected_final_state.model_dump(mode="json")) != invocation.semantic_revision.terminal_target_hash:
+                raise ValueError("Authorized terminal target changed")
         # An exhausted real output may be replayed through deterministic
         # validation after a mapper/validator code fix. This consumes no
         # provider request and preserves every original attempt and metric.
@@ -164,16 +174,53 @@ class RoleRunner:
                 return result
             if on_attempt:
                 on_attempt(result)
+        if scene:
+            request_context = {**context.payload, "required_terminal_delta":
+                terminal_delta(scene, scene.initial_state).model_dump(mode="json")}
+            original = json.dumps(request_context, ensure_ascii=False, sort_keys=True)
+            prompt = original
         policy = definition.inference_policy.resolve(self.provider.inference_defaults(),
             max_tokens=definition.output_policy.max_tokens)
-        if scene:
-            policy.max_output_tokens = min(policy.max_output_tokens,
-                                           shot_output_budget(context.payload["scene_shot_budget"]))
-        schema_chars = len(json.dumps(response_format, ensure_ascii=False))
+        output_ceiling = planning_output_budget(invocation.role_id, project, scene=scene)
+        if output_ceiling is not None:
+            policy.max_output_tokens = min(policy.max_output_tokens, output_ceiling)
+            system_instruction += (
+                '\nReturn compact JSON without indentation. Keep natural-language descriptions concise; '
+                'avoid repeating background prose. Include ALL required fields and verbatim commitments. '
+                'ScenePlan must include all existing screenplay scenes; ShotPlanDraft covers ONLY the '
+                'current scene. Never truncate or omit required content to fit. '
+                f'The output ceiling is {policy.max_output_tokens} tokens.')
         if result.attempts and result.pending_output is not None:
             prompt = self.repairer.prompt(original, result.pending_output, result.attempts[-1].validation,
                                           response_format["json_schema"])
         for index in range(len(result.attempts), repair_budget + 1):
+            request_format = response_format
+            request_instruction = system_instruction
+            # Only terminal conflicts use the small patch contract. Full-plan
+            # validation still runs after deterministic merge, before commit.
+            base = result.terminal_repair_base
+            report = result.attempts[-1].validation if result.attempts else ValidationReport()
+            if scene and target is ShotPlanDraft and not base and result.pending_output and is_terminal_only(report):
+                base = result.pending_output
+                result.terminal_repair_base = base
+            if base:
+                if (invocation.semantic_revision and not result.attempts
+                        and content_hash(base) != invocation.semantic_revision.source_output_hash):
+                    raise ValueError('Authorized semantic repair source changed')
+                mapped, base_report = self.validator.parse(ShotPlanDraft, base, project, scene=scene)
+                if mapped is None:
+                    raise ValueError("Terminal repair requires a mappable preserved plan")
+                request_format = self.adapter.response_format(TerminalRepairDraft)
+                request_format["json_schema"]["schema"]["$defs"]["TerminalShotRepair"]["properties"]["shot_index"]["const"] = len(mapped.shots) - 1
+                if invocation.semantic_revision and content_hash(request_format) != invocation.semantic_revision.request_schema_hash:
+                    raise ValueError("Authorized semantic repair schema changed")
+                prompt = terminal_repair_prompt(original, base, scene,
+                    mapped.shots[-1].expected_state_after, report if report.issues else base_report)
+                request_instruction += ('\nFor this targeted repair request ONLY, return TerminalRepairDraft '
+                    'as supplied by response_format, NOT ShotPlanDraft. Core retains all uneditable fields '
+                    'and validates the complete merged ShotPlanDraft. Treat required_terminal_delta as '
+                    'authoritative per-entity terminal facts. Realize the change from the canonical '
+                    'shot start in performance/action and frames; do not transpose start/end or entity targets.')
             package = PromptPackage(compiler_id="role_runtime", compiler_version="1",
                                     positive_prompt=prompt)
             request = ProviderRequest(provider_request_id=f"{invocation.invocation_id}_{index}",
@@ -183,15 +230,18 @@ class RoleRunner:
                                                 reason="Schema-constrained role output"),
                     prompt_package=package, input_artifact_ids=context.source_ids,
                     requested_output_type="structured_text", resource_class=ResourceClass.LIGHT,
-                    parameters=CompletionOptions(system_prompt=definition.instruction,
-                        response_format=response_format,
+                    parameters=CompletionOptions(system_prompt=request_instruction,
+                        response_format=request_format,
                         max_tokens=policy.max_output_tokens, inference_policy=policy,
                         retry_uncertain=result.failure_code == "remote_completion_uncertain").model_dump(mode="json")))
             metrics = InferenceMetrics(request_id=request.provider_request_id,
                 role_id=invocation.role_id, scene_id=invocation.scene_id,
-                context_chars=len(original), prompt_chars=len(prompt), schema_chars=schema_chars,
-                input_token_estimate=math.ceil((len(prompt) + len(definition.instruction) + schema_chars) / 4),
-                max_output_tokens=policy.max_output_tokens, read_timeout=policy.read_timeout, started_at=utc_now())
+                context_chars=len(original), prompt_chars=len(prompt), schema_chars=len(json.dumps(request_format, ensure_ascii=False)),
+                input_token_estimate=math.ceil((len(prompt) + len(request_instruction) + len(json.dumps(request_format, ensure_ascii=False))) / 4),
+                max_output_tokens=policy.max_output_tokens, read_timeout=policy.read_timeout,
+                total_timeout=policy.total_timeout,
+                inactivity_timeout=policy.inactivity_timeout if policy.stream else policy.read_timeout,
+                streaming=policy.stream, started_at=utc_now())
             result.inference_records.append(metrics)
             self._emit(EventType.PROVIDER_REQUEST_STARTED, invocation, metrics.model_dump(mode="json"))
             if on_attempt:
@@ -200,6 +250,7 @@ class RoleRunner:
             metrics.ended_at = utc_now()
             metrics.latency_seconds = response.latency_seconds
             metrics.finish_reason = response.metadata.get("finish_reason")
+            metrics.failure_phase = response.metadata.get("failure_phase")
             metrics.provider_outcome = response.metadata.get("provider_outcome") or (
                 "success" if response.success else response.error_type.value)
             usage = response.metadata.get("usage", {})
@@ -218,12 +269,22 @@ class RoleRunner:
             result.failure_code = None
             raw = response.metadata.get("content", "")
             self._emit(EventType.ROLE_OUTPUT_RECEIVED, invocation, {"request_id": request.provider_request_id})
-            output, report = self.validator.parse(target, raw if isinstance(raw, str) else "", project, scene=scene)
+            candidate_raw = raw if isinstance(raw, str) else ""
+            try:
+                if base:
+                    candidate_raw = merge_terminal_repair(base, candidate_raw)
+                output, report = self.validator.parse(target, candidate_raw, project, scene=scene)
+            except ValueError:
+                output = None
+                candidate_raw = base
+                report = ValidationReport(issues=[OutputIssue(code=OutputErrorCode.SCHEMA_INVALID,
+                    path="shot_repairs", message="Return one valid TerminalRepairDraft for the final shot, including performances, local_state_delta and frame_planning.")])
             metrics.validation_result = "passed" if report.valid else "failed"
             result.served_model = response.metadata.get("served_model")
             usage = response.metadata.get("usage", {})
             result.attempts.append(RoleAttempt(request_id=request.provider_request_id,
                 prompt_hash=content_hash(prompt), latency_seconds=response.latency_seconds,
+                raw_output=raw if isinstance(raw, str) else None, request_prompt=prompt,
                 token_usage={k: v for k, v in usage.items() if isinstance(v, int)} if isinstance(usage, dict) else {},
                 validation=report))
             if report.valid:
@@ -237,7 +298,9 @@ class RoleRunner:
             self._emit(EventType.ROLE_OUTPUT_VALIDATION_FAILED, invocation, {
                 "attempt": index, "issues": [i.model_dump(mode="json") for i in report.issues],
                 "metrics": metrics.model_dump(mode="json")})
-            result.pending_output = raw
+            result.pending_output = candidate_raw
+            if base:
+                result.terminal_repair_base = candidate_raw
             if revision and scene and output is not None and self._state_scope_conflict(output, scene):
                 result.failure_code = "CONTRACT_STATE_SCOPE_CONFLICT"
                 if on_attempt:

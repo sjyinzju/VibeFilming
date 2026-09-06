@@ -76,7 +76,12 @@ const nodeTypes = {
   final: StudioCard,
 };
 
-function Canvas({ snapshot, onSelect }: { snapshot: Snapshot; onSelect: (id: string) => void }) {
+type CanvasProps = {
+  snapshot: Snapshot;
+  onSelect: (id: string) => void;
+  focusRequest?: { id: string };
+};
+function Canvas({ snapshot, onSelect, focusRequest }: CanvasProps) {
   useLocale();
   const pid = snapshot.project.project_id;
   const projected = useMemo(() => projectCanvas(snapshot), [snapshot]);
@@ -84,6 +89,16 @@ function Canvas({ snapshot, onSelect }: { snapshot: Snapshot; onSelect: (id: str
   const [initial] = useState(() => layoutNodes(projected.nodes, projected.edges, positions));
   const [nodes, setNodes, onNodesChange] = useNodesState<StudioNode>(initial);
   const flow = useReactFlow<StudioNode>();
+  useEffect(() => {
+    if (!focusRequest) return;
+    const target = flow.getNode(focusRequest.id);
+    if (!target) return;
+    setNodes((old) => old.map((n) => ({ ...n, selected: n.id === target.id })));
+    void flow.setCenter(target.position.x + 115, target.position.y + 115, {
+      zoom: 0.9,
+      duration: 300,
+    });
+  }, [focusRequest, flow, setNodes]);
   useEffect(() => {
     setNodes((old) => {
       const known = Object.fromEntries(old.map((n) => [n.id, n.position]));
@@ -180,7 +195,7 @@ function Canvas({ snapshot, onSelect }: { snapshot: Snapshot; onSelect: (id: str
     </ReactFlow>
   );
 }
-export function WorkflowCanvas(props: { snapshot: Snapshot; onSelect: (id: string) => void }) {
+export function WorkflowCanvas(props: CanvasProps) {
   return (
     <ReactFlowProvider key={props.snapshot.project.project_id}>
       <Canvas {...props} />

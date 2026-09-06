@@ -24,6 +24,12 @@ class ReviewResolution(BaseModel):
     notes: str | None = None
 
 
+class TerminalRevisionCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    scene_id: str
+    authorization_reference: str
+
+
 def create_app(service: ProductionService | None = None) -> FastAPI:
     """Compose local adapters by default; tests and future storage inject a service."""
     owned_provider = None
@@ -104,6 +110,10 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
     @app.post("/projects/{project_id}/resume", status_code=202, response_model=CommandAccepted)
     async def resume(project_id: str):
         return service.start(project_id, resume=True)
+
+    @app.post("/projects/{project_id}/revise-terminal", status_code=202, response_model=CommandAccepted)
+    async def revise_terminal(project_id: str, command: TerminalRevisionCommand):
+        return service.revise_terminal(project_id, command.scene_id, command.authorization_reference)
 
     @app.get("/projects/{project_id}/workflow", response_model=WorkflowSnapshot)
     async def workflow(project_id: str):

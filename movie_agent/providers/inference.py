@@ -14,6 +14,9 @@ class RoleInferencePolicy(ContractModel):
     max_output_tokens: int | None = Field(default=None, ge=128, le=32768)
     thinking: bool | None = None
     structured_output: bool = True
+    stream: bool = False
+    inactivity_timeout: float = Field(default=60, gt=0)
+    total_timeout: float | None = Field(default=None, gt=0)
 
     def resolve(self, defaults: "RoleInferencePolicy", *, max_tokens: int) -> "RoleInferencePolicy":
         return self.model_copy(update={
@@ -21,4 +24,5 @@ class RoleInferencePolicy(ContractModel):
             "max_output_tokens": min(self.max_output_tokens or max_tokens, max_tokens,
                                      defaults.max_output_tokens or max_tokens),
             "thinking": self.thinking if self.thinking is not None else defaults.thinking,
+            "total_timeout": self.total_timeout if self.total_timeout is not None else defaults.total_timeout,
         })

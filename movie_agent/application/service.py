@@ -5,6 +5,10 @@ from collections.abc import Callable
 from movie_agent.domain import Project, ProjectBrief, EventType, ReviewStatus, WorkflowNodeStatus, JobStatus
 from movie_agent.orchestration import build_production_graph
 from movie_agent.services.reasoning_production import ReasoningMovieProduction
+from movie_agent.providers.base import ProviderFailure
+from movie_agent.orchestration.runtime.runner import RoleOutputInvalid
+from movie_agent.orchestration.runtime.terminal import is_terminal_only
+from movie_agent.orchestration.runtime.cinematographer_drafts import ShotPlanDraft
 from .repository import ProjectRecord, ProjectRepository, ProductionStatus as Status
 from .creative_inputs import CreativeHints, CreativeInputContextBuilder
 
@@ -68,6 +72,13 @@ class ProductionService:
         reviews = engine.human_gates.all()
         if any(r.status != ReviewStatus.APPROVED for r in reviews):
             raise CommandConflict("Resolve outstanding human review before resume")
+        for result in engine.role_results.values():
+            if result.failure_code == 'ROLE_OUTPUT_INVALID' and not result.committed:
+                scene = next((s for s in engine.current_project.scenes if s.scene_id == result.invocation.scene_id), None)
+                target = engine.runner.registry.target(engine.runner.registry.get(result.invocation.role_id))
+                _, report = engine.runner.validator.parse(target, result.pending_output or '', engine.current_project, scene=scene)
+                if not report.valid:
+                    raise CommandConflict('Structured repair budget exhausted. An explicit planning revision is required.')
         engine.pause_requested = False
         record.status, record.failure_code = Status.RUNNING, None
         self.repository.save(record)
@@ -89,7 +100,8 @@ class ProductionService:
         except Exception as error:
             record.status = Status.FAILED
             # Error type only: arbitrary transport messages must not disclose secrets.
-            record.failure_code = type(error).__name__
+            record.failure_code = (error.error_type.value if isinstance(error, ProviderFailure) else
+                                   'ROLE_OUTPUT_INVALID' if isinstance(error, RoleOutputInvalid) else type(error).__name__)
         finally:
             self.repository.save(record)
 
@@ -103,6 +115,37 @@ class ProductionService:
         self.repository.save(record)
         return {"project_id": project_id, "status": record.status.value,
                 "pause_policy": "after_current_node"}
+
+    def terminal_revision_scene(self, project_id):
+        engine = self.engine(project_id)
+        if self.repository.get(project_id).status != Status.FAILED:
+            return None
+        candidates = [r for r in engine.role_results.values() if not r.committed and
+            r.failure_code == 'ROLE_OUTPUT_INVALID' and r.invocation.role_id.value == 'cinematographer']
+        if len(candidates) != 1:
+            return None
+        result = candidates[0]
+        if result.invocation.semantic_revision or any(r.invocation.semantic_revision and
+            r.invocation.scene_id == result.invocation.scene_id for r in engine.role_revision_history):
+            return None
+        scene = next((s for s in engine.current_project.scenes if s.scene_id == result.invocation.scene_id), None)
+        if not scene:
+            return None
+        output, report = engine.runner.validator.parse(ShotPlanDraft, result.pending_output or '', engine.current_project, scene=scene)
+        return scene.scene_id if output is not None and is_terminal_only(report) else None
+
+    def revise_terminal(self, project_id, scene_id, authorization_reference):
+        if not authorization_reference.strip():
+            raise CommandConflict('An explicit authorization reference is required')
+        if project_id in self.tasks and not self.tasks[project_id].done():
+            raise CommandConflict('Production is already running')
+        if self.terminal_revision_scene(project_id) != scene_id:
+            raise CommandConflict('No eligible terminal planning revision remains')
+        engine = self.engine(project_id)
+        if any(r.status != ReviewStatus.APPROVED for r in engine.human_gates.all()):
+            raise CommandConflict('Resolve outstanding human review before revision')
+        engine.authorize_semantic_revision(scene_id, authorization_reference)
+        return self.start(project_id, resume=True)
 
     def locate(self, kind, identity, project_id=None):
         matches = []

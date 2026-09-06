@@ -158,6 +158,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project_id}/revise-terminal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revise Terminal */
+        post: operations["revise_terminal_projects__project_id__revise_terminal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project_id}/workflow": {
         parameters: {
             query?: never;
@@ -899,6 +916,21 @@ export interface components {
                 [key: string]: string[];
             };
         };
+        /** CreativeSubject */
+        CreativeSubject: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "CreativeDirection";
+            output: components["schemas"]["CreativeDirection"];
+        };
         /**
          * Dialogue
          * @description One spoken screenplay line referring to a declared character.
@@ -1275,6 +1307,17 @@ export interface components {
             max_output_tokens: number;
             /** Read Timeout */
             read_timeout: number;
+            /** Total Timeout */
+            total_timeout?: number | null;
+            /** Inactivity Timeout */
+            inactivity_timeout?: number | null;
+            /**
+             * Streaming
+             * @default false
+             */
+            streaming?: boolean;
+            /** Failure Phase */
+            failure_phase?: string | null;
             /**
              * Started At
              * Format: date-time
@@ -2046,11 +2089,52 @@ export interface components {
             /** Notes */
             notes?: string | null;
         };
+        /** ReviewSource */
+        ReviewSource: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Source Node Id */
+            source_node_id: string;
+            role_result?: components["schemas"]["RoleResult"] | null;
+            /** Content */
+            content?: (components["schemas"]["StorySubject"] | components["schemas"]["CreativeSubject"] | components["schemas"]["ScreenplaySubject"] | components["schemas"]["ShotSubject"]) | null;
+            /** Artifacts */
+            artifacts?: components["schemas"]["Artifact"][];
+            /** Evaluations */
+            evaluations?: components["schemas"]["Evaluation"][];
+        };
         /**
          * ReviewStatus
          * @enum {string}
          */
         ReviewStatus: "pending" | "approved" | "rejected";
+        /** ReviewSubject */
+        ReviewSubject: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Review Id */
+            review_id: string;
+            /** Gate Type */
+            gate_type: string;
+            /** Review Node Id */
+            review_node_id: string;
+            /** Subject Type */
+            subject_type: string;
+            /** Subject Title */
+            subject_title: string;
+            /** Sources */
+            sources?: components["schemas"]["ReviewSource"][];
+            /** Unavailable Reason */
+            unavailable_reason?: string | null;
+        };
         /**
          * RoleAttempt
          * @description Safe inference provenance; no secret, reasoning, or raw HTTP response.
@@ -2073,6 +2157,10 @@ export interface components {
                 [key: string]: number;
             };
             validation: components["schemas"]["ValidationReport"];
+            /** Raw Output */
+            raw_output?: string | null;
+            /** Request Prompt */
+            request_prompt?: string | null;
             /**
              * Timestamp
              * Format: date-time
@@ -2132,6 +2220,7 @@ export interface components {
             scene_id?: string | null;
             contract_revision?: components["schemas"]["ContractSchemaRevision"] | null;
             request_contract_revision?: components["schemas"]["RequestContractTypeRevision"] | null;
+            semantic_revision?: components["schemas"]["SemanticContractRevision"] | null;
         };
         /**
          * RoleResult
@@ -2172,6 +2261,8 @@ export interface components {
             failure_code?: string | null;
             /** Pending Output */
             pending_output?: string | null;
+            /** Terminal Repair Base */
+            terminal_repair_base?: string | null;
             /** Inference Records */
             inference_records?: components["schemas"]["InferenceMetrics"][];
             /** Validation Replays */
@@ -2274,6 +2365,64 @@ export interface components {
             /** Prop Ids */
             prop_ids?: string[];
         };
+        /** ScreenplaySubject */
+        ScreenplaySubject: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "Screenplay";
+            output: components["schemas"]["Screenplay"];
+        };
+        /**
+         * SemanticContractRevision
+         * @description Single scene-local semantic revision with independently bounded repairs.
+         */
+        SemanticContractRevision: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /**
+             * Kind
+             * @default SEMANTIC_CONTRACT_REVISION
+             * @constant
+             */
+            kind?: "SEMANTIC_CONTRACT_REVISION";
+            /** Authorization Reference */
+            authorization_reference: string;
+            /** Scene Id */
+            scene_id: string;
+            /** Parent Invocation Id */
+            parent_invocation_id: string;
+            /** Parent Result Hash */
+            parent_result_hash: string;
+            /** Source Output Hash */
+            source_output_hash: string;
+            /** Request Schema Hash */
+            request_schema_hash: string;
+            /** Terminal Target Hash */
+            terminal_target_hash: string;
+            /**
+             * Repair Budget
+             * @default 2
+             * @constant
+             */
+            repair_budget?: 2;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+        };
         /**
          * Shot
          * @description Production core for one model-agnostic cinematic shot.
@@ -2342,10 +2491,47 @@ export interface components {
             dialogue?: string[];
         };
         /**
+         * ShotPlan
+         * @description One scene's cinematography using existing Shot and ContinuityChain contracts.
+         */
+        ShotPlan: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Preserved Constraints */
+            preserved_constraints: string[];
+            /** Immutable Facts */
+            immutable_facts: string[];
+            /** Scene Id */
+            scene_id: string;
+            /** Shots */
+            shots: components["schemas"]["Shot"][];
+            /** Continuity Chains */
+            continuity_chains: components["schemas"]["ContinuityChain"][];
+        };
+        /**
          * ShotSize
          * @enum {string}
          */
         ShotSize: "extreme_wide" | "wide" | "full" | "medium" | "close_up" | "extreme_close_up" | "insert";
+        /** ShotSubject */
+        ShotSubject: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "ShotPlan";
+            output: components["schemas"]["ShotPlan"];
+        };
         /**
          * StoryBible
          * @description Canonical narrative facts and arcs used by all creative roles.
@@ -2373,6 +2559,21 @@ export interface components {
             world_facts?: string[];
             /** Immutable Facts */
             immutable_facts?: string[];
+        };
+        /** StorySubject */
+        StorySubject: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "StoryBible";
+            output: components["schemas"]["StoryBible"];
         };
         /** StudioSnapshot */
         StudioSnapshot: {
@@ -2412,6 +2613,10 @@ export interface components {
             media_mode?: "mock";
             /** Reasoning Provider */
             reasoning_provider: string;
+            /** Review Subjects */
+            review_subjects?: components["schemas"]["ReviewSubject"][];
+            /** Terminal Revision Scene Id */
+            terminal_revision_scene_id?: string | null;
         };
         /** StyleReference */
         StyleReference: {
@@ -2431,6 +2636,13 @@ export interface components {
             kind?: "film" | "series" | "director" | "photography" | "visual";
             /** Dimensions */
             dimensions?: ("visual" | "lighting" | "cinematography" | "color" | "editing_rhythm" | "narrative_tone")[];
+        };
+        /** TerminalRevisionCommand */
+        TerminalRevisionCommand: {
+            /** Scene Id */
+            scene_id: string;
+            /** Authorization Reference */
+            authorization_reference: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -2937,6 +3149,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revise_terminal_projects__project_id__revise_terminal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TerminalRevisionCommand"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             202: {

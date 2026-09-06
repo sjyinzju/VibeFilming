@@ -27,6 +27,7 @@ import {
 } from './components/BriefConsole';
 import { WorkflowCanvas } from './components/WorkflowCanvas';
 import { Inspector } from './components/Inspector';
+import { InferenceStatus, isConnectionError, hasInvalidOutput } from './components/InferenceStatus';
 
 export default function App() {
   const language = useLocale();
@@ -38,8 +39,10 @@ export default function App() {
   const [right, setRight] = useState(false);
   const [tab, setTab] = useState('Node');
   const [selected, setSelected] = useState<string | null>(null);
+  const [focusRequest, setFocusRequest] = useState<{ id: string }>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [commandConnectionError, setCommandConnectionError] = useState(false);
   const [notice, setNotice] = useState('');
   const highWater = useRef({ pid: null as string | null, value: 0 });
   const openedReviews = useRef(new Set<string>());
@@ -96,6 +99,7 @@ export default function App() {
       await studio.refresh();
       void projects.refetch();
     } catch (e) {
+      setCommandConnectionError(isConnectionError(e));
       setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
     } finally {
       setBusy(false);
@@ -108,7 +112,7 @@ export default function App() {
       return;
     }
     void perform(async () => {
-      const record = await api.create(toInput(draft));
+      const record = await api.create(toInput(draft, language));
       const next = record.project.project_id;
       // Keep the created project discoverable even if start fails; never create a duplicate retry.
       openProject(next);
@@ -139,7 +143,15 @@ export default function App() {
   };
   const unresolved = snapshot?.reviews.some((r) => r.status !== 'approved');
   const resumeEnabled =
-    snapshot && ['paused', 'failed', 'waiting_human'].includes(snapshot.status) && !unresolved;
+    snapshot &&
+    ['paused', 'failed', 'waiting_human'].includes(snapshot.status) &&
+    !unresolved &&
+    !hasInvalidOutput(snapshot);
+  const replan = () =>
+    void perform(async () => {
+      if (pid && snapshot?.terminal_revision_scene_id)
+        await api.reviseTerminal(pid, snapshot.terminal_revision_scene_id);
+    });
   const visibleBrief = snapshot
     ? { ...snapshot.project.brief, creative_hints: snapshot.creative_hints }
     : draft;
@@ -206,7 +218,11 @@ export default function App() {
           </button>
           <button disabled={busy || !resumeEnabled} onClick={() => command('resume')}>
             <Play size={14} />
-            {t(' Resume ')}
+            {t(
+              snapshot?.status === 'failed' && !hasInvalidOutput(snapshot)
+                ? 'Re-execute current planning'
+                : ' Resume ',
+            )}
           </button>
           <button
             disabled={busy || !snapshot || ['completed', 'cancelled'].includes(snapshot.status)}
@@ -249,22 +265,36 @@ export default function App() {
           <PanelRightOpen size={18} />
         </button>
       </div>
-      {(error || studio.error || projects.error || snapshot?.status === 'failed') && (
+      <InferenceStatus
+        snapshot={snapshot}
+        busy={busy}
+        canResume={!!resumeEnabled}
+        onResume={() => command('resume')}
+        onReplan={unresolved ? undefined : replan}
+      />
+      {(error || studio.error || projects.error) && (
         <div className="message error" role="alert">
-          {t(
-            error ||
-              studio.error?.message ||
-              projects.error?.message ||
-              `Production failed: ${snapshot?.failure_code || 'See node details'}`,
-          )}
+          {t(error || studio.error?.message || projects.error?.message)}
           <button
             onClick={() => {
               setError('');
-              if (pid) void studio.refetch();
-              void projects.refetch();
+              if (
+                commandConnectionError ||
+                isConnectionError(studio.error) ||
+                isConnectionError(projects.error)
+              ) {
+                if (pid) void studio.refetch();
+                void projects.refetch();
+              }
             }}
           >
-            {t(' Retry connection ')}
+            {t(
+              commandConnectionError ||
+                isConnectionError(studio.error) ||
+                isConnectionError(projects.error)
+                ? 'Retry connection'
+                : 'Dismiss notification',
+            )}
           </button>
         </div>
       )}
@@ -311,6 +341,7 @@ export default function App() {
             <div className="flow-container">
               <WorkflowCanvas
                 snapshot={snapshot}
+                focusRequest={focusRequest}
                 onSelect={(id) => {
                   setSelected(id);
                   setTab('Node');
@@ -367,6 +398,11 @@ export default function App() {
             tab={tab}
             setTab={setTab}
             close={() => setRight(false)}
+            onSource={(id) => {
+              setSelected(id);
+              setTab('Node');
+              setFocusRequest({ id });
+            }}
             onResolve={resolve}
             busy={busy}
           />

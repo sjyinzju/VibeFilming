@@ -1001,6 +1001,10 @@ class MockMovieProduction:
 
     async def _full_film_review(self, project: Project) -> None:
         rough_cut = self._required_artifact("rough_cut")
+        # Explicit subject relation for the quality node and its downstream human gate.
+        if self.current_production:
+            node = self.current_production.node("full_film_review")
+            node.input_refs = list(dict.fromkeys([*node.input_refs, rough_cut.artifact_id]))
         self._record_evaluation(
             project,
             Evaluation(

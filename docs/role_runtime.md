@@ -1,5 +1,42 @@
 # Role Runtime
 
+## Movie output language
+
+UI language controls interface labels. `ProjectBrief.output_language` controls generated
+creative content. New Studio drafts resolve an unset language from the UI at submission
+(`zh-CN` or `en`); an explicit choice overrides it. After submission the two are independent.
+Legacy API inputs still default to English. No existing project or committed output is migrated.
+
+`LanguagePolicy` appends one model-independent instruction to `RoleDefinition.instruction`
+at the shared `RoleRunner` prompt assembly point. All six reasoning roles and every structured
+repair use that same system instruction. It requires the requested language for human-readable
+story, screenplay, scene, shot, lighting, camera and frame descriptions, while preserving JSON
+keys, IDs, enums, schema constants, technical literals, URLs and verbatim canonical/user values.
+Empty legacy language values use the English policy without mutating the original brief.
+Other explicitly supplied languages remain supported by the generic policy.
+
+This is a generation instruction, not a claim of exhaustive deterministic language detection.
+Existing Pydantic, semantic, continuity and verbatim-preservation checks remain unchanged.
+The opt-in real-endpoint test checks specific CreativeDirection fields for Chinese content and
+verifies that an English must-preserve constraint stays verbatim:
+
+```powershell
+$env:MOVIE_AGENT_RUN_LANGUAGE_INTEGRATION = '1'
+.\.venv312\Scripts\python.exe -m pytest tests/test_language_policy.py -q
+```
+
+Verified with the configured real endpoint: one lightweight Creative Producer role, Chinese
+premise/emotional arc/tone, valid structured output, and verbatim English constraint preservation.
+The test uses an isolated in-memory Project and does not execute or rewrite existing projects.
+
+## Execution
+
+For measured role-specific timeouts, independent inactivity/total budgets, bounded
+stream collection and explicit uncertain-completion recovery, see [long inference](long_inference.md).
+
+For Core-owned terminal constraints, bounded shot-local semantic revision and the
+audited real Scene 3 recovery, see [terminal semantic revision](terminal_semantic_revision.md).
+
 The execution path is `WorkflowNode → RoleRunner → ContextBuilder → existing LLMProvider → structured decoding → Pydantic → semantic validation → state commit → checkpoint`. Only the Showrunner changes Project, node status, jobs, and scheduling. All six roles use this path.
 
 | Role | Context projection | Output |

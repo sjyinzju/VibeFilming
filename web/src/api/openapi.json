@@ -335,6 +335,55 @@
         }
       }
     },
+    "/projects/{project_id}/revise-terminal": {
+      "post": {
+        "summary": "Revise Terminal",
+        "operationId": "revise_terminal_projects__project_id__revise_terminal_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminalRevisionCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/{project_id}/workflow": {
       "get": {
         "summary": "Workflow",
@@ -1979,6 +2028,32 @@
         "title": "CreativeMemory",
         "description": "Learned or user-stated creative preferences."
       },
+      "CreativeSubject": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "kind": {
+            "type": "string",
+            "const": "CreativeDirection",
+            "title": "Kind",
+            "default": "CreativeDirection"
+          },
+          "output": {
+            "$ref": "#/components/schemas/CreativeDirection"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "output"
+        ],
+        "title": "CreativeSubject"
+      },
       "Dialogue": {
         "properties": {
           "schema_version": {
@@ -2857,6 +2932,44 @@
           "read_timeout": {
             "type": "number",
             "title": "Read Timeout"
+          },
+          "total_timeout": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Timeout"
+          },
+          "inactivity_timeout": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inactivity Timeout"
+          },
+          "streaming": {
+            "type": "boolean",
+            "title": "Streaming",
+            "default": false
+          },
+          "failure_phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Phase"
           },
           "started_at": {
             "type": "string",
@@ -4499,6 +4612,84 @@
         "title": "ReviewResolution",
         "description": "Explicit human approval/rejection command."
       },
+      "ReviewSource": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "source_node_id": {
+            "type": "string",
+            "title": "Source Node Id"
+          },
+          "role_result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoleResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "content": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/StorySubject"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreativeSubject"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ScreenplaySubject"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ShotSubject"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "kind",
+                  "mapping": {
+                    "CreativeDirection": "#/components/schemas/CreativeSubject",
+                    "Screenplay": "#/components/schemas/ScreenplaySubject",
+                    "ShotPlan": "#/components/schemas/ShotSubject",
+                    "StoryBible": "#/components/schemas/StorySubject"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/Artifact"
+            },
+            "type": "array",
+            "title": "Artifacts"
+          },
+          "evaluations": {
+            "items": {
+              "$ref": "#/components/schemas/Evaluation"
+            },
+            "type": "array",
+            "title": "Evaluations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_node_id"
+        ],
+        "title": "ReviewSource"
+      },
       "ReviewStatus": {
         "type": "string",
         "enum": [
@@ -4507,6 +4698,65 @@
           "rejected"
         ],
         "title": "ReviewStatus"
+      },
+      "ReviewSubject": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "review_id": {
+            "type": "string",
+            "title": "Review Id"
+          },
+          "gate_type": {
+            "type": "string",
+            "title": "Gate Type"
+          },
+          "review_node_id": {
+            "type": "string",
+            "title": "Review Node Id"
+          },
+          "subject_type": {
+            "type": "string",
+            "title": "Subject Type"
+          },
+          "subject_title": {
+            "type": "string",
+            "title": "Subject Title"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "review_id",
+          "gate_type",
+          "review_node_id",
+          "subject_type",
+          "subject_title"
+        ],
+        "title": "ReviewSubject"
       },
       "RoleAttempt": {
         "properties": {
@@ -4538,6 +4788,28 @@
           },
           "validation": {
             "$ref": "#/components/schemas/ValidationReport"
+          },
+          "raw_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Output"
+          },
+          "request_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Prompt"
           },
           "timestamp": {
             "type": "string",
@@ -4666,6 +4938,16 @@
                 "type": "null"
               }
             ]
+          },
+          "semantic_revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SemanticContractRevision"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -4764,6 +5046,17 @@
               }
             ],
             "title": "Pending Output"
+          },
+          "terminal_repair_base": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminal Repair Base"
           },
           "inference_records": {
             "items": {
@@ -5023,6 +5316,101 @@
         "title": "ScreenplayScene",
         "description": "Dramatic scene before cinematic shot breakdown."
       },
+      "ScreenplaySubject": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "kind": {
+            "type": "string",
+            "const": "Screenplay",
+            "title": "Kind",
+            "default": "Screenplay"
+          },
+          "output": {
+            "$ref": "#/components/schemas/Screenplay"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "output"
+        ],
+        "title": "ScreenplaySubject"
+      },
+      "SemanticContractRevision": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "kind": {
+            "type": "string",
+            "const": "SEMANTIC_CONTRACT_REVISION",
+            "title": "Kind",
+            "default": "SEMANTIC_CONTRACT_REVISION"
+          },
+          "authorization_reference": {
+            "type": "string",
+            "title": "Authorization Reference"
+          },
+          "scene_id": {
+            "type": "string",
+            "title": "Scene Id"
+          },
+          "parent_invocation_id": {
+            "type": "string",
+            "title": "Parent Invocation Id"
+          },
+          "parent_result_hash": {
+            "type": "string",
+            "title": "Parent Result Hash"
+          },
+          "source_output_hash": {
+            "type": "string",
+            "title": "Source Output Hash"
+          },
+          "request_schema_hash": {
+            "type": "string",
+            "title": "Request Schema Hash"
+          },
+          "terminal_target_hash": {
+            "type": "string",
+            "title": "Terminal Target Hash"
+          },
+          "repair_budget": {
+            "type": "integer",
+            "const": 2,
+            "title": "Repair Budget",
+            "default": 2
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "authorization_reference",
+          "scene_id",
+          "parent_invocation_id",
+          "parent_result_hash",
+          "source_output_hash",
+          "request_schema_hash",
+          "terminal_target_hash"
+        ],
+        "title": "SemanticContractRevision",
+        "description": "Single scene-local semantic revision with independently bounded repairs."
+      },
       "Shot": {
         "properties": {
           "schema_version": {
@@ -5191,6 +5579,62 @@
         "title": "ShotNarrative",
         "description": "Narrative purpose and dramatic beat of a shot."
       },
+      "ShotPlan": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "preserved_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preserved Constraints"
+          },
+          "immutable_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Immutable Facts"
+          },
+          "scene_id": {
+            "type": "string",
+            "title": "Scene Id"
+          },
+          "shots": {
+            "items": {
+              "$ref": "#/components/schemas/Shot"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Shots"
+          },
+          "continuity_chains": {
+            "items": {
+              "$ref": "#/components/schemas/ContinuityChain"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Continuity Chains"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "preserved_constraints",
+          "immutable_facts",
+          "scene_id",
+          "shots",
+          "continuity_chains"
+        ],
+        "title": "ShotPlan",
+        "description": "One scene's cinematography using existing Shot and ContinuityChain contracts."
+      },
       "ShotSize": {
         "type": "string",
         "enum": [
@@ -5203,6 +5647,32 @@
           "insert"
         ],
         "title": "ShotSize"
+      },
+      "ShotSubject": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "kind": {
+            "type": "string",
+            "const": "ShotPlan",
+            "title": "Kind",
+            "default": "ShotPlan"
+          },
+          "output": {
+            "$ref": "#/components/schemas/ShotPlan"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "output"
+        ],
+        "title": "ShotSubject"
       },
       "StoryBible": {
         "properties": {
@@ -5264,6 +5734,32 @@
         ],
         "title": "StoryBible",
         "description": "Canonical narrative facts and arcs used by all creative roles."
+      },
+      "StorySubject": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "kind": {
+            "type": "string",
+            "const": "StoryBible",
+            "title": "Kind",
+            "default": "StoryBible"
+          },
+          "output": {
+            "$ref": "#/components/schemas/StoryBible"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "output"
+        ],
+        "title": "StorySubject"
       },
       "StudioSnapshot": {
         "properties": {
@@ -5366,6 +5862,24 @@
           "reasoning_provider": {
             "type": "string",
             "title": "Reasoning Provider"
+          },
+          "review_subjects": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewSubject"
+            },
+            "type": "array",
+            "title": "Review Subjects"
+          },
+          "terminal_revision_scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminal Revision Scene Id"
           }
         },
         "additionalProperties": false,
@@ -5432,6 +5946,25 @@
           "title"
         ],
         "title": "StyleReference"
+      },
+      "TerminalRevisionCommand": {
+        "properties": {
+          "scene_id": {
+            "type": "string",
+            "title": "Scene Id"
+          },
+          "authorization_reference": {
+            "type": "string",
+            "title": "Authorization Reference"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scene_id",
+          "authorization_reference"
+        ],
+        "title": "TerminalRevisionCommand"
       },
       "ValidationError": {
         "properties": {

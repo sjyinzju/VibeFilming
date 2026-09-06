@@ -16,6 +16,7 @@ from movie_agent.domain import (
 )
 from movie_agent.providers.base import LLMProvider
 from .inference import RoleInferencePolicy
+from .streaming import collect_completion
 
 
 class CompletionOptions(ContractModel):
@@ -106,14 +107,11 @@ class OpenAICompatibleLLMProvider(LLMProvider):
                 "max_tokens": policy.max_output_tokens,
                 "temperature": 0.2,
                 "chat_template_kwargs": {"enable_thinking": policy.thinking},
-                "stream": False,
+                "stream": policy.stream,
             }
-            response = await self._client.post(self.config.base_url + "/chat/completions", json=body,
-                headers={**self._headers(), "X-Request-ID": rid}, timeout=httpx.Timeout(
-                    connect=policy.connect_timeout, read=policy.read_timeout,
-                    write=policy.write_timeout, pool=policy.pool_timeout))
-            response.raise_for_status()
-            data = response.json()
+            # Independent wall-clock ceiling. Streaming read timeout measures inactivity.
+            async with asyncio.timeout(policy.total_timeout or (policy.read_timeout + 50)):
+                data = await self._completion_data(body, rid, policy)
             choice = data["choices"][0]
             content = choice["message"].get("content")
             # Only final content is retained. Reasoning and raw remote bodies never persist.
@@ -124,6 +122,10 @@ class OpenAICompatibleLLMProvider(LLMProvider):
                 "finish_reason": choice.get("finish_reason"), "request_trace": rid}
             return ProviderResult(provider_request_id=rid, success=True, metadata=metadata,
                 latency_seconds=perf_counter() - started)
+        except TimeoutError:
+            failure_phase = "total_budget"
+            error, retry, message = (ProviderErrorType.REMOTE_COMPLETION_UNCERTAIN, False,
+                "Total inference budget exhausted; remote completion uncertain. Explicit resume required")
         except httpx.ReadTimeout:
             failure_phase = "read"
             error, retry, message = (ProviderErrorType.REMOTE_COMPLETION_UNCERTAIN, False,
@@ -157,6 +159,22 @@ class OpenAICompatibleLLMProvider(LLMProvider):
             error_type=error, error_message=message, latency_seconds=perf_counter() - started,
             metadata={"failure_phase": failure_phase, "provider_outcome":
                 "connect_failure" if failure_phase == "connect" else error.value})
+
+    async def _completion_data(self, body, rid, policy):
+        timeout = httpx.Timeout(connect=policy.connect_timeout,
+            read=policy.inactivity_timeout if policy.stream else policy.read_timeout,
+            write=policy.write_timeout, pool=policy.pool_timeout)
+        headers = {**self._headers(), "X-Request-ID": rid}
+        url = self.config.base_url + "/chat/completions"
+        if not policy.stream:
+            response = await self._client.post(url, json=body, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            return response.json()
+        body['stream_options'] = {'include_usage': True}
+        async with self._client.stream('POST', url, json=body, headers=headers, timeout=timeout) as response:
+            response.raise_for_status()
+            return await collect_completion(response, inactivity=policy.inactivity_timeout,
+                                            max_chars=policy.max_output_tokens * 64)
 
     async def status(self, provider_request_id: str) -> ProviderResult | None:
         result = self._results.get(provider_request_id)

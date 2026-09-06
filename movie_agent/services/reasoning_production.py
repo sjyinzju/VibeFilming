@@ -8,12 +8,14 @@ from movie_agent.domain import (
 )
 from movie_agent.orchestration.runtime.contracts import (
     RoleId, RoleInvocation, RoleResult, ContractSchemaRevision, RequestContractTypeRevision,
+    SemanticContractRevision,
 )
 from movie_agent.orchestration.runtime.context import content_hash
 from movie_agent.orchestration.runtime.cinematographer_drafts import (
     CinematographerDraftMapper, ShotPlanDraft,
 )
 from movie_agent.orchestration.runtime.runner import RoleRunner, RoleOutputInvalid
+from movie_agent.orchestration.runtime.terminal import TerminalRepairDraft, is_terminal_only
 from movie_agent.providers.base import LLMProvider
 from .mock_production import MockMovieProduction
 
@@ -302,6 +304,48 @@ class ReasoningMovieProduction(MockMovieProduction):
         for key, result in failures:
             self.role_revision_history.append(result.model_copy(deep=True))
             del self.role_results[key]
+        self._save_checkpoint(project, graph)
+
+    def authorize_semantic_revision(self, scene_id: str, authorization_reference: str) -> None:
+        """One explicit terminal repair invocation; retain the exhausted parent intact."""
+        project, graph = self._restore()
+        key = RoleId.CINEMATOGRAPHER.value + ':' + scene_id
+        previous = self.role_results.get(key)
+        if (not authorization_reference.strip() or not previous or previous.committed
+                or previous.failure_code != 'ROLE_OUTPUT_INVALID' or not previous.pending_output):
+            raise ValueError('Semantic revision requires an explicitly authorized exhausted scene')
+        if previous.invocation.semantic_revision or any(
+            r.invocation.semantic_revision and r.invocation.scene_id == scene_id
+            for r in self.role_revision_history):
+            raise ValueError('This scene semantic revision has already been consumed')
+        scene = next(s for s in project.scenes if s.scene_id == scene_id)
+        output, report = self.runner.validator.parse(ShotPlanDraft, previous.pending_output, project, scene=scene)
+        if output is None or not is_terminal_only(report):
+            raise ValueError('Targeted semantic revision requires only terminal continuity conflicts')
+        schema = self.runner.adapter.response_format(TerminalRepairDraft)
+        schema['json_schema']['schema']['$defs']['TerminalShotRepair']['properties']['shot_index']['const'] = len(output.shots) - 1
+        revision = SemanticContractRevision(authorization_reference=authorization_reference,
+            scene_id=scene_id, parent_invocation_id=previous.invocation.invocation_id,
+            parent_result_hash=content_hash(previous.model_dump(mode='json')),
+            source_output_hash=content_hash(previous.pending_output), request_schema_hash=content_hash(schema),
+            terminal_target_hash=content_hash(scene.expected_final_state.model_dump(mode='json')))
+        invocation = RoleInvocation(invocation_id=previous.invocation.invocation_id + ':semantic_contract_revision',
+            role_id=RoleId.CINEMATOGRAPHER, project_id=project.project_id,
+            node_id=previous.invocation.node_id, scene_id=scene_id, semantic_revision=revision)
+        context = self.runner.context_builder.build(self.runner.registry.get(RoleId.CINEMATOGRAPHER), project, scene=scene)
+        self.role_revision_history.append(previous.model_copy(deep=True))
+        self.role_results[key] = RoleResult(invocation=invocation, provider_id=self.llm_provider.provider_id,
+            context=context, target_schema='ShotPlanDraft', pending_output=previous.pending_output,
+            terminal_repair_base=previous.pending_output)
+        artifact = self.artifact_store.create_placeholder(ArtifactType.TEXT,
+            {'revision': revision.model_dump(mode='json'), 'parent_result': previous.model_dump(mode='json'),
+             'request_schema': schema}, artifact_id='semantic_contract_revision_' + scene_id,
+            source_job_id=invocation.invocation_id,
+            provenance=Provenance(role=RoleId.CINEMATOGRAPHER.value, tool=revision.kind,
+                parameters={'revision': revision.model_dump(mode='json')}))
+        self._emit(EventType.ARTIFACT_CREATED, project.project_id,
+            {'artifact_id': artifact.artifact_id, 'version': artifact.version, 'revision_kind': revision.kind},
+            node_id=invocation.node_id)
         self._save_checkpoint(project, graph)
 
     def _save_checkpoint(self, project, production):

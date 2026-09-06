@@ -1,8 +1,9 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { expect, it } from 'vitest';
+import { useState } from 'react';
 import { setLanguage, t, useLocale } from '../i18n';
 import { LanguageSwitch } from '../components/LanguageSwitch';
-import { BriefConsole, toInput } from '../components/BriefConsole';
+import { BriefConsole, toInput, fieldLabel, type Draft } from '../components/BriefConsole';
 
 function LocalizedBrief() {
   const language = useLocale();
@@ -43,4 +44,42 @@ it('localizes workflow vocabulary without changing unknown authored content', ()
   expect(t('waiting_human')).toBe('等待人工审核');
   expect(t('Creative Producer')).toBe('创意制片人');
   expect(t('An original user story')).toBe('An original user story');
+});
+
+it('resolves follow-ui only at submission and preserves explicit choices', () => {
+  expect(toInput({ story_description: 'Story' }, 'zh').output_language).toBe('zh-CN');
+  expect(toInput({ story_description: 'Story' }, 'en').output_language).toBe('en');
+  expect(toInput({ story_description: 'Story', output_language: 'en' }, 'zh').output_language).toBe(
+    'en',
+  );
+  expect(
+    toInput({ story_description: 'Story', output_language: 'zh-CN' }, 'en').output_language,
+  ).toBe('zh-CN');
+});
+
+function EditableLanguage() {
+  const [draft, setDraft] = useState<Draft>({ story_description: 'Story' });
+  return (
+    <BriefConsole
+      draft={draft}
+      onChange={setDraft}
+      locked={false}
+      busy={false}
+      onStart={() => {}}
+    />
+  );
+}
+it('Quick and Advanced share the same field and follow-ui is not persisted as a language', () => {
+  const label = fieldLabel('output_language');
+  render(<EditableLanguage />);
+  expect(screen.getByLabelText(label)).toHaveValue('follow-ui');
+  fireEvent.change(screen.getByLabelText(label), { target: { value: 'zh-CN' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Advanced' }));
+  expect(screen.getAllByLabelText(label)).toHaveLength(1);
+  expect(screen.getByLabelText(label)).toHaveValue('zh-CN');
+  fireEvent.change(screen.getByLabelText(label), { target: { value: 'en' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Quick view' }));
+  expect(screen.getByLabelText(label)).toHaveValue('en');
+  fireEvent.change(screen.getByLabelText(label), { target: { value: 'follow-ui' } });
+  expect(screen.getByLabelText(label)).toHaveValue('follow-ui');
 });

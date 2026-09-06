@@ -29,20 +29,28 @@ def test_default_role_inherits_read_timeout_and_cinematographer_overrides(defaul
         definition = registry.get(role)
         policy = definition.inference_policy.resolve(provider.inference_defaults(),
             max_tokens=definition.output_policy.max_tokens)
-        assert policy.read_timeout == (360 if role == RoleId.CINEMATOGRAPHER else default_read)
+        expected = {RoleId.SCREENWRITER: 360, RoleId.DIRECTOR: 360,
+                    RoleId.CINEMATOGRAPHER: 360}
+        assert policy.read_timeout == expected.get(role, default_read)
+        if role in expected:
+            assert policy.total_timeout == (480 if role == RoleId.CINEMATOGRAPHER else 360)
         assert (policy.connect_timeout, policy.write_timeout, policy.pool_timeout) == (10, 30, 10)
         assert policy.structured_output and not policy.thinking
     asyncio.run(provider.aclose())
 
 
-def test_transport_split_timeout_and_output_ceiling():
+@pytest.mark.parametrize('stream', [False, True])
+def test_transport_split_timeout_and_output_ceiling(stream):
     async def scenario():
         async def handler(request):
-            assert request.extensions["timeout"] == {"connect": 10, "read": 360, "write": 30, "pool": 10}
+            assert request.extensions["timeout"] == {"connect": 10, "read": 60 if stream else 360, "write": 30, "pool": 10}
             body = json.loads(request.content)
             assert body["max_tokens"] == 9000
             assert body["chat_template_kwargs"] == {"enable_thinking": False}
             assert body["response_format"]["type"] == "json_schema"
+            assert body['stream'] is stream
+            if stream:
+                return httpx.Response(200, content=b'data: {"choices":[{"delta":{"content":"{}"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n')
             return httpx.Response(200, json={"choices": [{"message": {"content": "{}"}}]})
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             provider = OpenAICompatibleLLMProvider(LLMConfig(base_url="http://test/v1", model="x",
@@ -50,6 +58,7 @@ def test_transport_split_timeout_and_output_ceiling():
             request = request_for_provider()
             request.generation_request.parameters["inference_policy"] = RoleRegistry().get(
                 RoleId.CINEMATOGRAPHER).inference_policy.model_dump(mode="json")
+            request.generation_request.parameters['inference_policy']['stream'] = stream
             assert (await provider.submit(request)).success
     asyncio.run(scenario())
 
