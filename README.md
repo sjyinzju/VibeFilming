@@ -1,12 +1,12 @@
 # Movie Agent Core
 
-Movie Agent Core is a model-agnostic foundation for long-running AI film production. Phase 2A adds six real reasoning roles through a configurable OpenAI-compatible endpoint and a FastAPI/SSE backend. Typed cinematic contracts, deterministic execution, checkpoints and mock downstream media are shared with Phase 1. The repository does not manage serving infrastructure or include a frontend.
+Movie Agent Core is a model-agnostic foundation for long-running AI film production. Phase 2A adds six real reasoning roles through a configurable OpenAI-compatible endpoint and a FastAPI/SSE backend. Phase 2B adds a React Web Studio for creative input, workflow control, live Canvas, inspection and human review. Typed cinematic contracts, deterministic execution, checkpoints and mock downstream media are shared with Phase 1. The repository does not manage serving infrastructure.
 
 See `docs/architecture.md` for the design and `tests/fixtures/sample_brief.json` for the mock workflow input.
 
 ## Phase 2A
 
-**Phase 2A is complete and frozen.** The accepted `workspace/p2a-real` run used the real OpenAI-compatible reasoning provider for all five upstream roles and all three scene-level Cinematographer plans. It produced three validated real Shots (18 seconds total), then completed the existing mock frame/image/video/critic/audio/post/final pipeline and emitted `WORKFLOW_COMPLETED`. P2B, frontend work, serving changes, and real media providers remain out of scope.
+**Phase 2A is complete and frozen at `53f4114`.** The accepted `workspace/p2a-real` run used the real OpenAI-compatible reasoning provider for all five upstream roles and all three scene-level Cinematographer plans. It produced three validated real Shots (18 seconds total), then completed the existing mock frame/image/video/critic/audio/post/final pipeline and emitted `WORKFLOW_COMPLETED`. P2B builds on that frozen behavior. Serving changes and real media providers remain out of scope.
 
 Configure `.env` from `.env.example` and keep the existing serving tunnel available. Use a Python 3.12+ virtual environment. Full runtime/API documentation is in [docs/p2a_runtime.md](docs/p2a_runtime.md); role and provider contracts are in [docs/role_runtime.md](docs/role_runtime.md) and [docs/llm_provider.md](docs/llm_provider.md).
 
@@ -31,6 +31,28 @@ To stop before Director and verify inference reuse:
 Regular tests never require the LLM endpoint. Opt in with `MOVIE_AGENT_RUN_INTEGRATION=1` when running `tests/test_p2a_integration.py`.
 
 ## Run locally
+
+### Web Studio (Phase 2B)
+
+Start the existing configured backend from the repository root:
+
+```powershell
+.\.venv312\Scripts\python.exe -m uvicorn movie_agent.api.app:create_app --factory --host 127.0.0.1 --port 8080 --workers 1
+```
+
+Then start the frontend in a second terminal:
+
+```powershell
+cd E:\movie-agent\web
+npm ci
+npm run dev
+```
+
+Open **http://127.0.0.1:5173**. Only your story is required; Advanced exposes the full brief and optional typed creative guidance. Approve human gates in Inspector to continue. Reasoning is real on the normal backend; media remains clearly labelled Mock. The frontend's `/api` proxy calls FastAPI only.
+
+See [Web Studio architecture, controls, tests and real opt-in E2E](docs/p2b_frontend.md). API types regenerate with `npm run gen:api` and are included in source; building does not require a running backend. Frontend checks: `npm test`, `npm run build`, `npm run test:e2e`.
+
+### Core CLI
 
 Python 3.12 and Pydantic v2 are the supported runtime.
 

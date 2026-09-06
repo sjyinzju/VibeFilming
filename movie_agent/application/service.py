@@ -6,6 +6,7 @@ from movie_agent.domain import Project, ProjectBrief, EventType, ReviewStatus, W
 from movie_agent.orchestration import build_production_graph
 from movie_agent.services.reasoning_production import ReasoningMovieProduction
 from .repository import ProjectRecord, ProjectRepository, ProductionStatus as Status
+from .creative_inputs import CreativeHints, CreativeInputContextBuilder
 
 
 class CommandConflict(ValueError):
@@ -22,10 +23,11 @@ class ProductionService:
         self.engines: dict[str, ReasoningMovieProduction] = {}
         self.tasks: dict[str, asyncio.Task] = {}
 
-    def create(self, brief: ProjectBrief) -> ProjectRecord:
-        record = ProjectRecord(project=Project(brief=brief))
+    def create(self, brief: ProjectBrief, creative_hints: CreativeHints | None = None) -> ProjectRecord:
+        record = ProjectRecord(project=Project(brief=brief), creative_hints=creative_hints or CreativeHints())
         self.repository.save(record)
         engine = self.factory(record.project.project_id)
+        engine.runner.context_builder = CreativeInputContextBuilder(record.creative_hints)
         graph = build_production_graph(record.project.project_id, engine.event_bus, engine.trace_id)
         engine.current_project, engine.current_production = record.project, graph
         engine._emit(EventType.PROJECT_CREATED, record.project.project_id, {"title": brief.title})
@@ -37,6 +39,7 @@ class ProductionService:
         record = self.repository.get(project_id)
         if project_id not in self.engines:
             engine = self.factory(project_id)
+            engine.runner.context_builder = CreativeInputContextBuilder(record.creative_hints)
             project, graph = engine._restore()
             engine.current_project, engine.current_production = project, graph
             self.engines[project_id] = engine
@@ -58,8 +61,8 @@ class ProductionService:
         record = self.repository.get(project_id)
         if project_id in self.tasks and not self.tasks[project_id].done():
             raise CommandConflict("Production is already running")
-        if record.status == Status.COMPLETED:
-            raise CommandConflict("Production is already complete")
+        if record.status in {Status.COMPLETED, Status.CANCELLED}:
+            raise CommandConflict("Production is terminal")
         if not resume and record.status != Status.CREATED:
             raise CommandConflict("Use resume for an existing production")
         reviews = engine.human_gates.all()
@@ -115,6 +118,32 @@ class ProductionService:
         if len(matches) > 1:
             raise CommandConflict("ID exists in multiple projects; supply project_id")
         return matches[0]
+
+    async def cancel(self, project_id):
+        """Stop local production and retain its checkpoint/history. Remote work may finish."""
+        engine = self.engine(project_id)
+        record = self.repository.get(project_id)
+        if record.status in {Status.COMPLETED, Status.CANCELLED}:
+            raise CommandConflict("Production is terminal")
+        for job in engine._all_jobs():
+            if job.status not in {JobStatus.SUCCEEDED, JobStatus.FAILED, JobStatus.CANCELLED}:
+                self.cancel_job(job.job_id, project_id)
+        task = self.tasks.get(project_id)
+        if task and not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        # The local task has stopped: finish its cooperative cancellation records.
+        if engine.job_manager:
+            for job in engine.job_manager.all():
+                if job.cancellation_requested and job.status not in {JobStatus.SUCCEEDED, JobStatus.FAILED, JobStatus.CANCELLED}:
+                    engine.job_manager.transition(job.job_id, JobStatus.CANCELLED)
+        for node in engine.current_production.graph.nodes:
+            if node.status not in {WorkflowNodeStatus.SUCCEEDED, WorkflowNodeStatus.FAILED, WorkflowNodeStatus.SKIPPED}:
+                engine.current_production.set_status(node.node_id, WorkflowNodeStatus.CANCELLED)
+        engine._save_checkpoint(engine.current_project, engine.current_production)
+        record.status = Status.CANCELLED
+        self.repository.save(record)
+        return {"project_id": project_id, "status": record.status}
 
     def resolve_review(self, review_id, approved, notes):
         engine, review = self.locate("review", review_id)

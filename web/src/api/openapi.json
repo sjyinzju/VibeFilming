@@ -1,0 +1,5980 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Movie Agent Phase 2A",
+    "version": "0.2.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/providers": {
+      "get": {
+        "summary": "Providers",
+        "operationId": "providers_providers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderView"
+                  },
+                  "type": "array",
+                  "title": "Response Providers Providers Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "summary": "List Projects",
+        "operationId": "list_projects_projects_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectRecord"
+                  },
+                  "type": "array",
+                  "title": "Response List Projects Projects Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Project",
+        "operationId": "create_project_projects_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/studio": {
+      "get": {
+        "summary": "Studio",
+        "operationId": "studio_projects__project_id__studio_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudioSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/cancel": {
+      "post": {
+        "summary": "Cancel Project",
+        "operationId": "cancel_project_projects__project_id__cancel_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}": {
+      "get": {
+        "summary": "Project",
+        "operationId": "project_projects__project_id__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/start": {
+      "post": {
+        "summary": "Start",
+        "operationId": "start_projects__project_id__start_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/pause": {
+      "post": {
+        "summary": "Pause",
+        "operationId": "pause_projects__project_id__pause_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/resume": {
+      "post": {
+        "summary": "Resume",
+        "operationId": "resume_projects__project_id__resume_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/workflow": {
+      "get": {
+        "summary": "Workflow",
+        "operationId": "workflow_projects__project_id__workflow_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/shots/{shot_id}": {
+      "get": {
+        "summary": "Shot",
+        "operationId": "shot_projects__project_id__shots__shot_id__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "shot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Shot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/reviews": {
+      "get": {
+        "summary": "Reviews",
+        "operationId": "reviews_projects__project_id__reviews_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HumanReviewRequest"
+                  },
+                  "title": "Response Reviews Projects  Project Id  Reviews Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews/{review_id}/resolve": {
+      "post": {
+        "summary": "Resolve",
+        "operationId": "resolve_reviews__review_id__resolve_post",
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewResolution"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanReviewRequest"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}": {
+      "get": {
+        "summary": "Job",
+        "operationId": "job_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationJob"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}/cancel": {
+      "post": {
+        "summary": "Cancel",
+        "operationId": "cancel_jobs__job_id__cancel_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationJob"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/artifacts/{artifact_id}": {
+      "get": {
+        "summary": "Artifact",
+        "operationId": "artifact_artifacts__artifact_id__get",
+        "parameters": [
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artifact Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Artifact"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/events": {
+      "get": {
+        "summary": "Events",
+        "operationId": "events_projects__project_id__events_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          },
+          {
+            "name": "follow",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Follow"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnchorKind": {
+        "type": "string",
+        "enum": [
+          "none",
+          "generated",
+          "previous_shot_last_frame",
+          "external_reference"
+        ],
+        "title": "AnchorKind"
+      },
+      "Artifact": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "artifact_id": {
+            "type": "string",
+            "title": "Artifact Id"
+          },
+          "artifact_type": {
+            "$ref": "#/components/schemas/ArtifactType"
+          },
+          "uri": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Uri"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version",
+            "default": 1
+          },
+          "source_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Job Id"
+          },
+          "parent_artifact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Parent Artifact Ids"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          },
+          "selected": {
+            "type": "boolean",
+            "title": "Selected",
+            "default": false
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "artifact_type",
+          "uri"
+        ],
+        "title": "Artifact",
+        "description": "One immutable material version addressed by stable artifact ID and version."
+      },
+      "ArtifactType": {
+        "type": "string",
+        "enum": [
+          "text",
+          "story_bible",
+          "visual_bible",
+          "screenplay",
+          "shot_plan",
+          "image",
+          "frame",
+          "video",
+          "audio",
+          "subtitle",
+          "timeline",
+          "final_film",
+          "checkpoint"
+        ],
+        "title": "ArtifactType"
+      },
+      "AspectRatio": {
+        "type": "string",
+        "enum": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "2.39:1"
+        ],
+        "title": "AspectRatio"
+      },
+      "CameraAngle": {
+        "type": "string",
+        "enum": [
+          "eye_level",
+          "high",
+          "low",
+          "dutch",
+          "overhead",
+          "pov"
+        ],
+        "title": "CameraAngle"
+      },
+      "CameraMotion": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "motion_type": {
+            "$ref": "#/components/schemas/CameraMotionType",
+            "default": "static"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
+          "speed": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed"
+          },
+          "start_framing": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Framing"
+          },
+          "end_framing": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Framing"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CameraMotion",
+        "description": "Camera movement independent of provider prompt syntax."
+      },
+      "CameraMotionType": {
+        "type": "string",
+        "enum": [
+          "static",
+          "pan",
+          "tilt",
+          "dolly",
+          "track",
+          "crane",
+          "handheld",
+          "zoom",
+          "orbit"
+        ],
+        "title": "CameraMotionType"
+      },
+      "CameraSpec": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "shot_size": {
+            "$ref": "#/components/schemas/ShotSize"
+          },
+          "angle": {
+            "$ref": "#/components/schemas/CameraAngle",
+            "default": "eye_level"
+          },
+          "lens_mm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lens Mm"
+          },
+          "lens_character": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lens Character"
+          },
+          "composition": {
+            "$ref": "#/components/schemas/CompositionSpec"
+          },
+          "motion": {
+            "$ref": "#/components/schemas/CameraMotion"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "shot_size"
+        ],
+        "title": "CameraSpec",
+        "description": "Lens, size, angle, composition, and motion choices."
+      },
+      "CanonicalProjectState": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "confirmed_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Confirmed Facts"
+          },
+          "current_scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Scene Id"
+          },
+          "current_shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Shot Id"
+          },
+          "completed_node_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Completed Node Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CanonicalProjectState",
+        "description": "Confirmed production facts, separate from preferences and history."
+      },
+      "Character": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "narrative_role": {
+            "type": "string",
+            "title": "Narrative Role",
+            "default": ""
+          },
+          "identity_description": {
+            "type": "string",
+            "title": "Identity Description",
+            "default": ""
+          },
+          "personality": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Personality"
+          },
+          "appearance_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Appearance Constraints"
+          },
+          "voice_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Voice Constraints"
+          },
+          "reference_artifact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reference Artifact Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Character",
+        "description": "Canonical character identity that should remain stable across scenes."
+      },
+      "CharacterState": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Vector3"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orientation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Orientation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pose": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pose"
+          },
+          "wardrobe": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wardrobe"
+          },
+          "hair": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hair"
+          },
+          "emotion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emotion"
+          },
+          "held_prop_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Held Prop Ids"
+          },
+          "visible": {
+            "type": "boolean",
+            "title": "Visible",
+            "default": true
+          },
+          "damage_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Damage State"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "character_id"
+        ],
+        "title": "CharacterState",
+        "description": "Mutable character facts at a precise continuity boundary."
+      },
+      "CommandAccepted": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProductionStatus"
+          },
+          "pause_policy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pause Policy"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "status"
+        ],
+        "title": "CommandAccepted",
+        "description": "Acknowledgement of a command, not a claim of production completion."
+      },
+      "CompositionSpec": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "framing": {
+            "type": "string",
+            "title": "Framing",
+            "default": ""
+          },
+          "subject_placements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Subject Placements"
+          },
+          "depth_layers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Depth Layers"
+          },
+          "focus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Focus"
+          },
+          "preserve": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preserve"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CompositionSpec",
+        "description": "Composition requirements for a shot."
+      },
+      "ContinuityChain": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "chain_id": {
+            "type": "string",
+            "title": "Chain Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "shot_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Shot Ids"
+          },
+          "initial_state": {
+            "$ref": "#/components/schemas/ContinuityState"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "ContinuityChain",
+        "description": "Ordered shots that must preserve state and normally execute serially."
+      },
+      "ContinuityState": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "character_states": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CharacterState"
+            },
+            "type": "object",
+            "title": "Character States"
+          },
+          "location_states": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LocationState"
+            },
+            "type": "object",
+            "title": "Location States"
+          },
+          "prop_states": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PropState"
+            },
+            "type": "object",
+            "title": "Prop States"
+          },
+          "scene_state": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scene State"
+          },
+          "lighting_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lighting State"
+          },
+          "weather": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather"
+          },
+          "damage_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Damage State"
+          },
+          "previous_shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Shot Id"
+          },
+          "last_frame_artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Frame Artifact Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ContinuityState",
+        "description": "Complete deterministic state at the start or end of a shot."
+      },
+      "ContractSchemaRevision": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "kind": {
+            "type": "string",
+            "const": "CONTRACT_SCHEMA_REVISION",
+            "title": "Kind",
+            "default": "CONTRACT_SCHEMA_REVISION"
+          },
+          "authorization_reference": {
+            "type": "string",
+            "title": "Authorization Reference"
+          },
+          "scene_id": {
+            "type": "string",
+            "title": "Scene Id"
+          },
+          "previous_invocation_id": {
+            "type": "string",
+            "title": "Previous Invocation Id"
+          },
+          "previous_result_hash": {
+            "type": "string",
+            "title": "Previous Result Hash"
+          },
+          "request_schema_hash": {
+            "type": "string",
+            "title": "Request Schema Hash"
+          },
+          "repair_budget": {
+            "type": "integer",
+            "const": 2,
+            "title": "Repair Budget",
+            "default": 2
+          },
+          "stop_on_state_scope_conflict": {
+            "type": "boolean",
+            "const": true,
+            "title": "Stop On State Scope Conflict",
+            "default": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "authorization_reference",
+          "scene_id",
+          "previous_invocation_id",
+          "previous_result_hash",
+          "request_schema_hash"
+        ],
+        "title": "ContractSchemaRevision",
+        "description": "One explicitly authorized schema revision, never a reset of prior attempts."
+      },
+      "CreateProjectInput": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Title",
+            "default": "Untitled film"
+          },
+          "logline": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Logline",
+            "default": "A story waiting to unfold."
+          },
+          "story_description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Story Description"
+          },
+          "target_duration": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Target Duration",
+            "default": 30
+          },
+          "output_language": {
+            "type": "string",
+            "title": "Output Language",
+            "default": "en"
+          },
+          "genre": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Genre"
+          },
+          "audience": {
+            "type": "string",
+            "title": "Audience",
+            "default": "general"
+          },
+          "rating": {
+            "type": "string",
+            "title": "Rating",
+            "default": "unrated"
+          },
+          "theme": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Theme"
+          },
+          "narrative_style": {
+            "type": "string",
+            "title": "Narrative Style",
+            "default": ""
+          },
+          "ending_preference": {
+            "type": "string",
+            "title": "Ending Preference",
+            "default": ""
+          },
+          "pacing": {
+            "$ref": "#/components/schemas/Pacing",
+            "default": "moderate"
+          },
+          "dialogue_density": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Dialogue Density",
+            "default": 0.5
+          },
+          "creative_freedom": {
+            "$ref": "#/components/schemas/CreativeFreedomLevel",
+            "default": "medium"
+          },
+          "desired_character_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Desired Character Count",
+            "default": 1
+          },
+          "character_descriptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Character Descriptions"
+          },
+          "relationship_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Relationship Constraints"
+          },
+          "locations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Locations"
+          },
+          "time_period": {
+            "type": "string",
+            "title": "Time Period",
+            "default": ""
+          },
+          "sci_fi_setting": {
+            "type": "boolean",
+            "title": "Sci Fi Setting",
+            "default": false
+          },
+          "world_rules": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "World Rules"
+          },
+          "prohibited_elements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Prohibited Elements"
+          },
+          "visual_style": {
+            "type": "string",
+            "title": "Visual Style",
+            "default": ""
+          },
+          "reference_movies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reference Movies"
+          },
+          "reference_images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reference Images",
+            "description": "Artifact IDs or external references supplied by the user."
+          },
+          "palette": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Palette"
+          },
+          "lighting": {
+            "type": "string",
+            "title": "Lighting",
+            "default": ""
+          },
+          "realism": {
+            "type": "string",
+            "title": "Realism",
+            "default": ""
+          },
+          "aspect_ratio": {
+            "$ref": "#/components/schemas/AspectRatio",
+            "default": "16:9"
+          },
+          "resolution": {
+            "type": "string",
+            "title": "Resolution",
+            "default": "1920x1080"
+          },
+          "fps": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Fps",
+            "default": 24
+          },
+          "preferred_shot_style": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preferred Shot Style"
+          },
+          "preferred_camera_motion": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preferred Camera Motion"
+          },
+          "preferred_lenses": {
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0.0
+            },
+            "type": "array",
+            "title": "Preferred Lenses",
+            "description": "Preferred focal lengths in millimetres."
+          },
+          "cutting_style": {
+            "type": "string",
+            "title": "Cutting Style",
+            "default": ""
+          },
+          "composition_preferences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Composition Preferences"
+          },
+          "dialogue_style": {
+            "type": "string",
+            "title": "Dialogue Style",
+            "default": ""
+          },
+          "voice_style": {
+            "type": "string",
+            "title": "Voice Style",
+            "default": ""
+          },
+          "music_style": {
+            "type": "string",
+            "title": "Music Style",
+            "default": ""
+          },
+          "ambience_style": {
+            "type": "string",
+            "title": "Ambience Style",
+            "default": ""
+          },
+          "sound_design": {
+            "type": "string",
+            "title": "Sound Design",
+            "default": ""
+          },
+          "quality_level": {
+            "$ref": "#/components/schemas/QualityProfile",
+            "default": "standard"
+          },
+          "max_shots": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Max Shots",
+            "default": 24
+          },
+          "max_retry": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Max Retry",
+            "default": 2
+          },
+          "generation_budget": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Generation Budget",
+            "default": 0.0
+          },
+          "user_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "User Constraints"
+          },
+          "must_preserve": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Must Preserve"
+          },
+          "creative_hints": {
+            "$ref": "#/components/schemas/CreativeHints"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "story_description"
+        ],
+        "title": "CreateProjectInput",
+        "description": "Accepts every existing POST body; supplies convenience defaults only at ingress."
+      },
+      "CreativeDirection": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "premise_expansion": {
+            "type": "string",
+            "title": "Premise Expansion"
+          },
+          "emotional_arc": {
+            "type": "string",
+            "title": "Emotional Arc"
+          },
+          "tone": {
+            "type": "string",
+            "title": "Tone"
+          },
+          "motifs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Motifs"
+          },
+          "creative_choices": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Creative Choices"
+          },
+          "preserved_user_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preserved User Constraints"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "premise_expansion",
+          "emotional_arc",
+          "tone"
+        ],
+        "title": "CreativeDirection",
+        "description": "Showrunner-approved creative interpretation that cannot override constraints."
+      },
+      "CreativeFreedomLevel": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "title": "CreativeFreedomLevel"
+      },
+      "CreativeHints": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "author": {
+            "type": "string",
+            "const": "user",
+            "title": "Author",
+            "default": "user"
+          },
+          "scene_seeds": {
+            "items": {
+              "$ref": "#/components/schemas/SceneSeed"
+            },
+            "type": "array",
+            "title": "Scene Seeds"
+          },
+          "key_moments": {
+            "items": {
+              "$ref": "#/components/schemas/KeyMoment"
+            },
+            "type": "array",
+            "title": "Key Moments"
+          },
+          "key_visuals": {
+            "items": {
+              "$ref": "#/components/schemas/KeyVisualHint"
+            },
+            "type": "array",
+            "title": "Key Visuals"
+          },
+          "style_references": {
+            "items": {
+              "$ref": "#/components/schemas/StyleReference"
+            },
+            "type": "array",
+            "title": "Style References"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CreativeHints"
+      },
+      "CreativeMemory": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "preferences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preferences"
+          },
+          "rejected_choices": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rejected Choices"
+          },
+          "notes_by_role": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Notes By Role"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CreativeMemory",
+        "description": "Learned or user-stated creative preferences."
+      },
+      "Dialogue": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "character_id",
+          "text"
+        ],
+        "title": "Dialogue",
+        "description": "One spoken screenplay line referring to a declared character."
+      },
+      "Evaluation": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "evaluation_id": {
+            "type": "string",
+            "title": "Evaluation Id"
+          },
+          "layer": {
+            "$ref": "#/components/schemas/EvaluationLayer"
+          },
+          "target_artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Artifact Id"
+          },
+          "target_shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Shot Id"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluationIssue"
+            },
+            "type": "array",
+            "title": "Issues"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "default": ""
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "layer",
+          "score",
+          "passed"
+        ],
+        "title": "Evaluation",
+        "description": "Scored quality result; pass/fail is derived from score and issues."
+      },
+      "EvaluationIssue": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "issue_id": {
+            "type": "string",
+            "title": "Issue Id"
+          },
+          "issue_type": {
+            "$ref": "#/components/schemas/EvaluationIssueType"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/IssueSeverity"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "suggested_action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RepairActionType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Id"
+          },
+          "artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "issue_type",
+          "severity",
+          "message"
+        ],
+        "title": "EvaluationIssue",
+        "description": "Structured, evidenced defect discovered by a critic or deterministic QC."
+      },
+      "EvaluationIssueType": {
+        "type": "string",
+        "enum": [
+          "identity_drift",
+          "scene_drift",
+          "missing_detail",
+          "hallucinated_object",
+          "extra_character",
+          "action_failure",
+          "camera_motion_mismatch",
+          "continuity_error",
+          "continuity_conflict",
+          "visual_artifact",
+          "weak_storytelling",
+          "style_mismatch",
+          "generation_failure",
+          "shot_design_failure"
+        ],
+        "title": "EvaluationIssueType"
+      },
+      "EvaluationLayer": {
+        "type": "string",
+        "enum": [
+          "technical_qc",
+          "visual_semantic",
+          "cinematic"
+        ],
+        "title": "EvaluationLayer"
+      },
+      "EventEnvelope": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "payload": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Payload"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_type",
+          "project_id",
+          "trace_id"
+        ],
+        "title": "EventEnvelope",
+        "description": "Uniform event envelope consumed by future workflow canvases."
+      },
+      "EventType": {
+        "type": "string",
+        "enum": [
+          "provider_request_started",
+          "provider_request_completed",
+          "role_output_received",
+          "role_output_validation_failed",
+          "role_output_validated",
+          "checkpoint_created",
+          "project_created",
+          "node_created",
+          "node_started",
+          "node_progress",
+          "node_completed",
+          "node_failed",
+          "edge_created",
+          "edge_activated",
+          "job_created",
+          "job_started",
+          "job_progress",
+          "job_completed",
+          "job_failed",
+          "artifact_created",
+          "artifact_selected",
+          "evaluation_completed",
+          "repair_started",
+          "repair_completed",
+          "human_review_requested",
+          "human_review_resolved",
+          "workflow_completed"
+        ],
+        "title": "EventType"
+      },
+      "FrameAnchor": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AnchorKind",
+            "default": "none"
+          },
+          "source_artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Artifact Id"
+          },
+          "source_shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Shot Id"
+          },
+          "planned_state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContinuityState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FrameAnchor",
+        "description": "A planned or materialized boundary-frame dependency."
+      },
+      "FrameAnchors": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "first_frame": {
+            "$ref": "#/components/schemas/FrameAnchor"
+          },
+          "last_frame": {
+            "$ref": "#/components/schemas/FrameAnchor"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FrameAnchors",
+        "description": "First/last boundary frame plan for one shot."
+      },
+      "GenerationHistory": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/GenerationHistoryEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GenerationHistory",
+        "description": "Past strategy outcomes used for future routing without vector storage."
+      },
+      "GenerationHistoryEntry": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Id"
+          },
+          "strategy_type": {
+            "type": "string",
+            "title": "Strategy Type"
+          },
+          "succeeded": {
+            "type": "boolean",
+            "title": "Succeeded"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "issue_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Issue Codes"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "job_id",
+          "strategy_type",
+          "succeeded"
+        ],
+        "title": "GenerationHistoryEntry",
+        "description": "Outcome of a provider-neutral generation strategy attempt."
+      },
+      "GenerationJob": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Id"
+          },
+          "continuity_chain_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Continuity Chain Id"
+          },
+          "task": {
+            "type": "string",
+            "title": "Task"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus",
+            "default": "pending"
+          },
+          "dependencies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dependencies"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority",
+            "default": 0
+          },
+          "resource_class": {
+            "$ref": "#/components/schemas/ResourceClass",
+            "default": "medium"
+          },
+          "retry_budget": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Retry Budget",
+            "default": 2
+          },
+          "retry_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Retry Count",
+            "default": 0
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Idempotency Key"
+          },
+          "cancellation_requested": {
+            "type": "boolean",
+            "title": "Cancellation Requested",
+            "default": false
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "queued_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queued At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "progress": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Progress",
+            "default": 0.0
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "related_artifact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Related Artifact Ids"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "task",
+          "idempotency_key"
+        ],
+        "title": "GenerationJob",
+        "description": "Durable lifecycle record for any generation or production task."
+      },
+      "GenerationStrategy": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "strategy_type": {
+            "$ref": "#/components/schemas/GenerationStrategyType"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "required_capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Capabilities"
+          },
+          "input_artifact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Input Artifact Ids"
+          },
+          "fallback_types": {
+            "items": {
+              "$ref": "#/components/schemas/GenerationStrategyType"
+            },
+            "type": "array",
+            "title": "Fallback Types"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "strategy_type",
+          "reason"
+        ],
+        "title": "GenerationStrategy",
+        "description": "Provider-neutral plan for producing the shot."
+      },
+      "GenerationStrategyType": {
+        "type": "string",
+        "enum": [
+          "structured_text",
+          "text_to_video",
+          "image_to_video",
+          "first_frame_to_video",
+          "first_last_frame_to_video",
+          "reference_to_video",
+          "image_edit_then_video",
+          "video_extend",
+          "video_to_video",
+          "split_shot",
+          "static_plus_post_camera"
+        ],
+        "title": "GenerationStrategyType"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HumanGateType": {
+        "type": "string",
+        "enum": [
+          "story_approval",
+          "screenplay_approval",
+          "shot_plan_approval",
+          "final_cut_approval",
+          "agent_escalation"
+        ],
+        "title": "HumanGateType"
+      },
+      "HumanReviewRequest": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "review_id": {
+            "type": "string",
+            "title": "Review Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "gate_type": {
+            "$ref": "#/components/schemas/HumanGateType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReviewStatus",
+            "default": "pending"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "context_artifact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Context Artifact Ids"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Requested At"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "resolution_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "node_id",
+          "gate_type",
+          "question"
+        ],
+        "title": "HumanReviewRequest",
+        "description": "Persisted pause point that can be resolved and resumed later."
+      },
+      "InferenceMetrics": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "role_id": {
+            "$ref": "#/components/schemas/RoleId"
+          },
+          "scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
+          "context_chars": {
+            "type": "integer",
+            "title": "Context Chars"
+          },
+          "prompt_chars": {
+            "type": "integer",
+            "title": "Prompt Chars"
+          },
+          "input_token_estimate": {
+            "type": "integer",
+            "title": "Input Token Estimate"
+          },
+          "schema_chars": {
+            "type": "integer",
+            "title": "Schema Chars"
+          },
+          "max_output_tokens": {
+            "type": "integer",
+            "title": "Max Output Tokens"
+          },
+          "read_timeout": {
+            "type": "number",
+            "title": "Read Timeout"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "latency_seconds": {
+            "type": "number",
+            "title": "Latency Seconds",
+            "default": 0
+          },
+          "provider_outcome": {
+            "type": "string",
+            "title": "Provider Outcome",
+            "default": "submitted"
+          },
+          "prompt_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Tokens"
+          },
+          "completion_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completion Tokens"
+          },
+          "finish_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finish Reason"
+          },
+          "validation_result": {
+            "type": "string",
+            "title": "Validation Result",
+            "default": "not_run"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "request_id",
+          "role_id",
+          "context_chars",
+          "prompt_chars",
+          "input_token_estimate",
+          "schema_chars",
+          "max_output_tokens",
+          "read_timeout",
+          "started_at"
+        ],
+        "title": "InferenceMetrics",
+        "description": "Safe per-request telemetry, including transport failures without validation attempts."
+      },
+      "IssueSeverity": {
+        "type": "string",
+        "enum": [
+          "info",
+          "minor",
+          "major",
+          "critical"
+        ],
+        "title": "IssueSeverity"
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "queued",
+          "blocked",
+          "preparing",
+          "running",
+          "evaluating",
+          "repairing",
+          "waiting_human",
+          "succeeded",
+          "failed",
+          "cancelled"
+        ],
+        "title": "JobStatus"
+      },
+      "JsonValue": {},
+      "KeyMoment": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Description"
+          },
+          "scene_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Hint"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "description"
+        ],
+        "title": "KeyMoment"
+      },
+      "KeyVisualHint": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Description"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "description"
+        ],
+        "title": "KeyVisualHint"
+      },
+      "LightingSpec": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "setup": {
+            "type": "string",
+            "title": "Setup"
+          },
+          "key_direction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Direction"
+          },
+          "contrast": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrast"
+          },
+          "color_temperature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color Temperature"
+          },
+          "practicals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Practicals"
+          },
+          "must_match_previous": {
+            "type": "boolean",
+            "title": "Must Match Previous",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "setup"
+        ],
+        "title": "LightingSpec",
+        "description": "Lighting intent for the shot, without renderer parameters."
+      },
+      "Location": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "location_id": {
+            "type": "string",
+            "title": "Location Id"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "immutable_features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Immutable Features"
+          },
+          "reference_artifact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reference Artifact Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Location",
+        "description": "Canonical place definition used by scenes."
+      },
+      "LocationState": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "location_id": {
+            "type": "string",
+            "title": "Location Id"
+          },
+          "scene_state": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scene State"
+          },
+          "lighting_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lighting State"
+          },
+          "weather": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weather"
+          },
+          "damage_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Damage State"
+          },
+          "time_of_day": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Of Day"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "location_id"
+        ],
+        "title": "LocationState",
+        "description": "Mutable environment facts for a location at a continuity boundary."
+      },
+      "Orientation": {
+        "type": "string",
+        "enum": [
+          "front",
+          "back",
+          "left",
+          "right",
+          "three_quarter_left",
+          "three_quarter_right"
+        ],
+        "title": "Orientation"
+      },
+      "OutputErrorCode": {
+        "type": "string",
+        "enum": [
+          "schema_invalid",
+          "missing_required_field",
+          "unknown_entity_id",
+          "constraint_violation",
+          "duration_budget_error",
+          "broken_reference",
+          "semantic_conflict"
+        ],
+        "title": "OutputErrorCode",
+        "description": "Validation defects, separate from media repair issues."
+      },
+      "OutputIssue": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "code": {
+            "$ref": "#/components/schemas/OutputErrorCode"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "path",
+          "message"
+        ],
+        "title": "OutputIssue",
+        "description": "Machine-readable validation error supplied to bounded output repair."
+      },
+      "Pacing": {
+        "type": "string",
+        "enum": [
+          "slow",
+          "measured",
+          "moderate",
+          "fast",
+          "variable"
+        ],
+        "title": "Pacing"
+      },
+      "PerformanceSpec": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "emotion_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emotion Start"
+          },
+          "emotion_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emotion End"
+          },
+          "blocking": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocking"
+          },
+          "dialogue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dialogue"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "character_id",
+          "action"
+        ],
+        "title": "PerformanceSpec",
+        "description": "Character performance over the duration of a shot."
+      },
+      "ProductionStatus": {
+        "type": "string",
+        "enum": [
+          "created",
+          "running",
+          "pausing",
+          "paused",
+          "waiting_human",
+          "completed",
+          "failed",
+          "cancelled"
+        ],
+        "title": "ProductionStatus",
+        "description": "Application status, distinct from node and job state."
+      },
+      "Project": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "brief": {
+            "$ref": "#/components/schemas/ProjectBrief"
+          },
+          "creative_direction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CreativeDirection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "story_bible": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StoryBible"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "visual_bible": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VisualBible"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "screenplay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Screenplay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "characters": {
+            "items": {
+              "$ref": "#/components/schemas/Character"
+            },
+            "type": "array",
+            "title": "Characters"
+          },
+          "locations": {
+            "items": {
+              "$ref": "#/components/schemas/Location"
+            },
+            "type": "array",
+            "title": "Locations"
+          },
+          "props": {
+            "items": {
+              "$ref": "#/components/schemas/Prop"
+            },
+            "type": "array",
+            "title": "Props"
+          },
+          "scenes": {
+            "items": {
+              "$ref": "#/components/schemas/Scene"
+            },
+            "type": "array",
+            "title": "Scenes"
+          },
+          "shots": {
+            "items": {
+              "$ref": "#/components/schemas/Shot"
+            },
+            "type": "array",
+            "title": "Shots"
+          },
+          "continuity_chains": {
+            "items": {
+              "$ref": "#/components/schemas/ContinuityChain"
+            },
+            "type": "array",
+            "title": "Continuity Chains"
+          },
+          "canonical_state": {
+            "$ref": "#/components/schemas/CanonicalProjectState"
+          },
+          "creative_memory": {
+            "$ref": "#/components/schemas/CreativeMemory"
+          },
+          "generation_history": {
+            "$ref": "#/components/schemas/GenerationHistory"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "brief"
+        ],
+        "title": "Project",
+        "description": "Aggregate root for one long-running movie production."
+      },
+      "ProjectBrief": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Title"
+          },
+          "logline": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Logline"
+          },
+          "story_description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Story Description"
+          },
+          "target_duration": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Target Duration",
+            "description": "Target film duration in seconds."
+          },
+          "output_language": {
+            "type": "string",
+            "title": "Output Language",
+            "default": "en"
+          },
+          "genre": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Genre"
+          },
+          "audience": {
+            "type": "string",
+            "title": "Audience",
+            "default": "general"
+          },
+          "rating": {
+            "type": "string",
+            "title": "Rating",
+            "default": "unrated"
+          },
+          "theme": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Theme"
+          },
+          "narrative_style": {
+            "type": "string",
+            "title": "Narrative Style",
+            "default": ""
+          },
+          "ending_preference": {
+            "type": "string",
+            "title": "Ending Preference",
+            "default": ""
+          },
+          "pacing": {
+            "$ref": "#/components/schemas/Pacing",
+            "default": "moderate"
+          },
+          "dialogue_density": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Dialogue Density",
+            "default": 0.5
+          },
+          "creative_freedom": {
+            "$ref": "#/components/schemas/CreativeFreedomLevel",
+            "default": "medium"
+          },
+          "desired_character_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Desired Character Count",
+            "default": 1
+          },
+          "character_descriptions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Character Descriptions"
+          },
+          "relationship_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Relationship Constraints"
+          },
+          "locations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Locations"
+          },
+          "time_period": {
+            "type": "string",
+            "title": "Time Period",
+            "default": ""
+          },
+          "sci_fi_setting": {
+            "type": "boolean",
+            "title": "Sci Fi Setting",
+            "default": false
+          },
+          "world_rules": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "World Rules"
+          },
+          "prohibited_elements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Prohibited Elements"
+          },
+          "visual_style": {
+            "type": "string",
+            "title": "Visual Style",
+            "default": ""
+          },
+          "reference_movies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reference Movies"
+          },
+          "reference_images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reference Images",
+            "description": "Artifact IDs or external references supplied by the user."
+          },
+          "palette": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Palette"
+          },
+          "lighting": {
+            "type": "string",
+            "title": "Lighting",
+            "default": ""
+          },
+          "realism": {
+            "type": "string",
+            "title": "Realism",
+            "default": ""
+          },
+          "aspect_ratio": {
+            "$ref": "#/components/schemas/AspectRatio",
+            "default": "16:9"
+          },
+          "resolution": {
+            "type": "string",
+            "title": "Resolution",
+            "default": "1920x1080"
+          },
+          "fps": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Fps",
+            "default": 24
+          },
+          "preferred_shot_style": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preferred Shot Style"
+          },
+          "preferred_camera_motion": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preferred Camera Motion"
+          },
+          "preferred_lenses": {
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0.0
+            },
+            "type": "array",
+            "title": "Preferred Lenses",
+            "description": "Preferred focal lengths in millimetres."
+          },
+          "cutting_style": {
+            "type": "string",
+            "title": "Cutting Style",
+            "default": ""
+          },
+          "composition_preferences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Composition Preferences"
+          },
+          "dialogue_style": {
+            "type": "string",
+            "title": "Dialogue Style",
+            "default": ""
+          },
+          "voice_style": {
+            "type": "string",
+            "title": "Voice Style",
+            "default": ""
+          },
+          "music_style": {
+            "type": "string",
+            "title": "Music Style",
+            "default": ""
+          },
+          "ambience_style": {
+            "type": "string",
+            "title": "Ambience Style",
+            "default": ""
+          },
+          "sound_design": {
+            "type": "string",
+            "title": "Sound Design",
+            "default": ""
+          },
+          "quality_level": {
+            "$ref": "#/components/schemas/QualityProfile",
+            "default": "standard"
+          },
+          "max_shots": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Max Shots",
+            "default": 24
+          },
+          "max_retry": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Max Retry",
+            "default": 2
+          },
+          "generation_budget": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Generation Budget",
+            "default": 0.0
+          },
+          "user_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "User Constraints"
+          },
+          "must_preserve": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Must Preserve"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "logline",
+          "story_description",
+          "target_duration"
+        ],
+        "title": "ProjectBrief",
+        "description": "Frontend-ready user intent, with hard constraints separate from freedom."
+      },
+      "ProjectRecord": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProductionStatus",
+            "default": "created"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "creative_hints": {
+            "$ref": "#/components/schemas/CreativeHints"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project"
+        ],
+        "title": "ProjectRecord",
+        "description": "Durable command metadata and initial project; execution snapshots stay in checkpoints."
+      },
+      "ProjectSnapshot": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProductionStatus"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "event_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Cursor"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project",
+          "status"
+        ],
+        "title": "ProjectSnapshot",
+        "description": "Canonical project snapshot aligned to a durable event cursor."
+      },
+      "Prop": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "prop_id": {
+            "type": "string",
+            "title": "Prop Id"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "continuity_critical": {
+            "type": "boolean",
+            "title": "Continuity Critical",
+            "default": false
+          },
+          "reference_artifact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reference Artifact Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Prop",
+        "description": "Canonical story-relevant object."
+      },
+      "PropCondition": {
+        "type": "string",
+        "enum": [
+          "intact",
+          "damaged",
+          "broken",
+          "missing"
+        ],
+        "title": "PropCondition"
+      },
+      "PropState": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "prop_id": {
+            "type": "string",
+            "title": "Prop Id"
+          },
+          "condition": {
+            "$ref": "#/components/schemas/PropCondition",
+            "default": "intact"
+          },
+          "holder_character_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Character Id"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Vector3"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "visible": {
+            "type": "boolean",
+            "title": "Visible",
+            "default": true
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "prop_id"
+        ],
+        "title": "PropState",
+        "description": "Mutable prop facts, including condition and possession."
+      },
+      "Provenance": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "prompt_package_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Package Id"
+          },
+          "input_artifact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Input Artifact Ids"
+          },
+          "generation_strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation Strategy"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Parameters"
+          },
+          "retry_history": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Retry History"
+          },
+          "evaluation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evaluation Ids"
+          },
+          "repair_plan_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Repair Plan Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Provenance",
+        "description": "Trace of the role, tool, provider, inputs, and decisions behind an output."
+      },
+      "ProviderCapability": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "provider_id": {
+            "type": "string",
+            "title": "Provider Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProviderKind"
+          },
+          "tasks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tasks"
+          },
+          "generation_strategies": {
+            "items": {
+              "$ref": "#/components/schemas/GenerationStrategyType"
+            },
+            "type": "array",
+            "title": "Generation Strategies"
+          },
+          "accepts_reference_images": {
+            "type": "boolean",
+            "title": "Accepts Reference Images",
+            "default": false
+          },
+          "accepts_first_frame": {
+            "type": "boolean",
+            "title": "Accepts First Frame",
+            "default": false
+          },
+          "accepts_last_frame": {
+            "type": "boolean",
+            "title": "Accepts Last Frame",
+            "default": false
+          },
+          "supports_cancellation": {
+            "type": "boolean",
+            "title": "Supports Cancellation",
+            "default": true
+          },
+          "supports_seed": {
+            "type": "boolean",
+            "title": "Supports Seed",
+            "default": false
+          },
+          "resource_classes": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceClass"
+            },
+            "type": "array",
+            "title": "Resource Classes"
+          },
+          "quality_profiles": {
+            "items": {
+              "$ref": "#/components/schemas/QualityProfile"
+            },
+            "type": "array",
+            "title": "Quality Profiles"
+          },
+          "max_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Duration Seconds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "provider_id",
+          "kind"
+        ],
+        "title": "ProviderCapability",
+        "description": "Advertised provider behavior used by strategy planning and routing."
+      },
+      "ProviderKind": {
+        "type": "string",
+        "enum": [
+          "llm",
+          "vision",
+          "image",
+          "video",
+          "audio"
+        ],
+        "title": "ProviderKind"
+      },
+      "ProviderView": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "capability": {
+            "$ref": "#/components/schemas/ProviderCapability"
+          },
+          "healthy": {
+            "type": "boolean",
+            "title": "Healthy"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "capability",
+          "healthy"
+        ],
+        "title": "ProviderView",
+        "description": "Public provider capability and availability without runtime credentials."
+      },
+      "QualityProfile": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "standard",
+          "high",
+          "final"
+        ],
+        "title": "QualityProfile"
+      },
+      "RepairAction": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "action_id": {
+            "type": "string",
+            "title": "Action Id"
+          },
+          "action_type": {
+            "$ref": "#/components/schemas/RepairActionType"
+          },
+          "issue_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Issue Ids"
+          },
+          "target_shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Shot Id"
+          },
+          "target_artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Artifact Id"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "consumes_retry": {
+            "type": "boolean",
+            "title": "Consumes Retry",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action_type",
+          "rationale"
+        ],
+        "title": "RepairAction",
+        "description": "One bounded, executable response to a classified issue."
+      },
+      "RepairActionType": {
+        "type": "string",
+        "enum": [
+          "strengthen_character_reference",
+          "strengthen_scene_reference",
+          "rewrite_prompt",
+          "regenerate_first_frame",
+          "regenerate_last_frame",
+          "change_generation_strategy",
+          "image_edit",
+          "regenerate",
+          "split_shot",
+          "director_replan",
+          "request_human_review"
+        ],
+        "title": "RepairActionType"
+      },
+      "RepairPlan": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "repair_plan_id": {
+            "type": "string",
+            "title": "Repair Plan Id"
+          },
+          "evaluation_id": {
+            "type": "string",
+            "title": "Evaluation Id"
+          },
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/RepairAction"
+            },
+            "type": "array",
+            "title": "Actions"
+          },
+          "retry_budget": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Retry Budget"
+          },
+          "retry_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Retry Count",
+            "default": 0
+          },
+          "exhausted": {
+            "type": "boolean",
+            "title": "Exhausted",
+            "default": false
+          },
+          "requires_human": {
+            "type": "boolean",
+            "title": "Requires Human",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "evaluation_id",
+          "retry_budget"
+        ],
+        "title": "RepairPlan",
+        "description": "Finite repair plan with an explicit retry budget and escalation path."
+      },
+      "RequestContractTypeRevision": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "kind": {
+            "type": "string",
+            "const": "REQUEST_CONTRACT_TYPE_REVISION",
+            "title": "Kind",
+            "default": "REQUEST_CONTRACT_TYPE_REVISION"
+          },
+          "authorization_reference": {
+            "type": "string",
+            "title": "Authorization Reference"
+          },
+          "scene_id": {
+            "type": "string",
+            "title": "Scene Id"
+          },
+          "parent_invocation_id": {
+            "type": "string",
+            "title": "Parent Invocation Id"
+          },
+          "parent_result_hash": {
+            "type": "string",
+            "title": "Parent Result Hash"
+          },
+          "old_schema_hash": {
+            "type": "string",
+            "title": "Old Schema Hash"
+          },
+          "new_schema_hash": {
+            "type": "string",
+            "title": "New Schema Hash"
+          },
+          "ownership_change": {
+            "type": "string",
+            "const": "CORE_CANONICAL_STATE_LLM_LOCAL_DELTA",
+            "title": "Ownership Change",
+            "default": "CORE_CANONICAL_STATE_LLM_LOCAL_DELTA"
+          },
+          "mapper_version": {
+            "type": "string",
+            "title": "Mapper Version"
+          },
+          "repair_budget": {
+            "type": "integer",
+            "const": 2,
+            "title": "Repair Budget",
+            "default": 2
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "authorization_reference",
+          "scene_id",
+          "parent_invocation_id",
+          "parent_result_hash",
+          "old_schema_hash",
+          "new_schema_hash",
+          "mapper_version"
+        ],
+        "title": "RequestContractTypeRevision",
+        "description": "Explicit ownership change from model snapshots to Core deterministic state."
+      },
+      "ResourceClass": {
+        "type": "string",
+        "enum": [
+          "light",
+          "medium",
+          "heavy",
+          "exclusive"
+        ],
+        "title": "ResourceClass"
+      },
+      "ReviewResolution": {
+        "properties": {
+          "approved": {
+            "type": "boolean",
+            "title": "Approved"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "approved"
+        ],
+        "title": "ReviewResolution",
+        "description": "Explicit human approval/rejection command."
+      },
+      "ReviewStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected"
+        ],
+        "title": "ReviewStatus"
+      },
+      "RoleAttempt": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "prompt_hash": {
+            "type": "string",
+            "title": "Prompt Hash"
+          },
+          "latency_seconds": {
+            "type": "number",
+            "title": "Latency Seconds"
+          },
+          "token_usage": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Token Usage"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/ValidationReport"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "request_id",
+          "prompt_hash",
+          "latency_seconds",
+          "validation"
+        ],
+        "title": "RoleAttempt",
+        "description": "Safe inference provenance; no secret, reasoning, or raw HTTP response."
+      },
+      "RoleContext": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "payload": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Payload"
+          },
+          "source_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Source Ids"
+          },
+          "context_hash": {
+            "type": "string",
+            "title": "Context Hash"
+          },
+          "context_version": {
+            "type": "string",
+            "title": "Context Version",
+            "default": "1"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "payload",
+          "source_ids",
+          "context_hash"
+        ],
+        "title": "RoleContext",
+        "description": "Deterministic JSON projection with source references and content hash."
+      },
+      "RoleId": {
+        "type": "string",
+        "enum": [
+          "creative_producer",
+          "story_architect",
+          "screenwriter",
+          "visual_director",
+          "director",
+          "cinematographer"
+        ],
+        "title": "RoleId",
+        "description": "Stable identifiers for the six reasoning roles."
+      },
+      "RoleInvocation": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "invocation_id": {
+            "type": "string",
+            "title": "Invocation Id"
+          },
+          "role_id": {
+            "$ref": "#/components/schemas/RoleId"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
+          "contract_revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContractSchemaRevision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_contract_revision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequestContractTypeRevision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role_id",
+          "project_id",
+          "node_id"
+        ],
+        "title": "RoleInvocation",
+        "description": "Stable invocation identity, including the scene scope where appropriate."
+      },
+      "RoleResult": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "invocation": {
+            "$ref": "#/components/schemas/RoleInvocation"
+          },
+          "provider_id": {
+            "type": "string",
+            "title": "Provider Id"
+          },
+          "served_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Served Model"
+          },
+          "context": {
+            "$ref": "#/components/schemas/RoleContext"
+          },
+          "target_schema": {
+            "type": "string",
+            "title": "Target Schema"
+          },
+          "target_schema_version": {
+            "type": "string",
+            "title": "Target Schema Version",
+            "default": "1.0.0"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "attempts": {
+            "items": {
+              "$ref": "#/components/schemas/RoleAttempt"
+            },
+            "type": "array",
+            "title": "Attempts"
+          },
+          "committed": {
+            "type": "boolean",
+            "title": "Committed",
+            "default": false
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "pending_output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Output"
+          },
+          "inference_records": {
+            "items": {
+              "$ref": "#/components/schemas/InferenceMetrics"
+            },
+            "type": "array",
+            "title": "Inference Records"
+          },
+          "validation_replays": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationReplay"
+            },
+            "type": "array",
+            "title": "Validation Replays"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "invocation",
+          "provider_id",
+          "context",
+          "target_schema"
+        ],
+        "title": "RoleResult",
+        "description": "Persistable role result envelope; output is revalidated by its named schema."
+      },
+      "Scene": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "scene_id": {
+            "type": "string",
+            "title": "Scene Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "location_id": {
+            "type": "string",
+            "title": "Location Id"
+          },
+          "time_description": {
+            "type": "string",
+            "title": "Time Description"
+          },
+          "character_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Character Ids"
+          },
+          "prop_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Prop Ids"
+          },
+          "shot_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Shot Ids"
+          },
+          "initial_state": {
+            "$ref": "#/components/schemas/ContinuityState"
+          },
+          "expected_final_state": {
+            "$ref": "#/components/schemas/ContinuityState"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "purpose",
+          "location_id",
+          "time_description"
+        ],
+        "title": "Scene",
+        "description": "Narrative scene and references to its ordered production shots."
+      },
+      "SceneSeed": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "description"
+        ],
+        "title": "SceneSeed"
+      },
+      "Screenplay": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "preserved_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preserved Constraints"
+          },
+          "immutable_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Immutable Facts"
+          },
+          "screenplay_id": {
+            "type": "string",
+            "title": "Screenplay Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "characters": {
+            "items": {
+              "$ref": "#/components/schemas/Character"
+            },
+            "type": "array",
+            "title": "Characters"
+          },
+          "locations": {
+            "items": {
+              "$ref": "#/components/schemas/Location"
+            },
+            "type": "array",
+            "title": "Locations"
+          },
+          "props": {
+            "items": {
+              "$ref": "#/components/schemas/Prop"
+            },
+            "type": "array",
+            "title": "Props"
+          },
+          "scenes": {
+            "items": {
+              "$ref": "#/components/schemas/ScreenplayScene"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Scenes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "preserved_constraints",
+          "immutable_facts",
+          "title",
+          "characters",
+          "locations",
+          "scenes"
+        ],
+        "title": "Screenplay",
+        "description": "Typed script with canonical entity declarations and scene actions/dialogue."
+      },
+      "ScreenplayScene": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "scene_id": {
+            "type": "string",
+            "title": "Scene Id"
+          },
+          "location_id": {
+            "type": "string",
+            "title": "Location Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "action": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Action"
+          },
+          "dialogue": {
+            "items": {
+              "$ref": "#/components/schemas/Dialogue"
+            },
+            "type": "array",
+            "title": "Dialogue"
+          },
+          "character_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Character Ids"
+          },
+          "prop_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Prop Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scene_id",
+          "location_id",
+          "title",
+          "action"
+        ],
+        "title": "ScreenplayScene",
+        "description": "Dramatic scene before cinematic shot breakdown."
+      },
+      "Shot": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "shot_id": {
+            "type": "string",
+            "title": "Shot Id"
+          },
+          "scene_id": {
+            "type": "string",
+            "title": "Scene Id"
+          },
+          "narrative": {
+            "$ref": "#/components/schemas/ShotNarrative"
+          },
+          "duration_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Duration Seconds"
+          },
+          "camera": {
+            "$ref": "#/components/schemas/CameraSpec"
+          },
+          "performances": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceSpec"
+            },
+            "type": "array",
+            "title": "Performances"
+          },
+          "lighting": {
+            "$ref": "#/components/schemas/LightingSpec"
+          },
+          "visual_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Visual Requirements"
+          },
+          "reference_artifact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reference Artifact Ids"
+          },
+          "frame_anchors": {
+            "$ref": "#/components/schemas/FrameAnchors"
+          },
+          "continuity_chain_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Continuity Chain Id"
+          },
+          "previous_shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Shot Id"
+          },
+          "next_shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Shot Id"
+          },
+          "state_before": {
+            "$ref": "#/components/schemas/ContinuityState"
+          },
+          "expected_state_after": {
+            "$ref": "#/components/schemas/ContinuityState"
+          },
+          "generation_strategy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GenerationStrategy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retry_budget": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Retry Budget",
+            "default": 2
+          },
+          "quality_profile": {
+            "$ref": "#/components/schemas/QualityProfile",
+            "default": "standard"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scene_id",
+          "narrative",
+          "duration_seconds",
+          "camera",
+          "lighting"
+        ],
+        "title": "Shot",
+        "description": "Production core for one model-agnostic cinematic shot."
+      },
+      "ShotNarrative": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Purpose"
+          },
+          "beat": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Beat"
+          },
+          "action_summary": {
+            "type": "string",
+            "title": "Action Summary",
+            "default": ""
+          },
+          "dialogue": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dialogue"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "purpose",
+          "beat"
+        ],
+        "title": "ShotNarrative",
+        "description": "Narrative purpose and dramatic beat of a shot."
+      },
+      "ShotSize": {
+        "type": "string",
+        "enum": [
+          "extreme_wide",
+          "wide",
+          "full",
+          "medium",
+          "close_up",
+          "extreme_close_up",
+          "insert"
+        ],
+        "title": "ShotSize"
+      },
+      "StoryBible": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "story_bible_id": {
+            "type": "string",
+            "title": "Story Bible Id"
+          },
+          "synopsis": {
+            "type": "string",
+            "title": "Synopsis"
+          },
+          "themes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Themes"
+          },
+          "acts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Acts"
+          },
+          "character_arcs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Character Arcs"
+          },
+          "world_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "World Facts"
+          },
+          "immutable_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Immutable Facts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "synopsis"
+        ],
+        "title": "StoryBible",
+        "description": "Canonical narrative facts and arcs used by all creative roles."
+      },
+      "StudioSnapshot": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProductionStatus"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "event_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Cursor"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/WorkflowGraph"
+          },
+          "creative_hints": {
+            "$ref": "#/components/schemas/CreativeHints"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/GenerationJob"
+            },
+            "type": "array",
+            "title": "Jobs"
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/Artifact"
+            },
+            "type": "array",
+            "title": "Artifacts"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/HumanReviewRequest"
+            },
+            "type": "array",
+            "title": "Reviews"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleResult"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventEnvelope"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "evaluations": {
+            "items": {
+              "$ref": "#/components/schemas/Evaluation"
+            },
+            "type": "array",
+            "title": "Evaluations"
+          },
+          "repairs": {
+            "items": {
+              "$ref": "#/components/schemas/RepairPlan"
+            },
+            "type": "array",
+            "title": "Repairs"
+          },
+          "media_mode": {
+            "type": "string",
+            "const": "mock",
+            "title": "Media Mode",
+            "default": "mock"
+          },
+          "reasoning_provider": {
+            "type": "string",
+            "title": "Reasoning Provider"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project",
+          "status",
+          "graph",
+          "creative_hints",
+          "jobs",
+          "artifacts",
+          "reviews",
+          "roles",
+          "events",
+          "reasoning_provider"
+        ],
+        "title": "StudioSnapshot"
+      },
+      "StyleReference": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Title"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "film",
+              "series",
+              "director",
+              "photography",
+              "visual"
+            ],
+            "title": "Kind",
+            "default": "film"
+          },
+          "dimensions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "visual",
+                "lighting",
+                "cinematography",
+                "color",
+                "editing_rhythm",
+                "narrative_tone"
+              ]
+            },
+            "type": "array",
+            "title": "Dimensions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "StyleReference"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "ValidationReplay": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "source_request_id": {
+            "type": "string",
+            "title": "Source Request Id"
+          },
+          "source_output_hash": {
+            "type": "string",
+            "title": "Source Output Hash"
+          },
+          "reason": {
+            "type": "string",
+            "const": "DETERMINISTIC_CODE_FIX_REVALIDATION",
+            "title": "Reason",
+            "default": "DETERMINISTIC_CODE_FIX_REVALIDATION"
+          },
+          "mapper_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapper Version"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/ValidationReport"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_request_id",
+          "source_output_hash",
+          "validation"
+        ],
+        "title": "ValidationReplay",
+        "description": "Non-inference revalidation of one preserved provider output after a code fix."
+      },
+      "ValidationReport": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/OutputIssue"
+            },
+            "type": "array",
+            "title": "Issues"
+          },
+          "unverified_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unverified Constraints"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ValidationReport",
+        "description": "Schema and semantic validation outcome, with honest validation coverage."
+      },
+      "Vector3": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "z": {
+            "type": "number",
+            "title": "Z",
+            "default": 0.0
+          },
+          "coordinate_space": {
+            "type": "string",
+            "title": "Coordinate Space",
+            "default": "scene"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "Vector3",
+        "description": "Position in a named production coordinate system."
+      },
+      "VisualBible": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "visual_bible_id": {
+            "type": "string",
+            "title": "Visual Bible Id"
+          },
+          "style_statement": {
+            "type": "string",
+            "title": "Style Statement"
+          },
+          "palette": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Palette"
+          },
+          "lighting_rules": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Lighting Rules"
+          },
+          "composition_rules": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Composition Rules"
+          },
+          "camera_rules": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Camera Rules"
+          },
+          "continuity_rules": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Continuity Rules"
+          },
+          "prohibited_visuals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Prohibited Visuals"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "style_statement"
+        ],
+        "title": "VisualBible",
+        "description": "Canonical visual language and consistency constraints."
+      },
+      "WorkflowEdge": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "edge_id": {
+            "type": "string",
+            "title": "Edge Id"
+          },
+          "source_node_id": {
+            "type": "string",
+            "title": "Source Node Id"
+          },
+          "target_node_id": {
+            "type": "string",
+            "title": "Target Node Id"
+          },
+          "edge_type": {
+            "$ref": "#/components/schemas/WorkflowEdgeType",
+            "default": "dependency"
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_node_id",
+          "target_node_id"
+        ],
+        "title": "WorkflowEdge",
+        "description": "Directed dependency or conditional route in a production graph."
+      },
+      "WorkflowEdgeType": {
+        "type": "string",
+        "enum": [
+          "dependency",
+          "condition",
+          "success",
+          "failure",
+          "repair",
+          "human_gate"
+        ],
+        "title": "WorkflowEdgeType"
+      },
+      "WorkflowGraph": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "graph_id": {
+            "type": "string",
+            "title": "Graph Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowNode"
+            },
+            "type": "array",
+            "title": "Nodes"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowEdge"
+            },
+            "type": "array",
+            "title": "Edges"
+          },
+          "entry_node_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Entry Node Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id"
+        ],
+        "title": "WorkflowGraph",
+        "description": "Validated acyclic production graph independent of orchestration engines."
+      },
+      "WorkflowNode": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "node_type": {
+            "type": "string",
+            "title": "Node Type"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WorkflowNodeStatus",
+            "default": "pending"
+          },
+          "progress": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Progress",
+            "default": 0.0
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "input_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Input Refs"
+          },
+          "output_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Output Refs"
+          },
+          "dependencies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dependencies"
+          },
+          "children": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Children"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "display_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Order"
+          },
+          "color_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color Role"
+          },
+          "icon_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon Hint"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "node_type",
+          "label",
+          "group",
+          "role"
+        ],
+        "title": "WorkflowNode",
+        "description": "Executable production node plus frontend-neutral display metadata."
+      },
+      "WorkflowNodeStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "ready",
+          "running",
+          "waiting_human",
+          "succeeded",
+          "failed",
+          "skipped",
+          "cancelled"
+        ],
+        "title": "WorkflowNodeStatus"
+      },
+      "WorkflowSnapshot": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/WorkflowGraph"
+          },
+          "event_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Cursor"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "graph"
+        ],
+        "title": "WorkflowSnapshot",
+        "description": "Graph snapshot and cursor for lossless SSE handoff."
+      }
+    }
+  }
+}

@@ -1,0 +1,1399 @@
+{
+  "schema_version": "1.0.0",
+  "project": {
+    "schema_version": "1.0.0",
+    "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+    "brief": {
+      "schema_version": "1.0.0",
+      "title": "Untitled film",
+      "logline": "A story waiting to unfold.",
+      "story_description": "An archivist hears tomorrow.",
+      "target_duration": 30.0,
+      "output_language": "en",
+      "genre": [],
+      "audience": "general",
+      "rating": "unrated",
+      "theme": [],
+      "narrative_style": "",
+      "ending_preference": "",
+      "pacing": "moderate",
+      "dialogue_density": 0.5,
+      "creative_freedom": "medium",
+      "desired_character_count": 1,
+      "character_descriptions": [],
+      "relationship_constraints": [],
+      "locations": [],
+      "time_period": "",
+      "sci_fi_setting": false,
+      "world_rules": [],
+      "prohibited_elements": [],
+      "visual_style": "",
+      "reference_movies": [],
+      "reference_images": [],
+      "palette": [],
+      "lighting": "",
+      "realism": "",
+      "aspect_ratio": "16:9",
+      "resolution": "1920x1080",
+      "fps": 24.0,
+      "preferred_shot_style": [],
+      "preferred_camera_motion": [],
+      "preferred_lenses": [],
+      "cutting_style": "",
+      "composition_preferences": [],
+      "dialogue_style": "",
+      "voice_style": "",
+      "music_style": "",
+      "ambience_style": "",
+      "sound_design": "",
+      "quality_level": "standard",
+      "max_shots": 24,
+      "max_retry": 2,
+      "generation_budget": 0.0,
+      "user_constraints": [],
+      "must_preserve": []
+    },
+    "creative_direction": null,
+    "story_bible": null,
+    "visual_bible": null,
+    "screenplay": null,
+    "characters": [],
+    "locations": [],
+    "props": [],
+    "scenes": [],
+    "shots": [],
+    "continuity_chains": [],
+    "canonical_state": {
+      "schema_version": "1.0.0",
+      "confirmed_facts": [],
+      "current_scene_id": null,
+      "current_shot_id": null,
+      "completed_node_ids": []
+    },
+    "creative_memory": {
+      "schema_version": "1.0.0",
+      "preferences": [],
+      "rejected_choices": [],
+      "notes_by_role": {}
+    },
+    "generation_history": {
+      "schema_version": "1.0.0",
+      "entries": []
+    },
+    "created_at": "2026-09-05T15:09:27.624540Z",
+    "updated_at": "2026-09-05T15:09:27.624540Z"
+  },
+  "status": "created",
+  "failure_code": null,
+  "event_cursor": "event_9a5e5f58f96845849d10772b1831afe2",
+  "graph": {
+    "schema_version": "1.0.0",
+    "graph_id": "graph_25c39cfc36a84890b562ef82af57ba37",
+    "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+    "nodes": [
+      {
+        "schema_version": "1.0.0",
+        "node_id": "brief",
+        "node_type": "brief",
+        "label": "Brief",
+        "group": "brief",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Showrunner",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.629457Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 0,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "creative_expansion",
+        "node_type": "creative",
+        "label": "Creative Expansion",
+        "group": "creative",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Creative Producer",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "brief"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.630456Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 1,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "story_planning",
+        "node_type": "story",
+        "label": "Story Planning",
+        "group": "story",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Story Architect",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "creative_expansion"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.632456Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 2,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "story_gate",
+        "node_type": "human_gate",
+        "label": "Story Approval",
+        "group": "human_gate",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Showrunner",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "story_planning"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.634454Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 3,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "screenplay",
+        "node_type": "writing",
+        "label": "Treatment / Screenplay",
+        "group": "writing",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Screenwriter",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "story_gate"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.636457Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 4,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "bibles",
+        "node_type": "world",
+        "label": "Story Bible + Visual Bible",
+        "group": "world",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Visual Director",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "screenplay"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.638976Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 5,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "scene_planning",
+        "node_type": "planning",
+        "label": "Scene Planning",
+        "group": "planning",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Director",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "bibles"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.640990Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 6,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "shot_planning",
+        "node_type": "planning",
+        "label": "Shot Planning",
+        "group": "planning",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Cinematographer",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "scene_planning"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.641988Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 7,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "shot_gate",
+        "node_type": "human_gate",
+        "label": "Shot Plan Approval",
+        "group": "human_gate",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Showrunner",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "shot_planning"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.643988Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 8,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "asset_planning",
+        "node_type": "assets",
+        "label": "Asset Planning",
+        "group": "assets",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Visual Director",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "shot_gate"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.645995Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 9,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "storyboard_planning",
+        "node_type": "storyboard",
+        "label": "Storyboard Planning",
+        "group": "storyboard",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Director",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "asset_planning"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.647983Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 10,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "shot_production",
+        "node_type": "production",
+        "label": "Shot Production",
+        "group": "production",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Showrunner",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "storyboard_planning"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.651026Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 11,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "technical_qc",
+        "node_type": "quality",
+        "label": "Technical QC",
+        "group": "quality",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Continuity Supervisor",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "shot_production"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.653023Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 12,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "visual_semantic_critic",
+        "node_type": "quality",
+        "label": "Visual/Semantic Critic",
+        "group": "quality",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Critic",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "technical_qc"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.655023Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 13,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "cinematic_critic",
+        "node_type": "quality",
+        "label": "Cinematic Critic",
+        "group": "quality",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Critic",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "visual_semantic_critic"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.657019Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 14,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "repair_accept",
+        "node_type": "repair",
+        "label": "Repair / Accept",
+        "group": "repair",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Repair Planner",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "cinematic_critic"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.659018Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 15,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "audio_post",
+        "node_type": "post",
+        "label": "Audio / Post",
+        "group": "post",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Sound/Post Director",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "repair_accept"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.661542Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 16,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "rough_cut",
+        "node_type": "post",
+        "label": "Rough Cut",
+        "group": "post",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Sound/Post Director",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "audio_post"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.663527Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 17,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "full_film_review",
+        "node_type": "quality",
+        "label": "Full Film Review",
+        "group": "quality",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Critic",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "rough_cut"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.667054Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 18,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "final_gate",
+        "node_type": "human_gate",
+        "label": "Final Cut Approval",
+        "group": "human_gate",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Showrunner",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "full_film_review"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.669045Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 19,
+        "color_role": null,
+        "icon_hint": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "node_id": "final_render",
+        "node_type": "delivery",
+        "label": "Final Render",
+        "group": "delivery",
+        "parent_id": null,
+        "status": "pending",
+        "progress": 0.0,
+        "role": "Showrunner",
+        "input_refs": [],
+        "output_refs": [],
+        "dependencies": [
+          "final_gate"
+        ],
+        "children": [],
+        "created_at": "2026-09-05T15:09:27.672043Z",
+        "started_at": null,
+        "completed_at": null,
+        "display_order": 20,
+        "color_role": null,
+        "icon_hint": null
+      }
+    ],
+    "edges": [
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_ff51378e2be949808ce2c3969729c763",
+        "source_node_id": "brief",
+        "target_node_id": "creative_expansion",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_013fd2e3b2004525b55da445673d0bbf",
+        "source_node_id": "creative_expansion",
+        "target_node_id": "story_planning",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_bcd6d9d33d784964921ca53ca9e622af",
+        "source_node_id": "story_planning",
+        "target_node_id": "story_gate",
+        "edge_type": "human_gate",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_2b39957308b0458792f63da53f81b58e",
+        "source_node_id": "story_gate",
+        "target_node_id": "screenplay",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_0cbf39ed05da4383bb963fd77d67f217",
+        "source_node_id": "screenplay",
+        "target_node_id": "bibles",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_1e6f2884d7cf495b91b39b3ea03cca6d",
+        "source_node_id": "bibles",
+        "target_node_id": "scene_planning",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_071b4c574bec4cc189b82349b9f96df0",
+        "source_node_id": "scene_planning",
+        "target_node_id": "shot_planning",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_d7506fade7d349ae8b3cef155a186788",
+        "source_node_id": "shot_planning",
+        "target_node_id": "shot_gate",
+        "edge_type": "human_gate",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_32d222244cb54ec59dbd663d2533250a",
+        "source_node_id": "shot_gate",
+        "target_node_id": "asset_planning",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_5f36c2ed19a34da2a77ead12f07a6366",
+        "source_node_id": "asset_planning",
+        "target_node_id": "storyboard_planning",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_179237be62fb4e25bd2ec974dee82491",
+        "source_node_id": "storyboard_planning",
+        "target_node_id": "shot_production",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_0eed97b7c2b7453481f9a1c3cbeb28c4",
+        "source_node_id": "shot_production",
+        "target_node_id": "technical_qc",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_f789d23d313649c6940002c768c54a2e",
+        "source_node_id": "technical_qc",
+        "target_node_id": "visual_semantic_critic",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_4f51d8d2043f4de7b5a7c90d48d02f42",
+        "source_node_id": "visual_semantic_critic",
+        "target_node_id": "cinematic_critic",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_20ce9137bc0044f4bb74b7ecb3517b74",
+        "source_node_id": "cinematic_critic",
+        "target_node_id": "repair_accept",
+        "edge_type": "repair",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_81a28819f5744db893143f8c9541804c",
+        "source_node_id": "repair_accept",
+        "target_node_id": "audio_post",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_7be4303bf8f04f93960a7e8a5244ac0d",
+        "source_node_id": "audio_post",
+        "target_node_id": "rough_cut",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_5493f3eded874158a1c74ed1d3ca0468",
+        "source_node_id": "rough_cut",
+        "target_node_id": "full_film_review",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_ecdb64a8065a472bbae00daa36b21608",
+        "source_node_id": "full_film_review",
+        "target_node_id": "final_gate",
+        "edge_type": "human_gate",
+        "condition": null,
+        "label": null
+      },
+      {
+        "schema_version": "1.0.0",
+        "edge_id": "edge_c381258d63b94fb59d83b36b24609b92",
+        "source_node_id": "final_gate",
+        "target_node_id": "final_render",
+        "edge_type": "dependency",
+        "condition": null,
+        "label": null
+      }
+    ],
+    "entry_node_ids": [
+      "brief"
+    ]
+  },
+  "creative_hints": {
+    "schema_version": "1.0.0",
+    "author": "user",
+    "scene_seeds": [],
+    "key_moments": [],
+    "key_visuals": [],
+    "style_references": []
+  },
+  "jobs": [],
+  "artifacts": [],
+  "reviews": [],
+  "roles": [],
+  "events": [
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_2d896e092d6042739a4e3b1f006f4f5d",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.629457Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "brief",
+      "job_id": null,
+      "payload": {
+        "label": "Brief"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_3ab47e137b12449c81fc50c405c0b43e",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.630456Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "creative_expansion",
+      "job_id": null,
+      "payload": {
+        "label": "Creative Expansion"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_dee6fc54439942ba878964ad4605b5fa",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.631457Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_ff51378e2be949808ce2c3969729c763",
+        "source_node_id": "brief",
+        "target_node_id": "creative_expansion",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_4c1aba4e69524e3aa7f1bc635a8b955d",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.632456Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "story_planning",
+      "job_id": null,
+      "payload": {
+        "label": "Story Planning"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_a140b5d59e764c78997663c0edc2574a",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.633456Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_013fd2e3b2004525b55da445673d0bbf",
+        "source_node_id": "creative_expansion",
+        "target_node_id": "story_planning",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_1363610fd0344e27b6748f90435c4f30",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.634454Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "story_gate",
+      "job_id": null,
+      "payload": {
+        "label": "Story Approval"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_82ec6081998c45c687e91280733b2e4b",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.635455Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_bcd6d9d33d784964921ca53ca9e622af",
+        "source_node_id": "story_planning",
+        "target_node_id": "story_gate",
+        "edge_type": "human_gate"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_8663e47535584e0cb40bf00f4fcc294d",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.637456Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "screenplay",
+      "job_id": null,
+      "payload": {
+        "label": "Treatment / Screenplay"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_ee4f90ff4545471abf376de8164b54e5",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.637456Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_2b39957308b0458792f63da53f81b58e",
+        "source_node_id": "story_gate",
+        "target_node_id": "screenplay",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_607603a8d6c245e98cbff0bb913cdea3",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.638976Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "bibles",
+      "job_id": null,
+      "payload": {
+        "label": "Story Bible + Visual Bible"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_7b010322a7064a538fb38bf5a0db82bf",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.639989Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_0cbf39ed05da4383bb963fd77d67f217",
+        "source_node_id": "screenplay",
+        "target_node_id": "bibles",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_8e30ecdaae304557a6b0cc84f6470452",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.640990Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "scene_planning",
+      "job_id": null,
+      "payload": {
+        "label": "Scene Planning"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_9cdd208d3e6942e2abbdb9a7edb04132",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.641988Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_1e6f2884d7cf495b91b39b3ea03cca6d",
+        "source_node_id": "bibles",
+        "target_node_id": "scene_planning",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_b92157b446ba434894940779a35152e8",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.642988Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "shot_planning",
+      "job_id": null,
+      "payload": {
+        "label": "Shot Planning"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_663c7f18e5e64b58bce72b769e523494",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.642988Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_071b4c574bec4cc189b82349b9f96df0",
+        "source_node_id": "scene_planning",
+        "target_node_id": "shot_planning",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_20bb95b41a5a46169cf9b0b1be9634b9",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.643988Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "shot_gate",
+      "job_id": null,
+      "payload": {
+        "label": "Shot Plan Approval"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_a8a36ee661214a3a8754fb7b7dff44ee",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.644984Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_d7506fade7d349ae8b3cef155a186788",
+        "source_node_id": "shot_planning",
+        "target_node_id": "shot_gate",
+        "edge_type": "human_gate"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_5187c3818ec34a1c93820ae131fd78ba",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.645995Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "asset_planning",
+      "job_id": null,
+      "payload": {
+        "label": "Asset Planning"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_ebc28560f0644ed387ac16e3f3843c9e",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.646983Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_32d222244cb54ec59dbd663d2533250a",
+        "source_node_id": "shot_gate",
+        "target_node_id": "asset_planning",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_97d971c396474574a261181004b1bbe5",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.647983Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "storyboard_planning",
+      "job_id": null,
+      "payload": {
+        "label": "Storyboard Planning"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_109803c0e02649c9860dcc4954c763ba",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.648984Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_5f36c2ed19a34da2a77ead12f07a6366",
+        "source_node_id": "asset_planning",
+        "target_node_id": "storyboard_planning",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_fec2a0afca2d449e85f2154277858c73",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.651026Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "shot_production",
+      "job_id": null,
+      "payload": {
+        "label": "Shot Production"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_7d59e9ce797b4f4182f0f2b4d9080764",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.652023Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_179237be62fb4e25bd2ec974dee82491",
+        "source_node_id": "storyboard_planning",
+        "target_node_id": "shot_production",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_25348884187d496599c0ee4dae2ed55d",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.653023Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "technical_qc",
+      "job_id": null,
+      "payload": {
+        "label": "Technical QC"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_77264501987d4a52801fb5b6ffade7c9",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.654019Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_0eed97b7c2b7453481f9a1c3cbeb28c4",
+        "source_node_id": "shot_production",
+        "target_node_id": "technical_qc",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_32f420dbff9c49c9a039be49ad4f061b",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.655023Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "visual_semantic_critic",
+      "job_id": null,
+      "payload": {
+        "label": "Visual/Semantic Critic"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_10bf8ee3485b4758a6466289678dde67",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.656019Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_f789d23d313649c6940002c768c54a2e",
+        "source_node_id": "technical_qc",
+        "target_node_id": "visual_semantic_critic",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_a7f03ad7e01b412184b5c41ae2eaeb7b",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.657019Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "cinematic_critic",
+      "job_id": null,
+      "payload": {
+        "label": "Cinematic Critic"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_39b172d4c5204f14b1d697106ed2b7ff",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.658019Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_4f51d8d2043f4de7b5a7c90d48d02f42",
+        "source_node_id": "visual_semantic_critic",
+        "target_node_id": "cinematic_critic",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_e70e6384afd6421982fb2f11a5691a06",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.659018Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "repair_accept",
+      "job_id": null,
+      "payload": {
+        "label": "Repair / Accept"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_bb365fdc975340d8a37de3c63ac2ee79",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.660522Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_20ce9137bc0044f4bb74b7ecb3517b74",
+        "source_node_id": "cinematic_critic",
+        "target_node_id": "repair_accept",
+        "edge_type": "repair"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_dee6a1fc316b4e52a70ade706f99b416",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.661542Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "audio_post",
+      "job_id": null,
+      "payload": {
+        "label": "Audio / Post"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_7c864d4824444441890eb473b7893c7d",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.663527Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_81a28819f5744db893143f8c9541804c",
+        "source_node_id": "repair_accept",
+        "target_node_id": "audio_post",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_977e049cb3f1467bb3821c571e68bde6",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.663527Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "rough_cut",
+      "job_id": null,
+      "payload": {
+        "label": "Rough Cut"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_fb702462e4e2494f90063db646a342d6",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.666041Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_7be4303bf8f04f93960a7e8a5244ac0d",
+        "source_node_id": "audio_post",
+        "target_node_id": "rough_cut",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_48df282cfafd4da7a1f84d66d08ae326",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.667054Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "full_film_review",
+      "job_id": null,
+      "payload": {
+        "label": "Full Film Review"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_6f1de9893d3e4db1b10c282fc5f91606",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.668046Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_5493f3eded874158a1c74ed1d3ca0468",
+        "source_node_id": "rough_cut",
+        "target_node_id": "full_film_review",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_fc8044244e45418a8fca242b3db98708",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.670038Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "final_gate",
+      "job_id": null,
+      "payload": {
+        "label": "Final Cut Approval"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_db51d36780974e13a75c310b8300e50f",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.671051Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_ecdb64a8065a472bbae00daa36b21608",
+        "source_node_id": "full_film_review",
+        "target_node_id": "final_gate",
+        "edge_type": "human_gate"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_e283daa58c164ae0bf743a5b48b9f483",
+      "event_type": "node_created",
+      "timestamp": "2026-09-05T15:09:27.672043Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": "final_render",
+      "job_id": null,
+      "payload": {
+        "label": "Final Render"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_024fef7ead78402999906dc3d5a7fb7e",
+      "event_type": "edge_created",
+      "timestamp": "2026-09-05T15:09:27.674057Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "edge_id": "edge_c381258d63b94fb59d83b36b24609b92",
+        "source_node_id": "final_gate",
+        "target_node_id": "final_render",
+        "edge_type": "dependency"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_ef7ba31259a34b3ca26853f6578626c3",
+      "event_type": "project_created",
+      "timestamp": "2026-09-05T15:09:27.675048Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "title": "Untitled film"
+      }
+    },
+    {
+      "schema_version": "1.0.0",
+      "event_id": "event_9a5e5f58f96845849d10772b1831afe2",
+      "event_type": "checkpoint_created",
+      "timestamp": "2026-09-05T15:09:27.678042Z",
+      "project_id": "project_2c94c78117c84a468eb8c4a66f1e7f52",
+      "trace_id": "trace_dccc63503c3c4a2a92ebc661f76695e6",
+      "node_id": null,
+      "job_id": null,
+      "payload": {
+        "checkpoint_id": "checkpoint_d01e8c0899d54c95a1eaadacd75850b6"
+      }
+    }
+  ],
+  "evaluations": [],
+  "repairs": [],
+  "media_mode": "mock",
+  "reasoning_provider": "fake-reasoning"
+}

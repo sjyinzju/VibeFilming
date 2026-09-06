@@ -1,0 +1,337 @@
+{
+  "$defs": {
+    "AspectRatio": {
+      "enum": [
+        "16:9",
+        "9:16",
+        "1:1",
+        "2.39:1"
+      ],
+      "title": "AspectRatio",
+      "type": "string"
+    },
+    "CreativeFreedomLevel": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "CreativeFreedomLevel",
+      "type": "string"
+    },
+    "Pacing": {
+      "enum": [
+        "slow",
+        "measured",
+        "moderate",
+        "fast",
+        "variable"
+      ],
+      "title": "Pacing",
+      "type": "string"
+    },
+    "QualityProfile": {
+      "enum": [
+        "draft",
+        "standard",
+        "high",
+        "final"
+      ],
+      "title": "QualityProfile",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Frontend-ready user intent, with hard constraints separate from freedom.",
+  "properties": {
+    "schema_version": {
+      "default": "1.0.0",
+      "description": "Version of this serialized contract for future migrations.",
+      "minLength": 1,
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "logline": {
+      "minLength": 1,
+      "title": "Logline",
+      "type": "string"
+    },
+    "story_description": {
+      "minLength": 1,
+      "title": "Story Description",
+      "type": "string"
+    },
+    "target_duration": {
+      "description": "Target film duration in seconds.",
+      "exclusiveMinimum": 0,
+      "title": "Target Duration",
+      "type": "number"
+    },
+    "output_language": {
+      "default": "en",
+      "title": "Output Language",
+      "type": "string"
+    },
+    "genre": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Genre",
+      "type": "array"
+    },
+    "audience": {
+      "default": "general",
+      "title": "Audience",
+      "type": "string"
+    },
+    "rating": {
+      "default": "unrated",
+      "title": "Rating",
+      "type": "string"
+    },
+    "theme": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Theme",
+      "type": "array"
+    },
+    "narrative_style": {
+      "default": "",
+      "title": "Narrative Style",
+      "type": "string"
+    },
+    "ending_preference": {
+      "default": "",
+      "title": "Ending Preference",
+      "type": "string"
+    },
+    "pacing": {
+      "$ref": "#/$defs/Pacing",
+      "default": "moderate"
+    },
+    "dialogue_density": {
+      "default": 0.5,
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Dialogue Density",
+      "type": "number"
+    },
+    "creative_freedom": {
+      "$ref": "#/$defs/CreativeFreedomLevel",
+      "default": "medium"
+    },
+    "desired_character_count": {
+      "default": 1,
+      "minimum": 0,
+      "title": "Desired Character Count",
+      "type": "integer"
+    },
+    "character_descriptions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Character Descriptions",
+      "type": "array"
+    },
+    "relationship_constraints": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Relationship Constraints",
+      "type": "array"
+    },
+    "locations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Locations",
+      "type": "array"
+    },
+    "time_period": {
+      "default": "",
+      "title": "Time Period",
+      "type": "string"
+    },
+    "sci_fi_setting": {
+      "default": false,
+      "title": "Sci Fi Setting",
+      "type": "boolean"
+    },
+    "world_rules": {
+      "items": {
+        "type": "string"
+      },
+      "title": "World Rules",
+      "type": "array"
+    },
+    "prohibited_elements": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Prohibited Elements",
+      "type": "array"
+    },
+    "visual_style": {
+      "default": "",
+      "title": "Visual Style",
+      "type": "string"
+    },
+    "reference_movies": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Reference Movies",
+      "type": "array"
+    },
+    "reference_images": {
+      "description": "Artifact IDs or external references supplied by the user.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Reference Images",
+      "type": "array"
+    },
+    "palette": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Palette",
+      "type": "array"
+    },
+    "lighting": {
+      "default": "",
+      "title": "Lighting",
+      "type": "string"
+    },
+    "realism": {
+      "default": "",
+      "title": "Realism",
+      "type": "string"
+    },
+    "aspect_ratio": {
+      "$ref": "#/$defs/AspectRatio",
+      "default": "16:9"
+    },
+    "resolution": {
+      "default": "1920x1080",
+      "title": "Resolution",
+      "type": "string"
+    },
+    "fps": {
+      "default": 24,
+      "exclusiveMinimum": 0,
+      "title": "Fps",
+      "type": "number"
+    },
+    "preferred_shot_style": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Preferred Shot Style",
+      "type": "array"
+    },
+    "preferred_camera_motion": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Preferred Camera Motion",
+      "type": "array"
+    },
+    "preferred_lenses": {
+      "description": "Preferred focal lengths in millimetres.",
+      "items": {
+        "exclusiveMinimum": 0,
+        "type": "number"
+      },
+      "title": "Preferred Lenses",
+      "type": "array"
+    },
+    "cutting_style": {
+      "default": "",
+      "title": "Cutting Style",
+      "type": "string"
+    },
+    "composition_preferences": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Composition Preferences",
+      "type": "array"
+    },
+    "dialogue_style": {
+      "default": "",
+      "title": "Dialogue Style",
+      "type": "string"
+    },
+    "voice_style": {
+      "default": "",
+      "title": "Voice Style",
+      "type": "string"
+    },
+    "music_style": {
+      "default": "",
+      "title": "Music Style",
+      "type": "string"
+    },
+    "ambience_style": {
+      "default": "",
+      "title": "Ambience Style",
+      "type": "string"
+    },
+    "sound_design": {
+      "default": "",
+      "title": "Sound Design",
+      "type": "string"
+    },
+    "quality_level": {
+      "$ref": "#/$defs/QualityProfile",
+      "default": "standard"
+    },
+    "max_shots": {
+      "default": 24,
+      "minimum": 1,
+      "title": "Max Shots",
+      "type": "integer"
+    },
+    "max_retry": {
+      "default": 2,
+      "minimum": 0,
+      "title": "Max Retry",
+      "type": "integer"
+    },
+    "generation_budget": {
+      "default": 0.0,
+      "minimum": 0.0,
+      "title": "Generation Budget",
+      "type": "number"
+    },
+    "user_constraints": {
+      "items": {
+        "type": "string"
+      },
+      "title": "User Constraints",
+      "type": "array"
+    },
+    "must_preserve": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Must Preserve",
+      "type": "array"
+    }
+  },
+  "required": [
+    "title",
+    "logline",
+    "story_description",
+    "target_duration"
+  ],
+  "title": "ProjectBrief",
+  "type": "object"
+}

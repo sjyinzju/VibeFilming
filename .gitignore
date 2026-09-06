@@ -10,3 +10,8 @@ __pycache__/
 /dist/
 *.egg-info/
 /workspace/
+/web/node_modules/
+/web/dist/
+/web/test-results/
+/web/playwright-report/
+/web/*.tsbuildinfo

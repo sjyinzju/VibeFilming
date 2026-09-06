@@ -3,6 +3,8 @@
 from typing import Protocol
 from enum import StrEnum
 from movie_agent.domain import ContractModel, Project
+from pydantic import Field
+from .creative_inputs import CreativeHints
 
 
 class ProductionStatus(StrEnum):
@@ -14,6 +16,7 @@ class ProductionStatus(StrEnum):
     WAITING_HUMAN = "waiting_human"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class ProjectRecord(ContractModel):
@@ -21,6 +24,7 @@ class ProjectRecord(ContractModel):
     project: Project
     status: ProductionStatus = ProductionStatus.CREATED
     failure_code: str | None = None
+    creative_hints: CreativeHints = Field(default_factory=CreativeHints)
 
 
 class ProjectRepository(Protocol):

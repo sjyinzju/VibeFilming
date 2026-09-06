@@ -1,5 +1,7 @@
 # Future Frontend Contract
 
+P2B implementation: [Web Studio](p2b_frontend.md). The design below is retained as the original boundary specification. The implemented Studio consumes the real P2A APIs with compatible application-level creative input, project listing, aggregate Inspector snapshot and local cancellation extensions.
+
 ## Scope
 
 The core does not include a web application. It already exposes the stable data a future input console, workflow canvas, inspector, approval panel, and artifact/version browser need.

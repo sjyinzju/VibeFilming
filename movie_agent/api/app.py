@@ -13,6 +13,8 @@ from movie_agent.domain import ProjectBrief, Shot, HumanReviewRequest, Generatio
 from movie_agent.application.service import ProductionService, CommandConflict
 from movie_agent.application.repository import ProjectRecord
 from movie_agent.application.views import ProjectSnapshot, WorkflowSnapshot, CommandAccepted, ProviderView
+from movie_agent.application.creative_inputs import CreateProjectInput
+from movie_agent.application.studio import StudioSnapshot, studio_snapshot
 
 
 class ReviewResolution(BaseModel):
@@ -72,8 +74,20 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
                  "healthy": await provider.health()}]
 
     @app.post("/projects", status_code=201, response_model=ProjectRecord)
-    async def create_project(brief: ProjectBrief):
-        return service.create(brief)
+    async def create_project(brief: CreateProjectInput):
+        return service.create(brief.canonical_brief(), brief.creative_hints)
+
+    @app.get("/projects", response_model=list[ProjectRecord])
+    async def list_projects():
+        return [service.repository.get(pid) for pid in service.repository.list_ids()]
+
+    @app.get("/projects/{project_id}/studio", response_model=StudioSnapshot)
+    async def studio(project_id: str):
+        return studio_snapshot(service, project_id)
+
+    @app.post("/projects/{project_id}/cancel", status_code=202, response_model=CommandAccepted)
+    async def cancel_project(project_id: str):
+        return await service.cancel(project_id)
 
     @app.get("/projects/{project_id}", response_model=ProjectSnapshot)
     async def project(project_id: str):
