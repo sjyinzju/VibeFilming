@@ -171,4 +171,4 @@ No vector database is required for these contracts. Retrieval or embedding can b
 
 ## Deferred by design
 
-Phase 2A consumes an already-running OpenAI-compatible reasoning endpoint. Spark, model downloads, serving process management, ModelScope, ComfyUI, vLLM deployment, public deployment, React, authentication and real media generation remain external/deferred. See `p2a_runtime.md` for local execution and API behavior.
+Phase 3 now implements the model-neutral media request/provider/router/job/binary artifact/preview/QC/repair/timeline boundaries described above. Its bundled providers produce deterministic test media only. Spark changes, model downloads, serving process management, ModelScope, ComfyUI, media-model deployment, LoRA, GPU scheduling, authentication, public deployment, and real media generation remain external/deferred. See `p3_media_runtime.md` and `p3_extension_guide.md`.

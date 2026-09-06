@@ -15,6 +15,7 @@ from movie_agent.application.repository import ProjectRecord
 from movie_agent.application.views import ProjectSnapshot, WorkflowSnapshot, CommandAccepted, ProviderView
 from movie_agent.application.creative_inputs import CreateProjectInput
 from movie_agent.application.studio import StudioSnapshot, studio_snapshot
+from movie_agent.media import ProviderCapabilities, media_metadata, media_response
 
 
 class ReviewResolution(BaseModel):
@@ -54,7 +55,7 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
         if owned_provider:
             await owned_provider.aclose()
 
-    app = FastAPI(title="Movie Agent Phase 2A", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="Movie Agent", version="0.3.0", lifespan=lifespan)
     app.state.production_service = service
 
     @app.exception_handler(KeyError)
@@ -67,7 +68,7 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
 
     @app.get("/health")
     async def health():
-        return {"status": "ok", "runtime": "p2a", "media": "mock"}
+        return {"status": "ok", "runtime": "p3_media_foundation", "media": "mock"}
 
     @app.get("/providers", response_model=list[ProviderView])
     async def providers():
@@ -153,6 +154,67 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
         if result is None:
             raise KeyError(artifact_id)
         return result
+
+    @app.post("/artifacts/{artifact_id}/select", response_model=Artifact)
+    async def select_artifact(artifact_id: str, project_id: str | None = None,
+                              version: int = Query(..., ge=1)):
+        engine, _ = service.locate("artifact", artifact_id, project_id)
+        try:
+            return engine._select(engine.current_project, artifact_id, version)
+        except KeyError:
+            raise KeyError(artifact_id)
+
+    def resolve_media_artifact(
+        artifact_id: str,
+        project_id: str | None,
+        version: int | None,
+        view: str,
+    ):
+        engine, _ = service.locate("artifact", artifact_id, project_id)
+        source = engine.artifact_store.get(artifact_id, version)
+        if source is None:
+            raise KeyError(artifact_id)
+        metadata = media_metadata(source)
+        if metadata is None:
+            raise HTTPException(404, "Artifact is not playable media")
+        target_id = artifact_id
+        if view == "preview":
+            target_id = metadata.preview_artifact_id or artifact_id
+        elif view == "thumbnail":
+            target_id = metadata.thumbnail_artifact_id or (
+                artifact_id if source.artifact_type.value in {"image", "frame"} else ""
+            )
+        if not target_id:
+            raise HTTPException(404, "Artifact has no thumbnail")
+        target = source if target_id == artifact_id else engine.artifact_store.get(target_id)
+        if target is None:
+            raise HTTPException(404, "Preview artifact is unavailable")
+        return engine, target
+
+    @app.get("/artifacts/{artifact_id}/content")
+    async def artifact_content(request: Request, artifact_id: str,
+                               project_id: str | None = None,
+                               version: int | None = Query(None, ge=1)):
+        engine, target = resolve_media_artifact(artifact_id, project_id, version, "content")
+        return media_response(request, target, engine.binary_store)
+
+    @app.get("/artifacts/{artifact_id}/preview")
+    async def artifact_preview(request: Request, artifact_id: str,
+                               project_id: str | None = None,
+                               version: int | None = Query(None, ge=1)):
+        engine, target = resolve_media_artifact(artifact_id, project_id, version, "preview")
+        return media_response(request, target, engine.binary_store)
+
+    @app.get("/artifacts/{artifact_id}/thumbnail")
+    async def artifact_thumbnail(request: Request, artifact_id: str,
+                                 project_id: str | None = None,
+                                 version: int | None = Query(None, ge=1)):
+        engine, target = resolve_media_artifact(artifact_id, project_id, version, "thumbnail")
+        return media_response(request, target, engine.binary_store)
+
+    @app.get("/projects/{project_id}/media/providers", response_model=list[ProviderCapabilities])
+    async def media_providers(project_id: str):
+        return await service.engine(project_id).media_runtime.capabilities()
 
     @app.get("/projects/{project_id}/events")
     async def events(project_id: str, request: Request, after: str | None = None, follow: bool = True):

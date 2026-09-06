@@ -119,8 +119,11 @@ class JobStatus(StrEnum):
     PENDING = "pending"
     QUEUED = "queued"
     BLOCKED = "blocked"
+    WAITING_RESOURCE = "waiting_resource"
     PREPARING = "preparing"
+    PREPARING_MODEL = "preparing_model"
     RUNNING = "running"
+    UPLOADING = "uploading"
     EVALUATING = "evaluating"
     REPAIRING = "repairing"
     WAITING_HUMAN = "waiting_human"
@@ -184,6 +187,16 @@ class EventType(StrEnum):
     HUMAN_REVIEW_REQUESTED = "human_review_requested"
     HUMAN_REVIEW_RESOLVED = "human_review_resolved"
     WORKFLOW_COMPLETED = "workflow_completed"
+    MEDIA_JOB_CREATED = "media_job_created"
+    MEDIA_JOB_STARTED = "media_job_started"
+    MEDIA_JOB_PROGRESS = "media_job_progress"
+    MEDIA_JOB_COMPLETED = "media_job_completed"
+    MEDIA_JOB_FAILED = "media_job_failed"
+    MEDIA_EVALUATION_STARTED = "media_evaluation_started"
+    MEDIA_EVALUATION_COMPLETED = "media_evaluation_completed"
+    MEDIA_REPAIR_STARTED = "media_repair_started"
+    MEDIA_REPAIR_COMPLETED = "media_repair_completed"
+    MODEL_SERVICE_STATUS_CHANGED = "model_service_status_changed"
 
 
 class HumanGateType(StrEnum):
@@ -215,7 +228,10 @@ class ProviderErrorType(StrEnum):
     RESOURCE_EXHAUSTED = "resource_exhausted"
     INVALID_REQUEST = "invalid_request"
     MODEL_NOT_READY = "model_not_ready"
+    UNSUPPORTED_CAPABILITY = "unsupported_capability"
+    GENERATION_FAILED = "generation_failed"
     CANCELLED = "cancelled"
+    MEDIA_CORRUPT = "media_corrupt"
     INTERNAL = "internal"
 
 

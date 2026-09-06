@@ -47,7 +47,13 @@ class Provenance(ContractModel):
     role: str | None = None
     tool: str | None = None
     provider_id: str | None = None
+    model_service_id: str | None = None
     prompt_package_id: str | None = None
+    compiler_id: str | None = None
+    compiler_version: str | None = None
+    project_id: str | None = None
+    scene_id: str | None = None
+    shot_id: str | None = None
     input_artifact_ids: list[str] = Field(default_factory=list)
     generation_strategy: str | None = None
     seed: int | None = None
@@ -55,3 +61,4 @@ class Provenance(ContractModel):
     retry_history: list[str] = Field(default_factory=list)
     evaluation_ids: list[str] = Field(default_factory=list)
     repair_plan_ids: list[str] = Field(default_factory=list)
+    parent_artifact_id: str | None = None

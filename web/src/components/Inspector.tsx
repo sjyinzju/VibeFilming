@@ -2,7 +2,7 @@ import { t, useLocale, localeDate } from '../i18n';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { X, ArrowDown, Check, FileText } from 'lucide-react';
-import { api } from '../api/client';
+import { API_BASE, api } from '../api/client';
 import type { Snapshot, Artifact, Review, Schema } from '../api/types';
 import { ReviewSubjectRenderer } from './ReviewSubjectRenderer';
 
@@ -87,7 +87,50 @@ export function ReviewPanel({
     </section>
   );
 }
-function ArtifactCard({ artifact }: { artifact: Artifact }) {
+function mediaUrl(path: string) {
+  return /^https?:\/\//.test(path) ? path : `${API_BASE}${path}`;
+}
+function ArtifactMedia({
+  artifact,
+  preview,
+}: {
+  artifact: Artifact;
+  preview?: Schema['MediaPreview'];
+}) {
+  if (!preview?.playable) return null;
+  const source = mediaUrl(preview.preview_url);
+  if (preview.mime_type.startsWith('image/'))
+    return <img className="media-preview" src={source} alt={`${artifact.artifact_id} preview`} />;
+  if (preview.mime_type.startsWith('video/'))
+    return (
+      <video
+        className="media-preview"
+        controls
+        preload="metadata"
+        poster={preview.thumbnail_url ? mediaUrl(preview.thumbnail_url) : undefined}
+        src={source}
+      />
+    );
+  if (preview.mime_type.startsWith('audio/'))
+    return (
+      <div className="audio-preview">
+        <div className="waveform" aria-hidden="true">
+          {preview.waveform.map((value, index) => (
+            <i key={index} style={{ height: `${Math.max(12, Math.abs(value) * 100)}%` }} />
+          ))}
+        </div>
+        <audio controls preload="metadata" src={source} />
+      </div>
+    );
+  return null;
+}
+export function ArtifactCard({
+  artifact,
+  preview,
+}: {
+  artifact: Artifact;
+  preview?: Schema['MediaPreview'];
+}) {
   return (
     <details className="artifact-card">
       <summary>
@@ -102,8 +145,12 @@ function ArtifactCard({ artifact }: { artifact: Artifact }) {
       </summary>
       <p className="mono">{artifact.artifact_id}</p>
       <p>{artifact.provenance?.tool || artifact.provenance?.provider_id || 'Core artifact'}</p>
-      {isMock(artifact) && (
+      <ArtifactMedia artifact={artifact} preview={preview} />
+      {isMock(artifact) && !preview && (
         <p className="help">{t('Placeholder artifact. No playable media has been generated.')}</p>
+      )}
+      {isMock(artifact) && preview && (
+        <p className="help">{t('Playable test media produced by the Mock provider.')}</p>
       )}
       <RawJson value={artifact} />
     </details>
@@ -157,6 +204,10 @@ export function Inspector({
         node?.output_refs?.includes(a.artifact_id) ||
         jobs.some((j) => j.job_id === a.source_job_id),
     ) || [];
+  const previewFor = (artifact: Artifact) =>
+    snapshot?.media_previews.find(
+      (item) => item.artifact_id === artifact.artifact_id && item.version === artifact.version,
+    );
   const reviews = snapshot?.reviews.filter((r) => r.node_id === node?.node_id) || [];
   return (
     <aside className="inspector">
@@ -233,6 +284,48 @@ export function Inspector({
                             value={{ before: shot.state_before, after: shot.expected_state_after }}
                           />
                         </details>
+                        <section className="shot-media" aria-label={t('Shot media')}>
+                          <h3>{t('References')}</h3>
+                          <RawJson
+                            value={{
+                              references: shot.reference_artifact_ids,
+                              first_frame: shot.frame_anchors.first_frame,
+                              last_frame: shot.frame_anchors.last_frame,
+                            }}
+                          />
+                          {(['Frames', 'Video', 'Audio'] as const).map((name) => {
+                            const media = snapshot?.artifacts.filter((artifact) => {
+                              const belongs = artifact.provenance?.shot_id === shot.shot_id;
+                              if (name === 'Frames')
+                                return belongs && artifact.artifact_type === 'frame';
+                              if (name === 'Video')
+                                return belongs && artifact.artifact_type === 'video';
+                              return belongs && artifact.artifact_type === 'audio';
+                            });
+                            return (
+                              <div key={name}>
+                                <h3>{t(name)}</h3>
+                                {media?.length ? (
+                                  media.map((artifact) => (
+                                    <ArtifactCard
+                                      key={`${artifact.artifact_id}:${artifact.version}`}
+                                      artifact={artifact}
+                                      preview={previewFor(artifact)}
+                                    />
+                                  ))
+                                ) : (
+                                  <p className="help">{t('Waiting')}</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                          <h3>{t('QC')}</h3>
+                          <RawJson
+                            value={snapshot?.evaluations.filter(
+                              (evaluation) => evaluation.target_shot_id === shot.shot_id,
+                            )}
+                          />
+                        </section>
                       </>
                     )}
                     {node && (
@@ -291,7 +384,11 @@ export function Inspector({
                       </details>
                     ))}
                     {artifacts.map((a) => (
-                      <ArtifactCard key={`${a.artifact_id}:${a.version}`} artifact={a} />
+                      <ArtifactCard
+                        key={`${a.artifact_id}:${a.version}`}
+                        artifact={a}
+                        preview={previewFor(a)}
+                      />
                     ))}
                     {node?.node_type === 'repair' && <RawJson value={snapshot?.repairs} />}
                     {node?.node_type === 'quality' && <RawJson value={snapshot?.evaluations} />}
@@ -358,10 +455,9 @@ export function Inspector({
               </div>
             ))}
             <p className="help">
-              {t(
-                ' Real media providers can be added behind the existing provider contracts in P3. ',
-              )}
+              {t(' Media Runtime Foundation is ready. Real model adapters are not installed. ')}
             </p>
+            <RawJson value={snapshot?.media_provider_ids} />
           </>
         )}
         {tab === 'Trace' && (
@@ -391,7 +487,11 @@ export function Inspector({
             <p className="help">{t('Immutable versions, selection and provenance.')}</p>
             {snapshot?.artifacts.length ? (
               snapshot.artifacts.map((a) => (
-                <ArtifactCard key={`${a.artifact_id}:${a.version}`} artifact={a} />
+                <ArtifactCard
+                  key={`${a.artifact_id}:${a.version}`}
+                  artifact={a}
+                  preview={previewFor(a)}
+                />
               ))
             ) : (
               <p>{t('Artifacts will appear as production advances.')}</p>

@@ -1,6 +1,8 @@
 # Movie Agent Core
 
-Movie Agent Core is a model-agnostic foundation for long-running AI film production. Phase 2A adds six real reasoning roles through a configurable OpenAI-compatible endpoint and a FastAPI/SSE backend. Phase 2B adds a React Web Studio for creative input, workflow control, live Canvas, inspection and human review. Typed cinematic contracts, deterministic execution, checkpoints and mock downstream media are shared with Phase 1. The repository does not manage serving infrastructure.
+Movie Agent Core is a model-agnostic foundation for long-running AI film production. Phase 2A adds six real reasoning roles through a configurable OpenAI-compatible endpoint and a FastAPI/SSE backend. Phase 2B adds a React Web Studio. Phase 3 adds the provider-neutral media runtime, binary artifact transport, preview/QC/repair, audio timeline, post-production contracts, and model-service lifecycle boundary.
+
+**Phase 3 Media Runtime Foundation is ready. Real media models are not installed.** Bundled Image, Video, Vision, Speech/Music/SFX/Foley, and Post providers remain deterministic Mock adapters that create small valid PNG/MP4/WAV test assets through the real runtime path.
 
 See `docs/architecture.md` for the design and `tests/fixtures/sample_brief.json` for the mock workflow input.
 
@@ -29,6 +31,12 @@ To stop before Director and verify inference reuse:
 ```
 
 Regular tests never require the LLM endpoint. Opt in with `MOVIE_AGENT_RUN_INTEGRATION=1` when running `tests/test_p2a_integration.py`.
+
+## Phase 3 media foundation
+
+See [P3 runtime](docs/p3_media_runtime.md), [media contracts](docs/media_contracts.md), [providers](docs/media_providers.md), [artifacts](docs/media_artifacts.md), [model services](docs/model_services.md), and the [extension guide](docs/p3_extension_guide.md).
+
+No P3 command downloads or launches a model. A real image adapter begins at `ImageProvider.generate(ImageGenerationRequest)`; a real video adapter begins at `VideoProvider.generate(VideoGenerationRequest)`.
 
 ## Run locally
 
@@ -81,4 +89,6 @@ python scripts/run_mock.py tests/fixtures/sample_brief.json --workspace workspac
 - `movie_agent/artifacts`: immutable local artifact versions
 - `movie_agent/quality`: technical QC, critics, finite repair policy
 - `movie_agent/services`: complete model-free production composition
+- `movie_agent/media`: typed media contracts, strategy, compilers, storage, preview and runtime
+- `movie_agent/model_services`: future service lifecycle boundary and basic manager
 - `docs`: architecture, IR, workflow, integration contracts, reference audit

@@ -58,4 +58,9 @@ export const api = {
     request<Schema['GenerationJob']>(`/jobs/${id(jid)}?project_id=${id(pid)}`),
   artifact: (pid: string, aid: string, version: number) =>
     request<Schema['Artifact']>(`/artifacts/${id(aid)}?project_id=${id(pid)}&version=${version}`),
+  selectArtifact: (pid: string, aid: string, version: number) =>
+    request<Schema['Artifact']>(
+      `/artifacts/${id(aid)}/select?project_id=${id(pid)}&version=${version}`,
+      { method: 'POST' },
+    ),
 };

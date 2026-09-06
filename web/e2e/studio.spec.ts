@@ -85,6 +85,8 @@ test('story-only production, live canvas, human gates, refresh and Mock completi
   await expect(page.locator('.stage-label')).toHaveText('Workflow completed', { timeout: 30000 });
   await expect(page.locator('.react-flow__node-scene')).toHaveCount(1);
   await expect(page.locator('.react-flow__node-shot')).toHaveCount(1);
+  await expect(page.locator('.react-flow__node-shot .shot-status')).toContainText('Frames ✓');
+  await expect(page.locator('.react-flow__node-shot .shot-status')).toContainText('Video ✓');
   await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
   await page.getByRole('tab', { name: 'Models', exact: true }).click();
   await expect(page.getByText('Deterministic test reasoning')).toBeVisible();
@@ -92,8 +94,9 @@ test('story-only production, live canvas, human gates, refresh and Mock completi
   await page.getByRole('tab', { name: 'Artifacts', exact: true }).click();
   await expect(page.getByText('final_film · v1', { exact: true })).toBeVisible();
   await page.getByText('final_film · v1', { exact: true }).click();
+  await expect(page.locator('.artifact-card video').last()).toBeVisible();
   await expect(
-    page.getByText('Placeholder artifact. No playable media has been generated.').last(),
+    page.getByText('Playable test media produced by the Mock provider.').last(),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Close inspector' }).click();
   await page.getByRole('button', { name: 'Auto layout', exact: true }).click();

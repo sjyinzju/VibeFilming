@@ -158,7 +158,9 @@ export function ReviewSubjectRenderer({
             ) : (
               <>
                 <span className="badge mock">{t('MOCK')}</span>
-                <p>{t('Placeholder artifact. No playable media has been generated.')}</p>
+                <p>
+                  {t('Mock review artifact. Playable media previews are available in Artifacts.')}
+                </p>
               </>
             )}
             {result && (

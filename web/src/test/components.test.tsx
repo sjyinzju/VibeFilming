@@ -8,7 +8,7 @@ import {
   fields,
   fieldLabel,
 } from '../components/BriefConsole';
-import { Inspector, MockBadge, ReviewPanel } from '../components/Inspector';
+import { ArtifactCard, Inspector, MockBadge, ReviewPanel } from '../components/Inspector';
 import snapshotData from './snapshot.json';
 import type { Snapshot, Review } from '../api/types';
 
@@ -116,4 +116,37 @@ it('inspector shows typed node details and Raw JSON', () => {
 it('Mock badges are explicit textual labels', () => {
   render(<MockBadge />);
   expect(screen.getByText('MOCK')).toBeVisible();
+});
+it('renders playable Mock video through the safe artifact preview URL', () => {
+  const artifact = {
+    artifact_id: 'video_shot_1',
+    artifact_type: 'video',
+    version: 1,
+    selected: true,
+    uri: 'artifact://video_shot_1/v1',
+    source_job_id: 'job-1',
+    parent_artifact_ids: [],
+    metadata: { mock: true },
+    provenance: { provider_id: 'mock-video', tool: 'mock-video_shot_video' },
+    created_at: new Date().toISOString(),
+    schema_version: '1.0.0',
+  } as unknown as Snapshot['artifacts'][number];
+  const preview = {
+    schema_version: '1.0.0',
+    artifact_id: artifact.artifact_id,
+    version: 1,
+    content_url: '/artifacts/video_shot_1/content?project_id=project-1&version=1',
+    preview_url: '/artifacts/video_shot_1/preview?project_id=project-1&version=1',
+    thumbnail_url: '/artifacts/thumbnail_video_shot_1/content?project_id=project-1',
+    playable: true,
+    mime_type: 'video/mp4',
+    waveform: [],
+  } as Snapshot['media_previews'][number];
+  const { container } = render(<ArtifactCard artifact={artifact} preview={preview} />);
+  expect(screen.getByText('MOCK')).toBeVisible();
+  fireEvent.click(container.querySelector('summary')!);
+  const video = container.querySelector('video');
+  expect(video).not.toBeNull();
+  expect(video?.getAttribute('src')).toContain('/api/artifacts/video_shot_1/preview');
+  expect(screen.getByText('Playable test media produced by the Mock provider.')).toBeVisible();
 });

@@ -294,6 +294,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/artifacts/{artifact_id}/select": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Select Artifact */
+        post: operations["select_artifact_artifacts__artifact_id__select_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/artifacts/{artifact_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Artifact Content */
+        get: operations["artifact_content_artifacts__artifact_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/artifacts/{artifact_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Artifact Preview */
+        get: operations["artifact_preview_artifacts__artifact_id__preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/artifacts/{artifact_id}/thumbnail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Artifact Thumbnail */
+        get: operations["artifact_thumbnail_artifacts__artifact_id__thumbnail_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/media/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Media Providers */
+        get: operations["media_providers_projects__project_id__media_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project_id}/events": {
         parameters: {
             query?: never;
@@ -371,6 +456,105 @@ export interface components {
          * @enum {string}
          */
         AspectRatio: "16:9" | "9:16" | "1:1" | "2.39:1";
+        /** AudioCapabilities */
+        AudioCapabilities: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /**
+             * Tts
+             * @default false
+             */
+            tts?: boolean;
+            /**
+             * Voice Clone
+             * @default false
+             */
+            voice_clone?: boolean;
+            /**
+             * Music
+             * @default false
+             */
+            music?: boolean;
+            /**
+             * Foley
+             * @default false
+             */
+            foley?: boolean;
+            /**
+             * Sfx
+             * @default false
+             */
+            sfx?: boolean;
+            /**
+             * Ambience
+             * @default false
+             */
+            ambience?: boolean;
+            /**
+             * Audio Edit
+             * @default false
+             */
+            audio_edit?: boolean;
+        };
+        /** AudioCue */
+        AudioCue: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Cue Id */
+            cue_id?: string;
+            /** Start Time Seconds */
+            start_time_seconds: number;
+            /** Duration Seconds */
+            duration_seconds: number;
+            cue_type: components["schemas"]["AudioPurpose"];
+            /** Artifact Id */
+            artifact_id: string;
+            /**
+             * Gain Db
+             * @default 0
+             */
+            gain_db?: number;
+            /**
+             * Fade In Seconds
+             * @default 0
+             */
+            fade_in_seconds?: number;
+            /**
+             * Fade Out Seconds
+             * @default 0
+             */
+            fade_out_seconds?: number;
+            /** Scene Id */
+            scene_id?: string | null;
+            /** Shot Id */
+            shot_id?: string | null;
+        };
+        /**
+         * AudioPurpose
+         * @enum {string}
+         */
+        AudioPurpose: "speech" | "music" | "sfx" | "foley" | "ambience" | "mix";
+        /** AudioTrack */
+        AudioTrack: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Track Id */
+            track_id?: string;
+            /** Cues */
+            cues?: components["schemas"]["AudioCue"][];
+        };
         /**
          * CameraAngle
          * @enum {string}
@@ -1053,7 +1237,7 @@ export interface components {
          * EventType
          * @enum {string}
          */
-        EventType: "provider_request_started" | "provider_request_completed" | "role_output_received" | "role_output_validation_failed" | "role_output_validated" | "checkpoint_created" | "project_created" | "node_created" | "node_started" | "node_progress" | "node_completed" | "node_failed" | "edge_created" | "edge_activated" | "job_created" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "artifact_created" | "artifact_selected" | "evaluation_completed" | "repair_started" | "repair_completed" | "human_review_requested" | "human_review_resolved" | "workflow_completed";
+        EventType: "provider_request_started" | "provider_request_completed" | "role_output_received" | "role_output_validation_failed" | "role_output_validated" | "checkpoint_created" | "project_created" | "node_created" | "node_started" | "node_progress" | "node_completed" | "node_failed" | "edge_created" | "edge_activated" | "job_created" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "artifact_created" | "artifact_selected" | "evaluation_completed" | "repair_started" | "repair_completed" | "human_review_requested" | "human_review_resolved" | "workflow_completed" | "media_job_created" | "media_job_started" | "media_job_progress" | "media_job_completed" | "media_job_failed" | "media_evaluation_started" | "media_evaluation_completed" | "media_repair_started" | "media_repair_completed" | "model_service_status_changed";
         /**
          * FrameAnchor
          * @description A planned or materialized boundary-frame dependency.
@@ -1088,6 +1272,21 @@ export interface components {
             schema_version?: string;
             first_frame?: components["schemas"]["FrameAnchor"];
             last_frame?: components["schemas"]["FrameAnchor"];
+        };
+        /** FrameReference */
+        FrameReference: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Artifact Id */
+            artifact_id: string;
+            /** Frame Number */
+            frame_number?: number | null;
+            /** Timestamp Seconds */
+            timestamp_seconds?: number | null;
         };
         /**
          * GenerationHistory
@@ -1153,12 +1352,18 @@ export interface components {
             project_id: string;
             /** Node Id */
             node_id?: string | null;
+            /** Scene Id */
+            scene_id?: string | null;
             /** Shot Id */
             shot_id?: string | null;
             /** Continuity Chain Id */
             continuity_chain_id?: string | null;
             /** Task */
             task: string;
+            /** Provider Id */
+            provider_id?: string | null;
+            /** Strategy Type */
+            strategy_type?: string | null;
             /** @default pending */
             status?: components["schemas"]["JobStatus"];
             /** Dependencies */
@@ -1203,8 +1408,19 @@ export interface components {
              * @default 0
              */
             progress?: number;
+            /**
+             * Progress Is Determinate
+             * @default false
+             */
+            progress_is_determinate?: boolean;
+            /** Activity */
+            activity?: string | null;
             /** Failure Reason */
             failure_reason?: string | null;
+            /** Input Artifact Ids */
+            input_artifact_ids?: string[];
+            /** Output Artifact Ids */
+            output_artifact_ids?: string[];
             /** Related Artifact Ids */
             related_artifact_ids?: string[];
             provenance?: components["schemas"]["Provenance"];
@@ -1278,6 +1494,54 @@ export interface components {
             resolved_at?: string | null;
             /** Resolution Notes */
             resolution_notes?: string | null;
+        };
+        /** ImageCapabilities */
+        ImageCapabilities: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /**
+             * Text To Image
+             * @default false
+             */
+            text_to_image?: boolean;
+            /**
+             * Image Edit
+             * @default false
+             */
+            image_edit?: boolean;
+            /**
+             * Inpaint
+             * @default false
+             */
+            inpaint?: boolean;
+            /**
+             * Outpaint
+             * @default false
+             */
+            outpaint?: boolean;
+            /**
+             * Upscale
+             * @default false
+             */
+            upscale?: boolean;
+            /**
+             * Multi Reference
+             * @default false
+             */
+            multi_reference?: boolean;
+            /**
+             * Character Reference
+             * @default false
+             */
+            character_reference?: boolean;
+            /** Max Width */
+            max_width?: number | null;
+            /** Max Height */
+            max_height?: number | null;
         };
         /**
          * InferenceMetrics
@@ -1356,7 +1620,7 @@ export interface components {
          * JobStatus
          * @enum {string}
          */
-        JobStatus: "pending" | "queued" | "blocked" | "preparing" | "running" | "evaluating" | "repairing" | "waiting_human" | "succeeded" | "failed" | "cancelled";
+        JobStatus: "pending" | "queued" | "blocked" | "waiting_resource" | "preparing" | "preparing_model" | "running" | "uploading" | "evaluating" | "repairing" | "waiting_human" | "succeeded" | "failed" | "cancelled";
         JsonValue: unknown;
         /** KeyMoment */
         KeyMoment: {
@@ -1459,6 +1723,128 @@ export interface components {
             damage_state?: string | null;
             /** Time Of Day */
             time_of_day?: string | null;
+        };
+        /** MediaIssue */
+        MediaIssue: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Issue Id */
+            issue_id?: string;
+            issue_type: components["schemas"]["MediaIssueType"];
+            severity: components["schemas"]["IssueSeverity"];
+            /** Message */
+            message: string;
+            /** Evidence */
+            evidence?: string[];
+            /** Time Ranges */
+            time_ranges?: components["schemas"]["TimeRange"][];
+            /** Frame References */
+            frame_references?: components["schemas"]["FrameReference"][];
+            suggested_action?: components["schemas"]["MediaRepairActionType"] | null;
+        };
+        /**
+         * MediaIssueType
+         * @enum {string}
+         */
+        MediaIssueType: "identity_drift" | "wardrobe_drift" | "scene_drift" | "prop_drift" | "extra_character" | "missing_character" | "anatomy_artifact" | "hand_artifact" | "face_artifact" | "motion_failure" | "action_incomplete" | "camera_motion_mismatch" | "first_frame_mismatch" | "last_frame_mismatch" | "temporal_flicker" | "detail_loss" | "style_mismatch" | "lighting_mismatch" | "continuity_error" | "audio_sync_error" | "speech_error" | "music_mismatch" | "technical_media_error";
+        /**
+         * MediaModality
+         * @enum {string}
+         */
+        MediaModality: "image" | "video" | "audio" | "vision" | "post";
+        /** MediaPreview */
+        MediaPreview: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Artifact Id */
+            artifact_id: string;
+            /** Version */
+            version: number;
+            /** Content Url */
+            content_url: string;
+            /** Preview Url */
+            preview_url: string;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
+            /**
+             * Playable
+             * @default false
+             */
+            playable?: boolean;
+            /** Mime Type */
+            mime_type: string;
+            /** Waveform */
+            waveform?: number[];
+        };
+        /** MediaRepairAction */
+        MediaRepairAction: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Action Id */
+            action_id?: string;
+            action_type: components["schemas"]["MediaRepairActionType"];
+            /** Issue Ids */
+            issue_ids?: string[];
+            /** Target Artifact Id */
+            target_artifact_id?: string | null;
+            /** Target Shot Id */
+            target_shot_id?: string | null;
+            /** Rationale */
+            rationale: string;
+            /**
+             * Consumes Retry
+             * @default true
+             */
+            consumes_retry?: boolean;
+        };
+        /**
+         * MediaRepairActionType
+         * @enum {string}
+         */
+        MediaRepairActionType: "rewrite_prompt" | "strengthen_character_reference" | "strengthen_scene_reference" | "change_reference" | "regenerate_first_frame" | "regenerate_last_frame" | "image_edit" | "change_generation_strategy" | "regenerate_video" | "extend_video" | "split_shot" | "change_camera_control" | "upscale" | "detail_restore" | "regenerate_voice" | "regenerate_music" | "regenerate_sfx" | "remix_audio" | "request_human_review";
+        /** MediaRepairPlan */
+        MediaRepairPlan: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Repair Plan Id */
+            repair_plan_id?: string;
+            /** Inspection Result Id */
+            inspection_result_id: string;
+            /** Actions */
+            actions?: components["schemas"]["MediaRepairAction"][];
+            /** Retry Budget */
+            retry_budget: number;
+            /**
+             * Retry Count
+             * @default 0
+             */
+            retry_count?: number;
+            /**
+             * Exhausted
+             * @default false
+             */
+            exhausted?: boolean;
+            /**
+             * Requires Human
+             * @default false
+             */
+            requires_human?: boolean;
         };
         /**
          * Orientation
@@ -1863,8 +2249,20 @@ export interface components {
             tool?: string | null;
             /** Provider Id */
             provider_id?: string | null;
+            /** Model Service Id */
+            model_service_id?: string | null;
             /** Prompt Package Id */
             prompt_package_id?: string | null;
+            /** Compiler Id */
+            compiler_id?: string | null;
+            /** Compiler Version */
+            compiler_version?: string | null;
+            /** Project Id */
+            project_id?: string | null;
+            /** Scene Id */
+            scene_id?: string | null;
+            /** Shot Id */
+            shot_id?: string | null;
             /** Input Artifact Ids */
             input_artifact_ids?: string[];
             /** Generation Strategy */
@@ -1881,6 +2279,39 @@ export interface components {
             evaluation_ids?: string[];
             /** Repair Plan Ids */
             repair_plan_ids?: string[];
+            /** Parent Artifact Id */
+            parent_artifact_id?: string | null;
+        };
+        /** ProviderCapabilities */
+        ProviderCapabilities: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Provider Id */
+            provider_id: string;
+            kind: components["schemas"]["ProviderKind"];
+            /** Modalities */
+            modalities: components["schemas"]["MediaModality"][];
+            /** Tasks */
+            tasks?: string[];
+            image?: components["schemas"]["ImageCapabilities"] | null;
+            video?: components["schemas"]["VideoCapabilities"] | null;
+            vision?: components["schemas"]["VisionCapabilities"] | null;
+            audio?: components["schemas"]["AudioCapabilities"] | null;
+            /** Resource Profiles */
+            resource_profiles?: components["schemas"]["ResourceProfile"][];
+            /** Quality Profiles */
+            quality_profiles?: components["schemas"]["QualityProfile"][];
+            /**
+             * Supports Cancellation
+             * @default true
+             */
+            supports_cancellation?: boolean;
+            /** Model Service Id */
+            model_service_id?: string | null;
         };
         /**
          * ProviderCapability
@@ -2079,6 +2510,28 @@ export interface components {
          * @enum {string}
          */
         ResourceClass: "light" | "medium" | "heavy" | "exclusive";
+        /** ResourceProfile */
+        ResourceProfile: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            resource_class: components["schemas"]["ResourceClass"];
+            /** Expected Memory Gb */
+            expected_memory_gb?: number | null;
+            /**
+             * Supports Concurrency
+             * @default true
+             */
+            supports_concurrency?: boolean;
+            /**
+             * Requires Exclusive Runtime
+             * @default false
+             */
+            requires_exclusive_runtime?: boolean;
+        };
         /**
          * ReviewResolution
          * @description Explicit human approval/rejection command.
@@ -2608,9 +3061,18 @@ export interface components {
             /**
              * Media Mode
              * @default mock
-             * @constant
+             * @enum {string}
              */
-            media_mode?: "mock";
+            media_mode?: "mock" | "real" | "mixed";
+            /** Media Previews */
+            media_previews?: components["schemas"]["MediaPreview"][];
+            /** Media Inspections */
+            media_inspections?: components["schemas"]["VisionInspectionResult"][];
+            /** Media Repairs */
+            media_repairs?: components["schemas"]["MediaRepairPlan"][];
+            timeline?: components["schemas"]["Timeline"] | null;
+            /** Media Provider Ids */
+            media_provider_ids?: string[];
             /** Reasoning Provider */
             reasoning_provider: string;
             /** Review Subjects */
@@ -2637,12 +3099,107 @@ export interface components {
             /** Dimensions */
             dimensions?: ("visual" | "lighting" | "cinematography" | "color" | "editing_rhythm" | "narrative_tone")[];
         };
+        /** SubtitleCue */
+        SubtitleCue: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Start Time Seconds */
+            start_time_seconds: number;
+            /** End Time Seconds */
+            end_time_seconds: number;
+            /** Text */
+            text: string;
+        };
+        /** SubtitleTrack */
+        SubtitleTrack: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Track Id */
+            track_id?: string;
+            /** Language */
+            language: string;
+            /** Cues */
+            cues?: components["schemas"]["SubtitleCue"][];
+        };
         /** TerminalRevisionCommand */
         TerminalRevisionCommand: {
             /** Scene Id */
             scene_id: string;
             /** Authorization Reference */
             authorization_reference: string;
+        };
+        /** TimeRange */
+        TimeRange: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Start Seconds */
+            start_seconds: number;
+            /** End Seconds */
+            end_seconds: number;
+        };
+        /** Timeline */
+        Timeline: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Timeline Id */
+            timeline_id?: string;
+            /** Project Id */
+            project_id: string;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Video Tracks */
+            video_tracks?: components["schemas"]["VideoTrack"][];
+            /** Audio Tracks */
+            audio_tracks?: components["schemas"]["AudioTrack"][];
+            /** Subtitle Tracks */
+            subtitle_tracks?: components["schemas"]["SubtitleTrack"][];
+        };
+        /** TimelineClip */
+        TimelineClip: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Clip Id */
+            clip_id?: string;
+            /** Artifact Id */
+            artifact_id: string;
+            /** Start Time Seconds */
+            start_time_seconds: number;
+            /**
+             * Source In Seconds
+             * @default 0
+             */
+            source_in_seconds?: number;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /**
+             * Trim End Seconds
+             * @default 0
+             */
+            trim_end_seconds?: number;
+            /** Transition */
+            transition?: string | null;
+            /** Shot Id */
+            shot_id?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -2728,6 +3285,160 @@ export interface components {
              * @default scene
              */
             coordinate_space?: string;
+        };
+        /** VideoCapabilities */
+        VideoCapabilities: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /**
+             * Text To Video
+             * @default false
+             */
+            text_to_video?: boolean;
+            /**
+             * Image To Video
+             * @default false
+             */
+            image_to_video?: boolean;
+            /**
+             * First Frame
+             * @default false
+             */
+            first_frame?: boolean;
+            /**
+             * Last Frame
+             * @default false
+             */
+            last_frame?: boolean;
+            /**
+             * First Last Frame
+             * @default false
+             */
+            first_last_frame?: boolean;
+            /**
+             * Multi Reference
+             * @default false
+             */
+            multi_reference?: boolean;
+            /**
+             * Camera Control
+             * @default false
+             */
+            camera_control?: boolean;
+            /**
+             * Audio Generation
+             * @default false
+             */
+            audio_generation?: boolean;
+            /** Max Duration Seconds */
+            max_duration_seconds?: number | null;
+            /** Max Width */
+            max_width?: number | null;
+            /** Max Height */
+            max_height?: number | null;
+            /** Supported Fps */
+            supported_fps?: number[];
+        };
+        /** VideoTrack */
+        VideoTrack: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Track Id */
+            track_id?: string;
+            /** Clips */
+            clips?: components["schemas"]["TimelineClip"][];
+        };
+        /** VisionCapabilities */
+        VisionCapabilities: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /**
+             * Image
+             * @default false
+             */
+            image?: boolean;
+            /**
+             * Video
+             * @default false
+             */
+            video?: boolean;
+            /**
+             * Multi Image
+             * @default false
+             */
+            multi_image?: boolean;
+            /**
+             * Temporal Reasoning
+             * @default false
+             */
+            temporal_reasoning?: boolean;
+        };
+        /**
+         * VisionDecision
+         * @enum {string}
+         */
+        VisionDecision: "pass" | "repair" | "regenerate" | "human_review";
+        /**
+         * VisionInspectionProfile
+         * @enum {string}
+         */
+        VisionInspectionProfile: "image_quality" | "video_quality" | "character_identity" | "scene_consistency" | "prompt_alignment" | "action_completion" | "camera_motion" | "continuity" | "artifact_detection" | "full_shot_review";
+        /** VisionInspectionResult */
+        VisionInspectionResult: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Result Id */
+            result_id?: string;
+            /** Request Id */
+            request_id: string;
+            /** Target Artifact Id */
+            target_artifact_id: string;
+            /** Scores */
+            scores: components["schemas"]["VisionScore"][];
+            /** Issues */
+            issues?: components["schemas"]["MediaIssue"][];
+            /** Evidence */
+            evidence?: string[];
+            decision: components["schemas"]["VisionDecision"];
+            /**
+             * Summary
+             * @default
+             */
+            summary?: string;
+            /** Provider Id */
+            provider_id: string;
+            /** Provider Metadata */
+            provider_metadata?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+        };
+        /** VisionScore */
+        VisionScore: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            profile: components["schemas"]["VisionInspectionProfile"];
+            /** Score */
+            score: number;
         };
         /**
          * VisualBible
@@ -3421,6 +4132,173 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Artifact"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    select_artifact_artifacts__artifact_id__select_post: {
+        parameters: {
+            query: {
+                project_id?: string | null;
+                version: number;
+            };
+            header?: never;
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Artifact"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    artifact_content_artifacts__artifact_id__content_get: {
+        parameters: {
+            query?: {
+                project_id?: string | null;
+                version?: number | null;
+            };
+            header?: never;
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    artifact_preview_artifacts__artifact_id__preview_get: {
+        parameters: {
+            query?: {
+                project_id?: string | null;
+                version?: number | null;
+            };
+            header?: never;
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    artifact_thumbnail_artifacts__artifact_id__thumbnail_get: {
+        parameters: {
+            query?: {
+                project_id?: string | null;
+                version?: number | null;
+            };
+            header?: never;
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    media_providers_projects__project_id__media_providers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderCapabilities"][];
                 };
             };
             /** @description Validation Error */

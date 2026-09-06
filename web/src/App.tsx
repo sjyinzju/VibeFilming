@@ -333,8 +333,8 @@ export default function App() {
               </h1>
             </div>
             <span className="phase-badge">
-              {t(' P2B ')}
-              <span>{t('STUDIO')}</span>
+              {t(' P3 ')}
+              <span>{t('MEDIA FOUNDATION')}</span>
             </span>
           </div>
           {snapshot ? (

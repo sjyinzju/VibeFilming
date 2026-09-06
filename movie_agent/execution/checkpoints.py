@@ -57,8 +57,11 @@ class LocalCheckpointStore(CheckpointStore):
         """Requeue interrupted active states while preserving retry counters."""
 
         interrupted = {
+            JobStatus.WAITING_RESOURCE,
             JobStatus.PREPARING,
+            JobStatus.PREPARING_MODEL,
             JobStatus.RUNNING,
+            JobStatus.UPLOADING,
             JobStatus.EVALUATING,
             JobStatus.REPAIRING,
         }

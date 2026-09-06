@@ -1396,6 +1396,11 @@
   ],
   "evaluations": [],
   "repairs": [],
+  "media_previews": [],
+  "media_inspections": [],
+  "media_repairs": [],
+  "timeline": null,
+  "media_provider_ids": ["mock-image", "mock-video", "mock-vision", "mock-audio", "mock-post"],
   "media_mode": "mock",
   "reasoning_provider": "fake-reasoning"
 }

@@ -22,6 +22,7 @@ restored = ProjectBrief.model_validate_json(payload)
 | `domain.quality` | Evaluation/Issue, RepairAction/Plan |
 | `domain.workflow` | WorkflowNode/Edge/Graph/Event, EventEnvelope, HumanReviewRequest |
 | `domain.providers` | ProviderCapability/Request/Result/Selection, RoutingRequest |
+| `media.contracts` | Image/Video/Speech/Music/SFX/Foley/Vision requests and results, capabilities, repair, Timeline/Post |
 
 Stable enums define every lifecycle, quality issue, repair action, provider failure, strategy, artifact kind, resource class, and workflow edge kind. Serialized enum values are lower-case protocol values rather than UI labels.
 

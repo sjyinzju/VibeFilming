@@ -7,12 +7,6 @@ from pathlib import Path
 from pydantic import Field
 
 from movie_agent.artifacts import LocalArtifactStore
-from movie_agent.cinematic import (
-    GenerationStrategyPlanner,
-    GenericPromptCompiler,
-    RuleBasedFramePlanner,
-    derive_next_state,
-)
 from movie_agent.domain import (
     Artifact,
     ArtifactType,
@@ -29,12 +23,14 @@ from movie_agent.domain import (
     ContractModel,
     CreativeDirection,
     Evaluation,
+    EvaluationIssue,
+    EvaluationIssueType,
     EvaluationLayer,
     EventEnvelope,
     EventType,
     GenerationHistoryEntry,
     GenerationJob,
-    GenerationRequest,
+    GenerationStrategy,
     HumanGateType,
     HumanReviewRequest,
     JSONValue,
@@ -50,12 +46,9 @@ from movie_agent.domain import (
     PropCondition,
     PropState,
     Provenance,
-    ProviderKind,
-    ProviderRequest,
-    ProviderResult,
     RepairPlan,
+    RepairActionType,
     ResourceClass,
-    RoutingRequest,
     Scene,
     Shot,
     ShotNarrative,
@@ -72,14 +65,50 @@ from movie_agent.execution import (
     JobManager,
     LocalCheckpointStore,
     LocalEventBus,
-    LocalJobScheduler,
-    LogicalResourceScheduler,
 )
+from movie_agent.media import (
+    AudioCue,
+    AudioPurpose,
+    AudioRequestBase,
+    AudioTrack,
+    GenericAudioPromptCompiler,
+    GenericVideoPromptCompiler,
+    GenerationStrategyPlanner,
+    MediaCapabilityRequirement,
+    MediaFramePlanner,
+    MediaIssueType,
+    MediaReference,
+    MediaRepairAction,
+    MediaRepairActionType,
+    MediaRepairPlan,
+    MusicGenerationRequest,
+    PostProductionRequest,
+    PreviewService,
+    ReferenceType,
+    SoundEffectGenerationRequest,
+    SpeechGenerationRequest,
+    FoleyGenerationRequest,
+    Timeline,
+    TimelineClip,
+    VideoGenerationMode,
+    VideoGenerationRequest,
+    VideoTrack,
+    VisionDecision,
+    VisionInspectionProfile,
+    VisionInspectionRequest,
+    VisionInspectionResult,
+    LocalBinaryArtifactStore,
+    CameraMotionSpec,
+)
+from movie_agent.media.runtime import MediaRuntime
 from movie_agent.orchestration import HumanGateManager, ProductionGraph, build_production_graph
-from movie_agent.providers import MockProvider, ModelRouter
+from movie_agent.providers import (
+    MockVisionProvider,
+    MediaProviderSettings,
+    ProviderFactory,
+)
 from movie_agent.quality import (
     MockCinematicCritic,
-    MockVisualSemanticCritic,
     RepairPlanner,
     TechnicalQC,
 )
@@ -95,6 +124,9 @@ class MockProductionResult(ContractModel):
     artifacts: list[Artifact] = Field(default_factory=list)
     evaluations: list[Evaluation] = Field(default_factory=list)
     repair_plans: list[RepairPlan] = Field(default_factory=list)
+    media_inspections: list[VisionInspectionResult] = Field(default_factory=list)
+    media_repair_plans: list[MediaRepairPlan] = Field(default_factory=list)
+    timeline: Timeline | None = None
     human_reviews: list[HumanReviewRequest] = Field(default_factory=list)
     event_stream: list[EventEnvelope] = Field(default_factory=list)
     final_artifact_id: str | None = None
@@ -104,26 +136,46 @@ class MockProductionResult(ContractModel):
 class MockMovieProduction:
     """Concrete Showrunner orchestrator proving the entire core without AI models."""
 
-    def __init__(self, workspace: str | Path, *, event_bus: LocalEventBus | None = None) -> None:
+    def __init__(
+        self,
+        workspace: str | Path,
+        *,
+        event_bus: LocalEventBus | None = None,
+        media_settings: MediaProviderSettings | None = None,
+        media_provider_factory: ProviderFactory | None = None,
+    ) -> None:
         self.workspace = Path(workspace).resolve()
         self.workspace.mkdir(parents=True, exist_ok=True)
         self.event_bus = event_bus or LocalEventBus()
         self.artifact_store = LocalArtifactStore(self.workspace / "artifacts")
+        self.binary_store = LocalBinaryArtifactStore(self.workspace / "artifacts" / "media")
         self.checkpoint_store = LocalCheckpointStore(self.workspace / "checkpoints")
-        self.provider = MockProvider("mock-video", ProviderKind.VIDEO)
-        self.router = ModelRouter([self.provider])
         self.trace_id = new_id("trace")
+        settings = media_settings or MediaProviderSettings.from_env()
+        providers = (media_provider_factory or ProviderFactory.defaults()).build_registry(settings)
+        try:
+            vision_provider = providers.get("mock-vision")
+            if isinstance(vision_provider, MockVisionProvider):
+                vision_provider.fail_once_shot_ids.add("shot_002")
+        except LookupError:
+            pass
+        self.media_runtime = MediaRuntime(
+            self.artifact_store, self.binary_store, providers, self.event_bus, self.trace_id
+        )
+        self.preview_service = PreviewService()
         self.job_manager: JobManager | None = None
         self.human_gates = HumanGateManager(self.event_bus, self.trace_id)
-        self.frame_planner = RuleBasedFramePlanner()
+        self.frame_planner = MediaFramePlanner()
         self.strategy_planner = GenerationStrategyPlanner()
-        self.prompt_compiler = GenericPromptCompiler()
+        self.video_prompt_compiler = GenericVideoPromptCompiler()
+        self.audio_prompt_compiler = GenericAudioPromptCompiler()
         self.technical_qc = TechnicalQC()
-        self.visual_critic = MockVisualSemanticCritic({"shot_002"})
         self.cinematic_critic = MockCinematicCritic()
         self.repair_planner = RepairPlanner()
         self.evaluations: list[Evaluation] = []
         self.repair_plans: list[RepairPlan] = []
+        self.media_repair_plans: list[MediaRepairPlan] = []
+        self.timeline: Timeline | None = None
         self._restored_jobs: dict[str, GenerationJob] = {}
         self._latest_checkpoint_id: str | None = None
         self.pause_requested = False
@@ -159,6 +211,7 @@ class MockMovieProduction:
         self.current_project, self.current_production = project, production
 
         self.job_manager = JobManager(self.event_bus, self.trace_id)
+        self.media_runtime.bind_jobs(self.job_manager)
 
         for node in sorted(
             production.graph.nodes,
@@ -659,71 +712,88 @@ class MockMovieProduction:
         )
 
     async def _storyboard_planning(self, project: Project) -> None:
-        """Validate chain boundaries and materialize explicit first/last frame plans."""
+        """Plan and generate real tiny Mock PNG boundaries through the media runtime."""
 
+        width, height = self._resolution(project.brief.resolution)
         shots_by_id = {shot.shot_id: shot for shot in project.shots}
         planned_shots: dict[str, Shot] = {}
         frame_ids: list[str] = []
+        frame_plans = []
         for chain in project.continuity_chains:
-            boundary_state = chain.initial_state.model_copy(deep=True)
             previous_shot: Shot | None = None
+            previous_last_id: str | None = None
             for shot_id in chain.shot_ids:
                 shot = shots_by_id[shot_id]
-                boundary_state = derive_next_state(boundary_state, shot)
-                anchors = self.frame_planner.plan(shot, previous_shot, boundary_state)
-
-                first_parents = [anchors.first_frame.source_artifact_id]
-                first_parents = [item for item in first_parents if item]
-                first = self._artifact(
-                    project,
-                    ArtifactType.FRAME,
-                    {
-                        "shot_id": shot.shot_id,
-                        "boundary": "first",
-                        "anchor": anchors.first_frame.model_dump(mode="json"),
-                    },
-                    artifact_id=f"frame_{shot.shot_id}_first",
-                    role="Director",
-                    tool="mock_frame_planner",
-                    parent_artifact_ids=first_parents,
+                frame_plan, anchors = self.frame_planner.plan(
+                    project.project_id, shot, width=width, height=height,
+                    aspect_ratio=project.brief.aspect_ratio,
+                    previous_shot=previous_shot,
+                    previous_last_frame_artifact_id=previous_last_id,
                 )
-                if anchors.first_frame.source_artifact_id is None:
-                    anchors.first_frame.source_artifact_id = first.artifact_id
+                frame_plans.append(frame_plan)
+                first_request = frame_plan.first_frame_request
+                first_job = GenerationJob(
+                    job_id=first_request.job_id, project_id=project.project_id,
+                    node_id="storyboard_planning", scene_id=shot.scene_id,
+                    shot_id=shot.shot_id, continuity_chain_id=shot.continuity_chain_id,
+                    task="frame", resource_class=first_request.resource_class,
+                    retry_budget=shot.retry_budget, idempotency_key=first_request.job_id,
+                    input_artifact_ids=[item.artifact_id for item in first_request.references],
+                    provenance=Provenance(
+                        role="Director", tool="media_frame_planner",
+                        prompt_package_id=first_request.prompt_package.prompt_package_id,
+                        compiler_id=first_request.prompt_package.compiler_id,
+                        compiler_version=first_request.prompt_package.compiler_version,
+                        project_id=project.project_id, scene_id=shot.scene_id, shot_id=shot.shot_id,
+                        input_artifact_ids=[item.artifact_id for item in first_request.references],
+                    ),
+                )
+                first = await self.media_runtime.generate_image(
+                    first_job, first_request, artifact_type=ArtifactType.FRAME
+                )
+                anchors.first_frame.source_artifact_id = first.artifact_id
 
-                last = self._artifact(
-                    project,
-                    ArtifactType.FRAME,
-                    {
-                        "shot_id": shot.shot_id,
-                        "boundary": "last",
-                        "anchor": anchors.last_frame.model_dump(mode="json"),
-                    },
-                    artifact_id=f"frame_{shot.shot_id}_last",
-                    role="Director",
-                    tool="mock_frame_planner",
-                    parent_artifact_ids=[first.artifact_id],
+                last_request = frame_plan.last_frame_request
+                last_job = GenerationJob(
+                    job_id=last_request.job_id, project_id=project.project_id,
+                    node_id="storyboard_planning", scene_id=shot.scene_id,
+                    shot_id=shot.shot_id, continuity_chain_id=shot.continuity_chain_id,
+                    task="frame", dependencies=[first_job.job_id],
+                    resource_class=last_request.resource_class,
+                    retry_budget=shot.retry_budget, idempotency_key=last_request.job_id,
+                    input_artifact_ids=[item.artifact_id for item in last_request.references],
+                    provenance=Provenance(
+                        role="Director", tool="media_frame_planner",
+                        prompt_package_id=last_request.prompt_package.prompt_package_id,
+                        compiler_id=last_request.prompt_package.compiler_id,
+                        compiler_version=last_request.prompt_package.compiler_version,
+                        project_id=project.project_id, scene_id=shot.scene_id, shot_id=shot.shot_id,
+                        input_artifact_ids=[item.artifact_id for item in last_request.references],
+                    ),
+                )
+                last = await self.media_runtime.generate_image(
+                    last_job, last_request, artifact_type=ArtifactType.FRAME
                 )
                 anchors.last_frame.source_artifact_id = last.artifact_id
                 expected_state = shot.expected_state_after.model_copy(
                     update={"last_frame_artifact_id": last.artifact_id}, deep=True
                 )
-                shot = shot.model_copy(
+                planned = shot.model_copy(
                     update={"frame_anchors": anchors, "expected_state_after": expected_state},
                     deep=True,
                 )
-                boundary_state.last_frame_artifact_id = last.artifact_id
-                planned_shots[shot.shot_id] = shot
-                previous_shot = shot
+                planned_shots[shot.shot_id] = planned
+                previous_shot, previous_last_id = planned, last.artifact_id
                 frame_ids.extend([first.artifact_id, last.artifact_id])
 
         project.shots = [planned_shots[shot.shot_id] for shot in project.shots]
         self._artifact(
             project,
             ArtifactType.SHOT_PLAN,
-            [shot.frame_anchors.model_dump(mode="json") for shot in project.shots],
+            [plan.model_dump(mode="json") for plan in frame_plans],
             artifact_id="storyboard_plan",
             role="Director",
-            tool="mock_storyboard_planning",
+            tool="media_frame_planner",
             parent_artifact_ids=frame_ids,
         )
 
@@ -737,159 +807,111 @@ class MockMovieProduction:
         *,
         repair_plan_ids: dict[str, str] | None = None,
     ) -> list[Artifact]:
-        """Compile, route, schedule, and register one immutable version per shot."""
+        """Plan, compile, route, execute, and register one immutable video version."""
 
         if self.job_manager is None:
             raise RuntimeError("job manager has not been initialized")
         repair_plan_ids = repair_plan_ids or {}
-        capabilities = [await self.provider.capabilities()]
+        capabilities = await self.media_runtime.capabilities()
+        width, height = self._resolution(project.brief.resolution)
         shot_ids = {shot.shot_id for shot in shots}
-        jobs: list[GenerationJob] = []
-        request_by_job: dict[str, ProviderRequest] = {}
-        prompt_artifact_by_job: dict[str, Artifact] = {}
-        shot_by_job: dict[str, Shot] = {}
-
         updated_shots = {shot.shot_id: shot for shot in project.shots}
+        created: list[tuple[GenerationJob, Shot, Artifact]] = []
+        mode_by_strategy = {
+            "text_to_video": VideoGenerationMode.TEXT_TO_VIDEO,
+            "image_to_video": VideoGenerationMode.IMAGE_TO_VIDEO,
+            "first_frame_to_video": VideoGenerationMode.FIRST_FRAME_TO_VIDEO,
+            "first_last_frame_to_video": VideoGenerationMode.FIRST_LAST_FRAME_TO_VIDEO,
+            "reference_to_video": VideoGenerationMode.REFERENCE_TO_VIDEO,
+            "video_to_video": VideoGenerationMode.VIDEO_TO_VIDEO,
+            "video_extend": VideoGenerationMode.VIDEO_EXTEND,
+        }
+
         for shot in shots:
-            strategy = self.strategy_planner.plan(
-                shot,
-                capabilities,
-                continuity=shot.state_before,
+            media_strategy = self.strategy_planner.plan(shot, capabilities)
+            if media_strategy.split_shot:
+                raise RuntimeError("split_shot requires Director replanning before provider execution")
+            strategy = GenerationStrategy(
+                strategy_type=media_strategy.strategy_type,
+                reason=media_strategy.reason,
+                required_capabilities=media_strategy.required_capabilities,
+                input_artifact_ids=media_strategy.input_artifact_ids,
+                fallback_types=media_strategy.fallback_types,
             )
-            prompt = self.prompt_compiler.compile(shot)
+            references = self._media_references(shot)
+            prompt = self.video_prompt_compiler.compile(shot, media_strategy, references)
             planned_shot = shot.model_copy(update={"generation_strategy": strategy}, deep=True)
             updated_shots[shot.shot_id] = planned_shot
             next_version = len(self.artifact_store.list_versions(f"video_{shot.shot_id}")) + 1
             job_id = f"generate:{shot.shot_id}:v{next_version}"
-            dependency = (
-                [f"generate:{shot.previous_shot_id}:v{next_version}"]
-                if shot.previous_shot_id in shot_ids
-                else []
-            )
+            dependencies = ([f"generate:{shot.previous_shot_id}:v{next_version}"]
+                            if shot.previous_shot_id in shot_ids else [])
+            plan_id = repair_plan_ids.get(shot.shot_id)
             job = GenerationJob(
-                job_id=job_id,
-                project_id=project.project_id,
-                node_id="repair_accept" if shot.shot_id in repair_plan_ids else "shot_production",
-                shot_id=shot.shot_id,
-                continuity_chain_id=shot.continuity_chain_id,
-                task="video",
-                dependencies=dependency,
-                priority=10,
-                resource_class=ResourceClass.MEDIUM,
-                retry_budget=shot.retry_budget,
-                idempotency_key=job_id,
+                job_id=job_id, project_id=project.project_id,
+                node_id="repair_accept" if plan_id else "shot_production",
+                scene_id=shot.scene_id, shot_id=shot.shot_id,
+                continuity_chain_id=shot.continuity_chain_id, task="video",
+                dependencies=dependencies, priority=10, resource_class=ResourceClass.MEDIUM,
+                retry_budget=shot.retry_budget, idempotency_key=job_id,
+                strategy_type=strategy.strategy_type.value,
+                input_artifact_ids=[item.artifact_id for item in references],
                 provenance=Provenance(
-                    role="Showrunner",
-                    tool="local_job_scheduler",
+                    role="Showrunner", tool="media_runtime",
                     prompt_package_id=prompt.prompt_package_id,
+                    compiler_id=prompt.compiler_id, compiler_version=prompt.compiler_version,
+                    project_id=project.project_id, scene_id=shot.scene_id, shot_id=shot.shot_id,
+                    input_artifact_ids=[item.artifact_id for item in references],
                     generation_strategy=strategy.strategy_type.value,
-                    repair_plan_ids=[repair_plan_ids[shot.shot_id]]
-                    if shot.shot_id in repair_plan_ids
-                    else [],
+                    repair_plan_ids=[plan_id] if plan_id else [],
                 ),
             )
             prompt_artifact = self._artifact(
-                project,
-                ArtifactType.TEXT,
-                prompt.model_dump(mode="json"),
-                artifact_id=f"prompt_{shot.shot_id}",
-                role="Showrunner",
-                tool="generic_prompt_compiler",
-                source_job_id=job_id,
-                parent_artifact_ids=self._shot_input_artifact_ids(planned_shot),
+                project, ArtifactType.TEXT, prompt.model_dump(mode="json"),
+                artifact_id=f"prompt_{shot.shot_id}", role="Showrunner",
+                tool="generic_video_prompt_compiler", source_job_id=job_id,
+                parent_artifact_ids=[item.artifact_id for item in references],
             )
-            generation_request = GenerationRequest(
-                job_id=job_id,
-                task="video",
-                strategy=strategy,
-                prompt_package=prompt,
-                input_artifact_ids=self._shot_input_artifact_ids(planned_shot),
-                requested_output_type=ArtifactType.VIDEO.value,
-                resource_class=ResourceClass.MEDIUM,
-                parameters={
-                    "duration_seconds": shot.duration_seconds,
-                    "aspect_ratio": project.brief.aspect_ratio.value,
-                    "fps": project.brief.fps,
-                },
+            first = next((item for item in references if item.reference_type == ReferenceType.FIRST_FRAME), None)
+            last = next((item for item in references if item.reference_type == ReferenceType.LAST_FRAME), None)
+            request = VideoGenerationRequest(
+                job_id=job_id, project_id=project.project_id, scene_id=shot.scene_id,
+                shot_id=shot.shot_id, prompt_package=prompt, references=references,
+                quality_profile=shot.quality_profile, resource_class=job.resource_class,
+                required_capabilities=[MediaCapabilityRequirement(capability=item)
+                                       for item in strategy.required_capabilities],
+                output_artifact_id=f"video_{shot.shot_id}",
+                mode=mode_by_strategy[strategy.strategy_type.value],
+                duration_seconds=shot.duration_seconds, fps=project.brief.fps,
+                width=width, height=height, aspect_ratio=project.brief.aspect_ratio,
+                first_frame=first, last_frame=last,
+                camera_motion=CameraMotionSpec(
+                    motion_type=shot.camera.motion.motion_type,
+                    direction=shot.camera.motion.direction,
+                    speed=shot.camera.motion.speed,
+                ),
+                start_state={"description": "Canonical shot start", "frame_reference": first},
+                end_state={"description": "Expected shot end", "frame_reference": last},
             )
-            request_by_job[job_id] = ProviderRequest(
-                provider_id=self.provider.provider_id,
-                generation_request=generation_request,
-            )
-            prompt_artifact_by_job[job_id] = prompt_artifact
-            shot_by_job[job_id] = planned_shot
-            jobs.append(job)
+            # Prompt package is an immutable input artifact alongside frame/reference assets.
+            job.input_artifact_ids = list(dict.fromkeys([prompt_artifact.artifact_id,
+                                                        *job.input_artifact_ids]))
+            artifact = await self.media_runtime.generate_video(job, request)
+            created.append((self.job_manager.get(job_id), planned_shot, artifact))
+
         project.shots = [updated_shots[shot.shot_id] for shot in project.shots]
-
-        width, height = self._resolution(project.brief.resolution)
-        created_by_job: dict[str, Artifact] = {}
-
-        async def operation(job: GenerationJob) -> ProviderResult:
-            shot = shot_by_job[job.job_id]
-            strategy = shot.generation_strategy
-            if strategy is None:
-                raise RuntimeError("generation strategy was not planned")
-            selection = await self.router.select(
-                RoutingRequest(
-                    task="video",
-                    quality_profile=shot.quality_profile,
-                    required_capabilities=strategy.required_capabilities,
-                    strategy_type=strategy.strategy_type,
-                    resource_class=job.resource_class,
-                )
-            )
-            result = await self.router.get(selection.provider_id).submit(request_by_job[job.job_id])
-            if not result.success:
-                return result
-            plan_id = repair_plan_ids.get(shot.shot_id)
-            artifact = self._artifact(
-                project,
-                ArtifactType.VIDEO,
-                {
-                    "mock_video": True,
-                    "shot_id": shot.shot_id,
-                    "provider_request_id": result.provider_request_id,
-                },
-                artifact_id=f"video_{shot.shot_id}",
-                role="Showrunner",
-                tool="mock_video_generation",
-                provider_id=selection.provider_id,
-                prompt_package_id=request_by_job[job.job_id].generation_request.prompt_package.prompt_package_id,
-                source_job_id=job.job_id,
-                parent_artifact_ids=[
-                    prompt_artifact_by_job[job.job_id].artifact_id,
-                    *self._shot_input_artifact_ids(shot),
-                ],
-                metadata={
-                    "duration_seconds": shot.duration_seconds,
-                    "width": width,
-                    "height": height,
-                    "mock": True,
-                },
-                generation_strategy=strategy.strategy_type.value,
-                repair_plan_ids=[plan_id] if plan_id else [],
-            )
-            created_by_job[job.job_id] = artifact
-            return result.model_copy(update={"artifact_ids": [artifact.artifact_id]}, deep=True)
-
-        scheduler = LocalJobScheduler(self.job_manager, LogicalResourceScheduler(capacity=4))
-        completed_jobs = await scheduler.run(jobs, operation)
-        if any(job.status != JobStatus.SUCCEEDED for job in completed_jobs):
-            failures = [job.failure_reason or job.job_id for job in completed_jobs if job.status != JobStatus.SUCCEEDED]
-            raise RuntimeError(f"shot generation failed: {'; '.join(failures)}")
-        for job in completed_jobs:
-            shot = shot_by_job[job.job_id]
+        for job, shot, artifact in created:
             project.generation_history.entries.append(
                 GenerationHistoryEntry(
                     job_id=job.job_id,
                     shot_id=shot.shot_id,
                     strategy_type=shot.generation_strategy.strategy_type.value,
                     succeeded=True,
-                    provider_id=self.provider.provider_id,
-                    metadata={"artifact_version": created_by_job[job.job_id].version},
+                    provider_id=artifact.provenance.provider_id,
+                    metadata={"artifact_version": artifact.version},
                 )
             )
-        return [created_by_job[job.job_id] for job in completed_jobs]
+        return [artifact for _, _, artifact in created]
 
     async def _technical_qc(self, project: Project) -> None:
         for shot in project.shots:
@@ -900,8 +922,58 @@ class MockMovieProduction:
     async def _visual_semantic_critic(self, project: Project) -> None:
         for shot in project.shots:
             self._record_evaluation(
-                project, self.visual_critic.evaluate(shot, self._latest_video(shot.shot_id))
+                project, await self._vision_evaluation(project, shot, self._latest_video(shot.shot_id))
             )
+
+    async def _vision_evaluation(
+        self, project: Project, shot: Shot, video: Artifact
+    ) -> Evaluation:
+        job_id = f"inspect:{shot.shot_id}:v{video.version}"
+        job = GenerationJob(
+            job_id=job_id, project_id=project.project_id,
+            node_id="visual_semantic_critic", scene_id=shot.scene_id,
+            shot_id=shot.shot_id, task="vision", resource_class=ResourceClass.LIGHT,
+            retry_budget=shot.retry_budget, idempotency_key=job_id,
+            input_artifact_ids=[video.artifact_id],
+            provenance=Provenance(
+                role="Critic", tool="media_runtime", project_id=project.project_id,
+                scene_id=shot.scene_id, shot_id=shot.shot_id,
+                input_artifact_ids=[video.artifact_id],
+            ),
+        )
+        request = VisionInspectionRequest(
+            job_id=job_id, project_id=project.project_id, scene_id=shot.scene_id,
+            shot_id=shot.shot_id, video_artifact_id=video.artifact_id,
+            reference_assets=self._media_references(shot), expected_shot=shot,
+            expected_requirements=shot.visual_requirements,
+            profiles=[VisionInspectionProfile.VIDEO_QUALITY,
+                      VisionInspectionProfile.PROMPT_ALIGNMENT,
+                      VisionInspectionProfile.ACTION_COMPLETION,
+                      VisionInspectionProfile.CAMERA_MOTION,
+                      VisionInspectionProfile.CONTINUITY],
+            output_artifact_id=f"inspection_{shot.shot_id}_v{video.version}",
+        )
+        result = await self.media_runtime.inspect(job, request)
+        issues = [
+            EvaluationIssue(
+                issue_type=(EvaluationIssueType.ACTION_FAILURE
+                            if item.issue_type == MediaIssueType.ACTION_INCOMPLETE
+                            else EvaluationIssueType.GENERATION_FAILURE),
+                severity=item.severity, message=item.message,
+                evidence=item.evidence,
+                suggested_action=(RepairActionType.REWRITE_PROMPT
+                                  if item.suggested_action == MediaRepairActionType.REWRITE_PROMPT
+                                  else RepairActionType.REGENERATE),
+                shot_id=shot.shot_id, artifact_id=video.artifact_id,
+            ) for item in result.issues
+        ]
+        score = sum(item.score for item in result.scores) / max(1, len(result.scores))
+        return Evaluation(
+            layer=EvaluationLayer.VISUAL_SEMANTIC,
+            target_artifact_id=video.artifact_id, target_shot_id=shot.shot_id,
+            score=score, passed=result.decision == VisionDecision.PASS,
+            issues=issues, summary=result.summary,
+        )
 
     async def _cinematic_critic(self, project: Project) -> None:
         for shot in project.shots:
@@ -926,8 +998,27 @@ class MockMovieProduction:
                 retry_count=retry_count,
             )
             self.repair_plans.append(plan)
+            inspection = next((item for item in reversed(self.media_runtime.inspections)
+                               if item.target_artifact_id == evaluation.target_artifact_id), None)
+            if inspection:
+                media_plan = MediaRepairPlan(
+                    inspection_result_id=inspection.result_id,
+                    actions=[MediaRepairAction(
+                        action_type=(issue.suggested_action or MediaRepairActionType.REGENERATE_VIDEO),
+                        issue_ids=[issue.issue_id], target_shot_id=shot_id,
+                        target_artifact_id=evaluation.target_artifact_id,
+                        rationale=f"Route {issue.issue_type.value} through finite media repair.",
+                    ) for issue in inspection.issues],
+                    retry_budget=shot.retry_budget, retry_count=retry_count,
+                )
+                self.media_repair_plans.append(media_plan)
             self._emit(
                 EventType.REPAIR_STARTED,
+                project.project_id,
+                {"repair_plan_id": plan.repair_plan_id, "shot_id": shot_id},
+            )
+            self._emit(
+                EventType.MEDIA_REPAIR_STARTED,
                 project.project_id,
                 {"repair_plan_id": plan.repair_plan_id, "shot_id": shot_id},
             )
@@ -941,7 +1032,7 @@ class MockMovieProduction:
             repaired_shot = next(item for item in project.shots if item.shot_id == shot_id)
             new_evaluations = [
                 self.technical_qc.evaluate(repaired_shot, repaired),
-                self.visual_critic.evaluate(repaired_shot, repaired),
+                await self._vision_evaluation(project, repaired_shot, repaired),
                 self.cinematic_critic.evaluate(repaired_shot, repaired),
             ]
             for item in new_evaluations:
@@ -954,6 +1045,11 @@ class MockMovieProduction:
                 project.project_id,
                 {"repair_plan_id": plan.repair_plan_id, "shot_id": shot_id},
             )
+            self._emit(
+                EventType.MEDIA_REPAIR_COMPLETED,
+                project.project_id,
+                {"repair_plan_id": plan.repair_plan_id, "shot_id": shot_id},
+            )
 
         for shot in project.shots:
             latest = self._latest_video(shot.shot_id)
@@ -961,41 +1057,111 @@ class MockMovieProduction:
                 self._select(project, latest.artifact_id, latest.version)
 
     async def _audio_post(self, project: Project) -> None:
-        selected_videos = [self._latest_video(shot.shot_id).artifact_id for shot in project.shots]
-        self._artifact(
-            project,
-            ArtifactType.AUDIO,
-            {
-                "dialogue": "mock dialogue edit",
-                "ambience": "mock orbital cabin ambience",
-                "music": "mock restrained synth score",
-            },
-            artifact_id="audio_mix",
-            role="Sound/Post Director",
-            tool="mock_audio_post",
-            parent_artifact_ids=selected_videos,
-            extension="wav.placeholder",
+        duration = sum(shot.duration_seconds for shot in project.shots)
+        shot = project.shots[0]
+        selected_videos = [self._latest_video(item.shot_id).artifact_id for item in project.shots]
+        dialogue = " ".join(line for item in project.shots for line in item.narrative.dialogue)
+        references: list[MediaReference] = []
+        requests: list[AudioRequestBase] = [
+            SpeechGenerationRequest(
+                job_id="audio:speech:v1", project_id=project.project_id,
+                scene_id=shot.scene_id, shot_id=shot.shot_id,
+                prompt_package=self.audio_prompt_compiler.compile(
+                    AudioPurpose.SPEECH, dialogue or "Mock dialogue performance", references, shot=shot),
+                references=references, output_artifact_id="audio_speech",
+                text=dialogue or "Mock dialogue performance", character_id=(shot.performances[0].character_id
+                    if shot.performances else None), voice_profile=project.brief.voice_style,
+                language=project.brief.output_language, emotion="restrained",
+                duration_target_seconds=max(0.2, duration / 3),
+                resource_class=ResourceClass.LIGHT,
+                required_capabilities=[MediaCapabilityRequirement(capability="tts")],
+            ),
+            MusicGenerationRequest(
+                job_id="audio:music:v1", project_id=project.project_id,
+                prompt_package=self.audio_prompt_compiler.compile(
+                    AudioPurpose.MUSIC, project.brief.music_style or "restrained cinematic score", references),
+                references=references, output_artifact_id="audio_music",
+                mood=project.brief.music_style or "restrained cinematic",
+                genre=project.brief.genre, duration_target_seconds=duration,
+                resource_class=ResourceClass.MEDIUM,
+                required_capabilities=[MediaCapabilityRequirement(capability="music")],
+            ),
+            SoundEffectGenerationRequest(
+                job_id="audio:sfx:v1", project_id=project.project_id,
+                scene_id=shot.scene_id, shot_id=shot.shot_id,
+                prompt_package=self.audio_prompt_compiler.compile(
+                    AudioPurpose.SFX, project.brief.sound_design or "story event sound", references, shot=shot),
+                references=references, output_artifact_id="audio_sfx",
+                event_description=project.brief.sound_design or "story event sound",
+                source_video_artifact_id=selected_videos[0], duration_target_seconds=max(0.2, duration / 4),
+                resource_class=ResourceClass.LIGHT,
+                required_capabilities=[MediaCapabilityRequirement(capability="sfx")],
+            ),
+            FoleyGenerationRequest(
+                job_id="audio:foley:v1", project_id=project.project_id,
+                scene_id=shot.scene_id, shot_id=shot.shot_id,
+                prompt_package=self.audio_prompt_compiler.compile(
+                    AudioPurpose.FOLEY, "video-reference-driven movement Foley", references, shot=shot),
+                references=references, output_artifact_id="audio_foley",
+                event_description="video-reference-driven movement Foley",
+                source_video_artifact_id=selected_videos[0], duration_target_seconds=duration,
+                resource_class=ResourceClass.LIGHT,
+                required_capabilities=[MediaCapabilityRequirement(capability="foley")],
+            ),
+            AudioRequestBase(
+                job_id="audio:ambience:v1", project_id=project.project_id,
+                prompt_package=self.audio_prompt_compiler.compile(
+                    AudioPurpose.AMBIENCE, project.brief.ambience_style or "scene ambience", references),
+                references=references, output_artifact_id="audio_ambience",
+                purpose=AudioPurpose.AMBIENCE, duration_target_seconds=duration,
+                resource_class=ResourceClass.LIGHT,
+                required_capabilities=[MediaCapabilityRequirement(capability="ambience")],
+            ),
+        ]
+        generated = [await self._run_audio_request(project, request) for request in requests]
+        mix_references = [MediaReference(reference_type=ReferenceType.AUDIO_REFERENCE,
+                                         artifact_id=item.artifact_id) for item in generated]
+        mix_request = AudioRequestBase(
+            job_id="audio:mix:v1", project_id=project.project_id,
+            prompt_package=self.audio_prompt_compiler.compile(
+                AudioPurpose.MIX, "balanced dialogue, music, effects, Foley and ambience", mix_references),
+            references=mix_references, output_artifact_id="audio_mix",
+            purpose=AudioPurpose.MIX, duration_target_seconds=duration,
+            resource_class=ResourceClass.MEDIUM,
         )
+        await self._run_audio_request(project, mix_request)
 
     async def _rough_cut(self, project: Project) -> None:
         selected_videos = [self._latest_video(shot.shot_id) for shot in project.shots]
-        audio = self._required_artifact("audio_mix")
+        offset = 0.0
+        clips = []
+        for shot, artifact in zip(project.shots, selected_videos, strict=True):
+            clips.append(TimelineClip(
+                artifact_id=artifact.artifact_id, start_time_seconds=offset,
+                duration_seconds=shot.duration_seconds, shot_id=shot.shot_id,
+            ))
+            offset += shot.duration_seconds
+        audio_ids = ["audio_speech", "audio_music", "audio_sfx", "audio_foley",
+                     "audio_ambience", "audio_mix"]
+        audio_types = [AudioPurpose.SPEECH, AudioPurpose.MUSIC, AudioPurpose.SFX,
+                       AudioPurpose.FOLEY, AudioPurpose.AMBIENCE, AudioPurpose.MIX]
+        audio_tracks = [AudioTrack(cues=[AudioCue(
+            start_time_seconds=0, duration_seconds=offset, cue_type=kind, artifact_id=artifact_id,
+        )]) for artifact_id, kind in zip(audio_ids, audio_types, strict=True)]
+        self.timeline = Timeline(
+            project_id=project.project_id, duration_seconds=offset,
+            video_tracks=[VideoTrack(clips=clips)], audio_tracks=audio_tracks,
+        )
         self._artifact(
             project,
             ArtifactType.TIMELINE,
-            {
-                "tracks": {
-                    "video": [artifact.artifact_id for artifact in selected_videos],
-                    "audio": [audio.artifact_id],
-                },
-                "duration_seconds": sum(shot.duration_seconds for shot in project.shots),
-            },
+            self.timeline.model_dump(mode="json"),
             artifact_id="rough_cut",
             role="Sound/Post Director",
             tool="mock_timeline_assembly",
             parent_artifact_ids=[
                 *[artifact.artifact_id for artifact in selected_videos],
-                audio.artifact_id,
+                *audio_ids,
             ],
         )
 
@@ -1018,31 +1184,52 @@ class MockMovieProduction:
 
     async def _final_render(self, project: Project) -> None:
         rough_cut = self._required_artifact("rough_cut")
-        selected_videos = [self._latest_video(shot.shot_id) for shot in project.shots]
         full_review_ids = [
             evaluation.evaluation_id
             for evaluation in self.evaluations
             if evaluation.target_artifact_id == rough_cut.artifact_id
         ]
-        final = self._artifact(
-            project,
-            ArtifactType.FINAL_FILM,
-            {
-                "mock_final_film": True,
-                "title": project.brief.title,
-                "shot_count": len(project.shots),
-            },
-            artifact_id="final_film",
-            role="Showrunner",
-            tool="mock_final_render",
-            parent_artifact_ids=[
-                rough_cut.artifact_id,
-                *[artifact.artifact_id for artifact in selected_videos],
-            ],
-            evaluation_ids=full_review_ids,
-            extension="mp4.placeholder",
+        if self.timeline is None:
+            raise RuntimeError("typed timeline is unavailable")
+        width, height = self._resolution(project.brief.resolution)
+        job_id = f"post:final:v{len(self.artifact_store.list_versions('final_film')) + 1}"
+        job = GenerationJob(
+            job_id=job_id, project_id=project.project_id, node_id="final_render",
+            task="post", resource_class=ResourceClass.MEDIUM,
+            retry_budget=project.brief.max_retry, idempotency_key=job_id,
+            input_artifact_ids=[rough_cut.artifact_id],
+            provenance=Provenance(
+                role="Showrunner", tool="media_runtime", project_id=project.project_id,
+                input_artifact_ids=[rough_cut.artifact_id], evaluation_ids=full_review_ids,
+            ),
         )
+        request = PostProductionRequest(
+            job_id=job_id, project_id=project.project_id, timeline=self.timeline,
+            output_artifact_id="final_film", width=width, height=height,
+            fps=project.brief.fps,
+        )
+        final = await self.media_runtime.post_process(job, request)
         self._select(project, final.artifact_id, final.version)
+
+    async def _run_audio_request(
+        self, project: Project, request: AudioRequestBase
+    ) -> Artifact:
+        job = GenerationJob(
+            job_id=request.job_id, project_id=project.project_id, node_id="audio_post",
+            scene_id=request.scene_id, shot_id=request.shot_id, task=request.purpose.value,
+            resource_class=request.resource_class, retry_budget=project.brief.max_retry,
+            idempotency_key=request.job_id,
+            input_artifact_ids=[item.artifact_id for item in request.references],
+            provenance=Provenance(
+                role="Sound/Post Director", tool="media_runtime",
+                prompt_package_id=request.prompt_package.prompt_package_id,
+                compiler_id=request.prompt_package.compiler_id,
+                compiler_version=request.prompt_package.compiler_version,
+                project_id=project.project_id, scene_id=request.scene_id, shot_id=request.shot_id,
+                input_artifact_ids=[item.artifact_id for item in request.references],
+            ),
+        )
+        return await self.media_runtime.generate_audio(job, request)
 
     def _artifact(
         self,
@@ -1157,6 +1344,26 @@ class MockMovieProduction:
         return list(dict.fromkeys(item for item in ids if item))
 
     @staticmethod
+    def _media_references(shot: Shot) -> list[MediaReference]:
+        references = [
+            MediaReference(reference_type=ReferenceType.STYLE, artifact_id=artifact_id)
+            for artifact_id in shot.reference_artifact_ids
+        ]
+        if shot.frame_anchors.first_frame.source_artifact_id:
+            references.append(MediaReference(
+                reference_type=ReferenceType.FIRST_FRAME,
+                artifact_id=shot.frame_anchors.first_frame.source_artifact_id,
+                shot_id=shot.shot_id,
+            ))
+        if shot.frame_anchors.last_frame.source_artifact_id:
+            references.append(MediaReference(
+                reference_type=ReferenceType.LAST_FRAME,
+                artifact_id=shot.frame_anchors.last_frame.source_artifact_id,
+                shot_id=shot.shot_id,
+            ))
+        return references
+
+    @staticmethod
     def _resolution(value: str) -> tuple[int, int]:
         try:
             width, height = value.lower().split("x", maxsplit=1)
@@ -1200,8 +1407,14 @@ class MockMovieProduction:
         self._latest_checkpoint_id = snapshot.checkpoint_id
 
     def _checkpoint_extra(self) -> dict[str, JSONValue]:
-        """Application adapters may persist additional versioned state without altering Project."""
-        return {}
+        """Persist typed media runtime state outside the frozen Project aggregate."""
+        return {
+            "media_inspections": [item.model_dump(mode="json")
+                                  for item in self.media_runtime.inspections],
+            "media_repair_plans": [item.model_dump(mode="json")
+                                   for item in self.media_repair_plans],
+            "timeline": self.timeline.model_dump(mode="json") if self.timeline else None,
+        }
 
     def _restore(self) -> tuple[Project, ProductionGraph]:
         markers = list(self.checkpoint_store.root.glob("*/LATEST"))
@@ -1229,7 +1442,17 @@ class MockMovieProduction:
         return project, ProductionGraph(graph, self.event_bus, self.trace_id)
 
     def _restore_extra(self, state: dict[str, JSONValue]) -> None:
-        """Restore application-owned state; Phase 1 has no additional state."""
+        """Restore media state without changing frozen reasoning contracts."""
+        self.media_runtime.inspections = [
+            VisionInspectionResult.model_validate(item)
+            for item in state.get("media_inspections", [])
+        ]
+        self.media_repair_plans = [
+            MediaRepairPlan.model_validate(item)
+            for item in state.get("media_repair_plans", [])
+        ]
+        timeline = state.get("timeline")
+        self.timeline = Timeline.model_validate(timeline) if timeline else None
 
     def _result(
         self,
@@ -1246,6 +1469,11 @@ class MockMovieProduction:
             artifacts=self.artifact_store.list_all(),
             evaluations=[item.model_copy(deep=True) for item in self.evaluations],
             repair_plans=[item.model_copy(deep=True) for item in self.repair_plans],
+            media_inspections=[item.model_copy(deep=True)
+                               for item in self.media_runtime.inspections],
+            media_repair_plans=[item.model_copy(deep=True)
+                                for item in self.media_repair_plans],
+            timeline=self.timeline.model_copy(deep=True) if self.timeline else None,
             human_reviews=self.human_gates.all(),
             event_stream=self.event_bus.events(),
             final_artifact_id=final.artifact_id if final else None,

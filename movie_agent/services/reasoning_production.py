@@ -190,7 +190,8 @@ class ReasoningMovieProduction(MockMovieProduction):
                     immutable_facts=project.story_bible.immutable_facts))
 
     def _checkpoint_extra(self):
-        return {"runtime": "p2a", "real_roles": sorted(r.value for r in self.real_roles),
+        return {**super()._checkpoint_extra(),
+                "runtime": "p2a", "real_roles": sorted(r.value for r in self.real_roles),
                 "role_revision_history": [r.model_dump(mode="json") for r in self.role_revision_history],
                 "contract_schema_revisions": [r.model_dump(mode="json") for r in self.contract_schema_revisions],
                 "request_contract_type_revisions": [r.model_dump(mode="json")
@@ -198,6 +199,7 @@ class ReasoningMovieProduction(MockMovieProduction):
                 "role_results": {key: result.model_dump(mode="json") for key, result in self.role_results.items()}}
 
     def _restore_extra(self, state):
+        super()._restore_extra(state)
         self.role_results = {key: RoleResult.model_validate(value) for key, value in state.get("role_results", {}).items()}
         self.real_roles = {RoleId(r) for r in state.get("real_roles", [r.value for r in RoleId])}
         self.role_revision_history = [RoleResult.model_validate(r) for r in state.get("role_revision_history", [])]

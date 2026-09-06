@@ -10,10 +10,25 @@ export type CanvasData = {
   kind: CanvasKind;
   identity: string;
   metadata?: string;
+  media?: { frames: string; video: string; qc: string };
 };
 export type StudioNode = Node<CanvasData>;
 export type Positions = Record<string, XYPosition>;
 export function projectCanvas(snapshot: Snapshot) {
+  const artifactsByShot = new Map<string, typeof snapshot.artifacts>();
+  for (const artifact of snapshot.artifacts) {
+    const shotId = artifact.provenance?.shot_id;
+    if (!shotId) continue;
+    artifactsByShot.set(shotId, [...(artifactsByShot.get(shotId) || []), artifact]);
+  }
+  const evaluationsByShot = new Map<string, typeof snapshot.evaluations>();
+  for (const evaluation of snapshot.evaluations) {
+    if (!evaluation.target_shot_id) continue;
+    evaluationsByShot.set(evaluation.target_shot_id, [
+      ...(evaluationsByShot.get(evaluation.target_shot_id) || []),
+      evaluation,
+    ]);
+  }
   const nodes: StudioNode[] = (snapshot.graph.nodes || []).map((n) => {
     const kind: CanvasKind =
       n.node_type === 'human_gate'
@@ -80,6 +95,10 @@ export function projectCanvas(snapshot: Snapshot) {
       });
     shots.forEach((shot, i) => {
       const sid = `shot:${shot.shot_id}`;
+      const shotArtifacts = artifactsByShot.get(shot.shot_id) || [];
+      const frames = shotArtifacts.filter((artifact) => artifact.artifact_type === 'frame');
+      const videos = shotArtifacts.filter((artifact) => artifact.artifact_type === 'video');
+      const qc = evaluationsByShot.get(shot.shot_id) || [];
       nodes.push({
         id: sid,
         type: 'shot',
@@ -91,6 +110,11 @@ export function projectCanvas(snapshot: Snapshot) {
           subtitle: `${shot.camera.shot_size.replaceAll('_', ' ')}${shot.camera.lens_mm ? ` · ${shot.camera.lens_mm}mm` : ''}`,
           status: 'planned',
           metadata: `${shot.camera.motion?.motion_type || 'static'} · ${shot.duration_seconds}s`,
+          media: {
+            frames: frames.length >= 2 ? '✓' : frames.length ? `${frames.length}/2` : 'Waiting',
+            video: videos.length ? '✓' : 'Waiting',
+            qc: qc.length ? (qc.every((item) => item.passed) ? '✓' : 'Repair') : '—',
+          },
         },
       });
       edges.push({
@@ -114,7 +138,9 @@ export function layoutNodes(
     return nodes.map((n) => ({ ...n, position: previous[n.id] }));
   const graph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
   graph.setGraph({ rankdir: 'TB', nodesep: 50, ranksep: 64, marginx: 40, marginy: 40 });
-  nodes.forEach((n) => graph.setNode(n.id, { width: 230, height: 112 }));
+  nodes.forEach((n) =>
+    graph.setNode(n.id, { width: 230, height: n.data.kind === 'shot' ? 142 : 112 }),
+  );
   edges.forEach((e) => graph.setEdge(e.source, e.target));
   dagre.layout(graph);
   const occupied = nodes.filter((n) => previous[n.id]).map((n) => previous[n.id]);

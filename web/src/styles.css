@@ -646,6 +646,19 @@ summary span:last-child {
   margin-top: 12px;
   text-transform: capitalize;
 }
+.shot-status {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 8px;
+}
+.shot-status span {
+  white-space: nowrap;
+}
 .status-running {
   border-color: var(--accent);
   animation: breathe 2s ease-in-out infinite;
@@ -941,6 +954,38 @@ dd {
 }
 .artifact-card summary span:last-child {
   float: none;
+}
+.media-preview {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  margin: 10px 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: #15171b;
+  object-fit: contain;
+}
+.audio-preview audio {
+  width: 100%;
+}
+.waveform {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 8px 0;
+}
+.waveform i {
+  width: 5px;
+  max-height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+}
+.shot-media {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 .architecture > div {
   display: flex;

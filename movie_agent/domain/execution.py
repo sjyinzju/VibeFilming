@@ -57,9 +57,12 @@ class GenerationJob(ContractModel):
     job_id: str = Field(default_factory=lambda: new_id("job"))
     project_id: str
     node_id: str | None = None
+    scene_id: str | None = None
     shot_id: str | None = None
     continuity_chain_id: str | None = None
     task: str
+    provider_id: str | None = None
+    strategy_type: str | None = None
     status: JobStatus = JobStatus.PENDING
     dependencies: list[str] = Field(default_factory=list)
     priority: int = 0
@@ -73,7 +76,11 @@ class GenerationJob(ContractModel):
     started_at: datetime | None = None
     completed_at: datetime | None = None
     progress: float = Field(default=0.0, ge=0.0, le=1.0)
+    progress_is_determinate: bool = False
+    activity: str | None = None
     failure_reason: str | None = None
+    input_artifact_ids: list[str] = Field(default_factory=list)
+    output_artifact_ids: list[str] = Field(default_factory=list)
     related_artifact_ids: list[str] = Field(default_factory=list)
     provenance: Provenance = Field(default_factory=Provenance)
 
@@ -100,4 +107,3 @@ class CheckpointSnapshot(ContractModel):
     repair_plans: list[RepairPlan] = Field(default_factory=list)
     retry_state: dict[str, int] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utc_now)
-

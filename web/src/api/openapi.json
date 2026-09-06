@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Movie Agent Phase 2A",
-    "version": "0.2.0"
+    "title": "Movie Agent",
+    "version": "0.3.0"
   },
   "paths": {
     "/health": {
@@ -745,6 +745,324 @@
         }
       }
     },
+    "/artifacts/{artifact_id}/select": {
+      "post": {
+        "summary": "Select Artifact",
+        "operationId": "select_artifact_artifacts__artifact_id__select_post",
+        "parameters": [
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artifact Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Artifact"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/artifacts/{artifact_id}/content": {
+      "get": {
+        "summary": "Artifact Content",
+        "operationId": "artifact_content_artifacts__artifact_id__content_get",
+        "parameters": [
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artifact Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/artifacts/{artifact_id}/preview": {
+      "get": {
+        "summary": "Artifact Preview",
+        "operationId": "artifact_preview_artifacts__artifact_id__preview_get",
+        "parameters": [
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artifact Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/artifacts/{artifact_id}/thumbnail": {
+      "get": {
+        "summary": "Artifact Thumbnail",
+        "operationId": "artifact_thumbnail_artifacts__artifact_id__thumbnail_get",
+        "parameters": [
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artifact Id"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/media/providers": {
+      "get": {
+        "summary": "Media Providers",
+        "operationId": "media_providers_projects__project_id__media_providers_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderCapabilities"
+                  },
+                  "title": "Response Media Providers Projects  Project Id  Media Providers Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/{project_id}/events": {
       "get": {
         "summary": "Events",
@@ -924,6 +1242,172 @@
           "2.39:1"
         ],
         "title": "AspectRatio"
+      },
+      "AudioCapabilities": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "tts": {
+            "type": "boolean",
+            "title": "Tts",
+            "default": false
+          },
+          "voice_clone": {
+            "type": "boolean",
+            "title": "Voice Clone",
+            "default": false
+          },
+          "music": {
+            "type": "boolean",
+            "title": "Music",
+            "default": false
+          },
+          "foley": {
+            "type": "boolean",
+            "title": "Foley",
+            "default": false
+          },
+          "sfx": {
+            "type": "boolean",
+            "title": "Sfx",
+            "default": false
+          },
+          "ambience": {
+            "type": "boolean",
+            "title": "Ambience",
+            "default": false
+          },
+          "audio_edit": {
+            "type": "boolean",
+            "title": "Audio Edit",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AudioCapabilities"
+      },
+      "AudioCue": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "cue_id": {
+            "type": "string",
+            "title": "Cue Id"
+          },
+          "start_time_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Start Time Seconds"
+          },
+          "duration_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Duration Seconds"
+          },
+          "cue_type": {
+            "$ref": "#/components/schemas/AudioPurpose"
+          },
+          "artifact_id": {
+            "type": "string",
+            "title": "Artifact Id"
+          },
+          "gain_db": {
+            "type": "number",
+            "title": "Gain Db",
+            "default": 0
+          },
+          "fade_in_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Fade In Seconds",
+            "default": 0
+          },
+          "fade_out_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Fade Out Seconds",
+            "default": 0
+          },
+          "scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
+          "shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "start_time_seconds",
+          "duration_seconds",
+          "cue_type",
+          "artifact_id"
+        ],
+        "title": "AudioCue"
+      },
+      "AudioPurpose": {
+        "type": "string",
+        "enum": [
+          "speech",
+          "music",
+          "sfx",
+          "foley",
+          "ambience",
+          "mix"
+        ],
+        "title": "AudioPurpose"
+      },
+      "AudioTrack": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "track_id": {
+            "type": "string",
+            "title": "Track Id"
+          },
+          "cues": {
+            "items": {
+              "$ref": "#/components/schemas/AudioCue"
+            },
+            "type": "array",
+            "title": "Cues"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AudioTrack"
       },
       "CameraAngle": {
         "type": "string",
@@ -2357,7 +2841,17 @@
           "repair_completed",
           "human_review_requested",
           "human_review_resolved",
-          "workflow_completed"
+          "workflow_completed",
+          "media_job_created",
+          "media_job_started",
+          "media_job_progress",
+          "media_job_completed",
+          "media_job_failed",
+          "media_evaluation_started",
+          "media_evaluation_completed",
+          "media_repair_started",
+          "media_repair_completed",
+          "model_service_status_changed"
         ],
         "title": "EventType"
       },
@@ -2443,6 +2937,51 @@
         "type": "object",
         "title": "FrameAnchors",
         "description": "First/last boundary frame plan for one shot."
+      },
+      "FrameReference": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "artifact_id": {
+            "type": "string",
+            "title": "Artifact Id"
+          },
+          "frame_number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame Number"
+          },
+          "timestamp_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp Seconds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "artifact_id"
+        ],
+        "title": "FrameReference"
       },
       "GenerationHistory": {
         "properties": {
@@ -2567,6 +3106,17 @@
             ],
             "title": "Node Id"
           },
+          "scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
           "shot_id": {
             "anyOf": [
               {
@@ -2592,6 +3142,28 @@
           "task": {
             "type": "string",
             "title": "Task"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "strategy_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategy Type"
           },
           "status": {
             "$ref": "#/components/schemas/JobStatus",
@@ -2683,6 +3255,22 @@
             "title": "Progress",
             "default": 0.0
           },
+          "progress_is_determinate": {
+            "type": "boolean",
+            "title": "Progress Is Determinate",
+            "default": false
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity"
+          },
           "failure_reason": {
             "anyOf": [
               {
@@ -2693,6 +3281,20 @@
               }
             ],
             "title": "Failure Reason"
+          },
+          "input_artifact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Input Artifact Ids"
+          },
+          "output_artifact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Output Artifact Ids"
           },
           "related_artifact_ids": {
             "items": {
@@ -2882,6 +3484,79 @@
         "title": "HumanReviewRequest",
         "description": "Persisted pause point that can be resolved and resumed later."
       },
+      "ImageCapabilities": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "text_to_image": {
+            "type": "boolean",
+            "title": "Text To Image",
+            "default": false
+          },
+          "image_edit": {
+            "type": "boolean",
+            "title": "Image Edit",
+            "default": false
+          },
+          "inpaint": {
+            "type": "boolean",
+            "title": "Inpaint",
+            "default": false
+          },
+          "outpaint": {
+            "type": "boolean",
+            "title": "Outpaint",
+            "default": false
+          },
+          "upscale": {
+            "type": "boolean",
+            "title": "Upscale",
+            "default": false
+          },
+          "multi_reference": {
+            "type": "boolean",
+            "title": "Multi Reference",
+            "default": false
+          },
+          "character_reference": {
+            "type": "boolean",
+            "title": "Character Reference",
+            "default": false
+          },
+          "max_width": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Width"
+          },
+          "max_height": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Height"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ImageCapabilities"
+      },
       "InferenceMetrics": {
         "properties": {
           "schema_version": {
@@ -3069,8 +3744,11 @@
           "pending",
           "queued",
           "blocked",
+          "waiting_resource",
           "preparing",
+          "preparing_model",
           "running",
+          "uploading",
           "evaluating",
           "repairing",
           "waiting_human",
@@ -3332,6 +4010,316 @@
         ],
         "title": "LocationState",
         "description": "Mutable environment facts for a location at a continuity boundary."
+      },
+      "MediaIssue": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "issue_id": {
+            "type": "string",
+            "title": "Issue Id"
+          },
+          "issue_type": {
+            "$ref": "#/components/schemas/MediaIssueType"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/IssueSeverity"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "time_ranges": {
+            "items": {
+              "$ref": "#/components/schemas/TimeRange"
+            },
+            "type": "array",
+            "title": "Time Ranges"
+          },
+          "frame_references": {
+            "items": {
+              "$ref": "#/components/schemas/FrameReference"
+            },
+            "type": "array",
+            "title": "Frame References"
+          },
+          "suggested_action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MediaRepairActionType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "issue_type",
+          "severity",
+          "message"
+        ],
+        "title": "MediaIssue"
+      },
+      "MediaIssueType": {
+        "type": "string",
+        "enum": [
+          "identity_drift",
+          "wardrobe_drift",
+          "scene_drift",
+          "prop_drift",
+          "extra_character",
+          "missing_character",
+          "anatomy_artifact",
+          "hand_artifact",
+          "face_artifact",
+          "motion_failure",
+          "action_incomplete",
+          "camera_motion_mismatch",
+          "first_frame_mismatch",
+          "last_frame_mismatch",
+          "temporal_flicker",
+          "detail_loss",
+          "style_mismatch",
+          "lighting_mismatch",
+          "continuity_error",
+          "audio_sync_error",
+          "speech_error",
+          "music_mismatch",
+          "technical_media_error"
+        ],
+        "title": "MediaIssueType"
+      },
+      "MediaModality": {
+        "type": "string",
+        "enum": [
+          "image",
+          "video",
+          "audio",
+          "vision",
+          "post"
+        ],
+        "title": "MediaModality"
+      },
+      "MediaPreview": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "artifact_id": {
+            "type": "string",
+            "title": "Artifact Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "content_url": {
+            "type": "string",
+            "title": "Content Url"
+          },
+          "preview_url": {
+            "type": "string",
+            "title": "Preview Url"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "playable": {
+            "type": "boolean",
+            "title": "Playable",
+            "default": false
+          },
+          "mime_type": {
+            "type": "string",
+            "title": "Mime Type"
+          },
+          "waveform": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Waveform"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "artifact_id",
+          "version",
+          "content_url",
+          "preview_url",
+          "mime_type"
+        ],
+        "title": "MediaPreview"
+      },
+      "MediaRepairAction": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "action_id": {
+            "type": "string",
+            "title": "Action Id"
+          },
+          "action_type": {
+            "$ref": "#/components/schemas/MediaRepairActionType"
+          },
+          "issue_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Issue Ids"
+          },
+          "target_artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Artifact Id"
+          },
+          "target_shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Shot Id"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "consumes_retry": {
+            "type": "boolean",
+            "title": "Consumes Retry",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action_type",
+          "rationale"
+        ],
+        "title": "MediaRepairAction"
+      },
+      "MediaRepairActionType": {
+        "type": "string",
+        "enum": [
+          "rewrite_prompt",
+          "strengthen_character_reference",
+          "strengthen_scene_reference",
+          "change_reference",
+          "regenerate_first_frame",
+          "regenerate_last_frame",
+          "image_edit",
+          "change_generation_strategy",
+          "regenerate_video",
+          "extend_video",
+          "split_shot",
+          "change_camera_control",
+          "upscale",
+          "detail_restore",
+          "regenerate_voice",
+          "regenerate_music",
+          "regenerate_sfx",
+          "remix_audio",
+          "request_human_review"
+        ],
+        "title": "MediaRepairActionType"
+      },
+      "MediaRepairPlan": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "repair_plan_id": {
+            "type": "string",
+            "title": "Repair Plan Id"
+          },
+          "inspection_result_id": {
+            "type": "string",
+            "title": "Inspection Result Id"
+          },
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRepairAction"
+            },
+            "type": "array",
+            "title": "Actions"
+          },
+          "retry_budget": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Retry Budget"
+          },
+          "retry_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Retry Count",
+            "default": 0
+          },
+          "exhausted": {
+            "type": "boolean",
+            "title": "Exhausted",
+            "default": false
+          },
+          "requires_human": {
+            "type": "boolean",
+            "title": "Requires Human",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "inspection_result_id",
+          "retry_budget"
+        ],
+        "title": "MediaRepairPlan"
       },
       "Orientation": {
         "type": "string",
@@ -4153,6 +5141,17 @@
             ],
             "title": "Provider Id"
           },
+          "model_service_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Service Id"
+          },
           "prompt_package_id": {
             "anyOf": [
               {
@@ -4163,6 +5162,61 @@
               }
             ],
             "title": "Prompt Package Id"
+          },
+          "compiler_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compiler Id"
+          },
+          "compiler_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compiler Version"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
+          "shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Id"
           },
           "input_artifact_ids": {
             "items": {
@@ -4220,12 +5274,133 @@
             },
             "type": "array",
             "title": "Repair Plan Ids"
+          },
+          "parent_artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Artifact Id"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "Provenance",
         "description": "Trace of the role, tool, provider, inputs, and decisions behind an output."
+      },
+      "ProviderCapabilities": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "provider_id": {
+            "type": "string",
+            "title": "Provider Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProviderKind"
+          },
+          "modalities": {
+            "items": {
+              "$ref": "#/components/schemas/MediaModality"
+            },
+            "type": "array",
+            "title": "Modalities"
+          },
+          "tasks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tasks"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImageCapabilities"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "video": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VideoCapabilities"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VisionCapabilities"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "audio": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AudioCapabilities"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resource_profiles": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceProfile"
+            },
+            "type": "array",
+            "title": "Resource Profiles"
+          },
+          "quality_profiles": {
+            "items": {
+              "$ref": "#/components/schemas/QualityProfile"
+            },
+            "type": "array",
+            "title": "Quality Profiles"
+          },
+          "supports_cancellation": {
+            "type": "boolean",
+            "title": "Supports Cancellation",
+            "default": true
+          },
+          "model_service_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Service Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "provider_id",
+          "kind",
+          "modalities"
+        ],
+        "title": "ProviderCapabilities"
       },
       "ProviderCapability": {
         "properties": {
@@ -4585,6 +5760,48 @@
           "exclusive"
         ],
         "title": "ResourceClass"
+      },
+      "ResourceProfile": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "resource_class": {
+            "$ref": "#/components/schemas/ResourceClass"
+          },
+          "expected_memory_gb": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Memory Gb"
+          },
+          "supports_concurrency": {
+            "type": "boolean",
+            "title": "Supports Concurrency",
+            "default": true
+          },
+          "requires_exclusive_runtime": {
+            "type": "boolean",
+            "title": "Requires Exclusive Runtime",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "resource_class"
+        ],
+        "title": "ResourceProfile"
       },
       "ReviewResolution": {
         "properties": {
@@ -5855,9 +7072,51 @@
           },
           "media_mode": {
             "type": "string",
-            "const": "mock",
+            "enum": [
+              "mock",
+              "real",
+              "mixed"
+            ],
             "title": "Media Mode",
             "default": "mock"
+          },
+          "media_previews": {
+            "items": {
+              "$ref": "#/components/schemas/MediaPreview"
+            },
+            "type": "array",
+            "title": "Media Previews"
+          },
+          "media_inspections": {
+            "items": {
+              "$ref": "#/components/schemas/VisionInspectionResult"
+            },
+            "type": "array",
+            "title": "Media Inspections"
+          },
+          "media_repairs": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRepairPlan"
+            },
+            "type": "array",
+            "title": "Media Repairs"
+          },
+          "timeline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timeline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "media_provider_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Media Provider Ids"
           },
           "reasoning_provider": {
             "type": "string",
@@ -5947,6 +7206,71 @@
         ],
         "title": "StyleReference"
       },
+      "SubtitleCue": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "start_time_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Start Time Seconds"
+          },
+          "end_time_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "End Time Seconds"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "start_time_seconds",
+          "end_time_seconds",
+          "text"
+        ],
+        "title": "SubtitleCue"
+      },
+      "SubtitleTrack": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "track_id": {
+            "type": "string",
+            "title": "Track Id"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "cues": {
+            "items": {
+              "$ref": "#/components/schemas/SubtitleCue"
+            },
+            "type": "array",
+            "title": "Cues"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "language"
+        ],
+        "title": "SubtitleTrack"
+      },
       "TerminalRevisionCommand": {
         "properties": {
           "scene_id": {
@@ -5965,6 +7289,157 @@
           "authorization_reference"
         ],
         "title": "TerminalRevisionCommand"
+      },
+      "TimeRange": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "start_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Start Seconds"
+          },
+          "end_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "End Seconds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "start_seconds",
+          "end_seconds"
+        ],
+        "title": "TimeRange"
+      },
+      "Timeline": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "timeline_id": {
+            "type": "string",
+            "title": "Timeline Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "duration_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Duration Seconds"
+          },
+          "video_tracks": {
+            "items": {
+              "$ref": "#/components/schemas/VideoTrack"
+            },
+            "type": "array",
+            "title": "Video Tracks"
+          },
+          "audio_tracks": {
+            "items": {
+              "$ref": "#/components/schemas/AudioTrack"
+            },
+            "type": "array",
+            "title": "Audio Tracks"
+          },
+          "subtitle_tracks": {
+            "items": {
+              "$ref": "#/components/schemas/SubtitleTrack"
+            },
+            "type": "array",
+            "title": "Subtitle Tracks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "duration_seconds"
+        ],
+        "title": "Timeline"
+      },
+      "TimelineClip": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "clip_id": {
+            "type": "string",
+            "title": "Clip Id"
+          },
+          "artifact_id": {
+            "type": "string",
+            "title": "Artifact Id"
+          },
+          "start_time_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Start Time Seconds"
+          },
+          "source_in_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Source In Seconds",
+            "default": 0
+          },
+          "duration_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Duration Seconds"
+          },
+          "trim_end_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Trim End Seconds",
+            "default": 0
+          },
+          "transition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transition"
+          },
+          "shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "artifact_id",
+          "start_time_seconds",
+          "duration_seconds"
+        ],
+        "title": "TimelineClip"
       },
       "ValidationError": {
         "properties": {
@@ -6124,6 +7599,289 @@
         ],
         "title": "Vector3",
         "description": "Position in a named production coordinate system."
+      },
+      "VideoCapabilities": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "text_to_video": {
+            "type": "boolean",
+            "title": "Text To Video",
+            "default": false
+          },
+          "image_to_video": {
+            "type": "boolean",
+            "title": "Image To Video",
+            "default": false
+          },
+          "first_frame": {
+            "type": "boolean",
+            "title": "First Frame",
+            "default": false
+          },
+          "last_frame": {
+            "type": "boolean",
+            "title": "Last Frame",
+            "default": false
+          },
+          "first_last_frame": {
+            "type": "boolean",
+            "title": "First Last Frame",
+            "default": false
+          },
+          "multi_reference": {
+            "type": "boolean",
+            "title": "Multi Reference",
+            "default": false
+          },
+          "camera_control": {
+            "type": "boolean",
+            "title": "Camera Control",
+            "default": false
+          },
+          "audio_generation": {
+            "type": "boolean",
+            "title": "Audio Generation",
+            "default": false
+          },
+          "max_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Duration Seconds"
+          },
+          "max_width": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Width"
+          },
+          "max_height": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Height"
+          },
+          "supported_fps": {
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0.0
+            },
+            "type": "array",
+            "title": "Supported Fps"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "VideoCapabilities"
+      },
+      "VideoTrack": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "track_id": {
+            "type": "string",
+            "title": "Track Id"
+          },
+          "clips": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineClip"
+            },
+            "type": "array",
+            "title": "Clips"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "VideoTrack"
+      },
+      "VisionCapabilities": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "image": {
+            "type": "boolean",
+            "title": "Image",
+            "default": false
+          },
+          "video": {
+            "type": "boolean",
+            "title": "Video",
+            "default": false
+          },
+          "multi_image": {
+            "type": "boolean",
+            "title": "Multi Image",
+            "default": false
+          },
+          "temporal_reasoning": {
+            "type": "boolean",
+            "title": "Temporal Reasoning",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "VisionCapabilities"
+      },
+      "VisionDecision": {
+        "type": "string",
+        "enum": [
+          "pass",
+          "repair",
+          "regenerate",
+          "human_review"
+        ],
+        "title": "VisionDecision"
+      },
+      "VisionInspectionProfile": {
+        "type": "string",
+        "enum": [
+          "image_quality",
+          "video_quality",
+          "character_identity",
+          "scene_consistency",
+          "prompt_alignment",
+          "action_completion",
+          "camera_motion",
+          "continuity",
+          "artifact_detection",
+          "full_shot_review"
+        ],
+        "title": "VisionInspectionProfile"
+      },
+      "VisionInspectionResult": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "result_id": {
+            "type": "string",
+            "title": "Result Id"
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "target_artifact_id": {
+            "type": "string",
+            "title": "Target Artifact Id"
+          },
+          "scores": {
+            "items": {
+              "$ref": "#/components/schemas/VisionScore"
+            },
+            "type": "array",
+            "title": "Scores"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/MediaIssue"
+            },
+            "type": "array",
+            "title": "Issues"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/VisionDecision"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "default": ""
+          },
+          "provider_id": {
+            "type": "string",
+            "title": "Provider Id"
+          },
+          "provider_metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Provider Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "request_id",
+          "target_artifact_id",
+          "scores",
+          "decision",
+          "provider_id"
+        ],
+        "title": "VisionInspectionResult"
+      },
+      "VisionScore": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/VisionInspectionProfile"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "profile",
+          "score"
+        ],
+        "title": "VisionScore"
       },
       "VisualBible": {
         "properties": {

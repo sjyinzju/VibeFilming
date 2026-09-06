@@ -16,16 +16,22 @@ from movie_agent.execution.events import EventBus
 
 ALLOWED_TRANSITIONS: dict[JobStatus, set[JobStatus]] = {
     JobStatus.PENDING: {JobStatus.QUEUED, JobStatus.CANCELLED},
-    JobStatus.QUEUED: {JobStatus.BLOCKED, JobStatus.PREPARING, JobStatus.CANCELLED},
+    JobStatus.QUEUED: {JobStatus.BLOCKED, JobStatus.WAITING_RESOURCE, JobStatus.PREPARING,
+                       JobStatus.PREPARING_MODEL, JobStatus.CANCELLED},
     JobStatus.BLOCKED: {JobStatus.QUEUED, JobStatus.FAILED, JobStatus.CANCELLED},
-    JobStatus.PREPARING: {JobStatus.RUNNING, JobStatus.FAILED, JobStatus.CANCELLED},
+    JobStatus.WAITING_RESOURCE: {JobStatus.QUEUED, JobStatus.PREPARING, JobStatus.CANCELLED},
+    JobStatus.PREPARING: {JobStatus.PREPARING_MODEL, JobStatus.RUNNING, JobStatus.FAILED, JobStatus.CANCELLED},
+    JobStatus.PREPARING_MODEL: {JobStatus.RUNNING, JobStatus.FAILED, JobStatus.CANCELLED},
     JobStatus.RUNNING: {
         JobStatus.PREPARING,
         JobStatus.EVALUATING,
+        JobStatus.UPLOADING,
         JobStatus.SUCCEEDED,
         JobStatus.FAILED,
         JobStatus.CANCELLED,
     },
+    JobStatus.UPLOADING: {JobStatus.EVALUATING, JobStatus.SUCCEEDED, JobStatus.FAILED,
+                          JobStatus.CANCELLED},
     JobStatus.EVALUATING: {
         JobStatus.REPAIRING,
         JobStatus.WAITING_HUMAN,
@@ -73,6 +79,7 @@ class JobManager:
         self._jobs[job.job_id] = job
         self._idempotency[job.idempotency_key] = job.job_id
         self._emit(job, EventType.JOB_CREATED)
+        self._emit_media(job, EventType.MEDIA_JOB_CREATED)
         return job
 
     def get(self, job_id: str) -> GenerationJob:
@@ -112,6 +119,13 @@ class JobManager:
         }.get(target)
         if event_type:
             self._emit(updated, event_type)
+        media_event = {
+            JobStatus.RUNNING: EventType.MEDIA_JOB_STARTED,
+            JobStatus.SUCCEEDED: EventType.MEDIA_JOB_COMPLETED,
+            JobStatus.FAILED: EventType.MEDIA_JOB_FAILED,
+        }.get(target)
+        if media_event and self._is_media(updated):
+            self._emit_media(updated, media_event)
         return updated
 
     def progress(self, job_id: str, value: float) -> GenerationJob:
@@ -119,6 +133,8 @@ class JobManager:
         updated = job.model_copy(update={"progress": value})
         self._jobs[job_id] = updated
         self._emit(updated, EventType.JOB_PROGRESS, {"progress": value})
+        if self._is_media(updated):
+            self._emit_media(updated, EventType.MEDIA_JOB_PROGRESS, {"progress": value})
         return updated
 
     def request_cancel(self, job_id: str) -> GenerationJob:
@@ -129,7 +145,9 @@ class JobManager:
             JobStatus.PENDING,
             JobStatus.QUEUED,
             JobStatus.BLOCKED,
+            JobStatus.WAITING_RESOURCE,
             JobStatus.PREPARING,
+            JobStatus.PREPARING_MODEL,
             JobStatus.WAITING_HUMAN,
         }:
             return self.transition(job_id, JobStatus.CANCELLED)
@@ -159,6 +177,20 @@ class JobManager:
                 payload=payload or {"status": job.status.value},
             )
         )
+
+    @staticmethod
+    def _is_media(job: GenerationJob) -> bool:
+        return job.task in {"frame", "image", "video", "vision", "speech", "music",
+                            "sfx", "foley", "ambience", "audio", "post"}
+
+    def _emit_media(
+        self,
+        job: GenerationJob,
+        event_type: EventType,
+        payload: dict | None = None,
+    ) -> None:
+        if self._is_media(job):
+            self._emit(job, event_type, payload)
 
 
 JobOperation = Callable[[GenerationJob], Awaitable[ProviderResult]]

@@ -63,6 +63,19 @@ const StudioCard = memo(function StudioCard({ data, selected }: NodeProps<Studio
         <span>{t(data.status === 'pending' ? 'Waiting' : data.status.replaceAll('_', ' '))}</span>
         <span>{t(data.metadata)}</span>
       </div>
+      {data.media && (
+        <div className="shot-status" aria-label={t('Shot media status')}>
+          <span>
+            {t('Frames')} {t(data.media.frames)}
+          </span>
+          <span>
+            {t('Video')} {t(data.media.video)}
+          </span>
+          <span>
+            {t('QC')} {t(data.media.qc)}
+          </span>
+        </div>
+      )}
       <Handle type="source" position={Position.Bottom} />
     </div>
   );
