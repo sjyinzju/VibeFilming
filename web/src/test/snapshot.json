@@ -767,7 +767,8 @@
     "scene_seeds": [],
     "key_moments": [],
     "key_visuals": [],
-    "style_references": []
+    "style_references": [],
+    "media_references": []
   },
   "jobs": [],
   "artifacts": [],
@@ -1400,6 +1401,8 @@
   "media_inspections": [],
   "media_repairs": [],
   "timeline": null,
+  "media_references": [],
+  "media_provider_bindings": {"image": "mock-image", "video": "mock-video", "vision": "mock-vision", "audio": "mock-audio", "post": "mock-post"},
   "media_provider_ids": ["mock-image", "mock-video", "mock-vision", "mock-audio", "mock-post"],
   "media_mode": "mock",
   "reasoning_provider": "fake-reasoning"

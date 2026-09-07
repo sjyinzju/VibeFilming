@@ -197,6 +197,8 @@ class EventType(StrEnum):
     MEDIA_REPAIR_STARTED = "media_repair_started"
     MEDIA_REPAIR_COMPLETED = "media_repair_completed"
     MODEL_SERVICE_STATUS_CHANGED = "model_service_status_changed"
+    REFERENCE_BOUND = "reference_bound"
+    REFERENCE_UNBOUND = "reference_unbound"
 
 
 class HumanGateType(StrEnum):

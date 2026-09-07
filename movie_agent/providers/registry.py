@@ -8,13 +8,19 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 
 from dotenv import dotenv_values
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from movie_agent.media import MediaModality, MediaProviderSelection, MediaRoutingRequest, ProviderCapabilities
 from movie_agent.providers.media import (
     MediaProvider, MockAudioProvider, MockImageProvider, MockPostProcessor,
     MockVideoProvider, MockVisionProvider,
 )
+from movie_agent.providers.base import ProviderFailure
+from movie_agent.domain import ProviderErrorType
+
+
+class MediaRoutingFailure(ProviderFailure, LookupError):
+    """A routing failure is still a visible, normalized media job failure."""
 
 
 class ProviderRegistry:
@@ -62,6 +68,7 @@ class MediaRouter:
     async def select(self, request: MediaRoutingRequest) -> MediaProviderSelection:
         await self.refresh()
         candidates: list[tuple[MediaProvider, ProviderCapabilities]] = []
+        matching_unhealthy = False
         for provider in self.providers.all():
             capability = self.capabilities.get(provider.provider_id)
             if request.modality not in capability.modalities or request.task not in capability.tasks:
@@ -70,11 +77,17 @@ class MediaRouter:
                 continue
             if request.resource_class not in [item.resource_class for item in capability.resource_profiles]:
                 continue
-            if not await provider.health() or not self._supports(capability, request.required_capabilities):
+            if not await provider.health():
+                matching_unhealthy = True
+                continue
+            if not self._supports(capability, request.required_capabilities):
                 continue
             candidates.append((provider, capability))
         if not candidates:
-            raise LookupError("No media provider satisfies the routing request")
+            raise MediaRoutingFailure(
+                "PROVIDER_UNAVAILABLE: selected media service is unavailable" if matching_unhealthy
+                else "No media provider supports the requested capabilities",
+                ProviderErrorType.UNAVAILABLE if matching_unhealthy else ProviderErrorType.UNSUPPORTED_CAPABILITY)
         provider, capability = sorted(candidates, key=lambda item: item[0].provider_id)[0]
         return MediaProviderSelection(
             provider_id=provider.provider_id, capabilities=capability,
@@ -92,12 +105,20 @@ class MediaRouter:
 
 
 class MediaProviderSettings(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
     image_provider: str = "mock"
     video_provider: str = "mock"
     vision_provider: str = "mock"
     audio_provider: str = "mock"
     post_provider: str = "mock"
+    flux_endpoint: str = "http://127.0.0.1:9001"
+    flux_timeout: float = Field(default=660, gt=0, allow_inf_nan=False)
+
+    @field_validator("flux_endpoint")
+    @classmethod
+    def validate_flux_endpoint(cls, value):
+        from movie_agent.providers.flux_direct import validate_endpoint
+        return validate_endpoint(value)
 
     @field_validator("image_provider", "video_provider", "vision_provider", "audio_provider", "post_provider")
     @classmethod
@@ -112,8 +133,8 @@ class MediaProviderSettings(BaseModel):
     ) -> "MediaProviderSettings":
         values = {**dotenv_values(path), **(os.environ if environ is None else environ)}
         return cls(**{
-            field: values.get(f"MOVIE_AGENT_{field.upper()}") or "mock"
-            for field in cls.model_fields
+            field: values.get(f"MOVIE_AGENT_{field.upper()}") or definition.default
+            for field, definition in cls.model_fields.items()
         })
 
 
@@ -123,6 +144,7 @@ ProviderBuilder = Callable[[], MediaProvider]
 class ProviderFactory:
     def __init__(self) -> None:
         self._builders: dict[tuple[MediaModality, str], ProviderBuilder] = {}
+        self._settings = MediaProviderSettings()
 
     def register(self, modality: MediaModality, binding: str, builder: ProviderBuilder) -> None:
         self._builders[(modality, binding)] = builder
@@ -137,9 +159,15 @@ class ProviderFactory:
             ) from error
 
     @classmethod
-    def defaults(cls) -> "ProviderFactory":
+    def defaults(cls, *, settings: MediaProviderSettings | None = None, resolver=None) -> "ProviderFactory":
+        from movie_agent.providers.flux_direct import ComfyUIImageProvider, FluxDirectImageProvider
+        settings = settings or MediaProviderSettings()
         factory = cls()
+        factory._settings = settings
         factory.register(MediaModality.IMAGE, "mock", MockImageProvider)
+        factory.register(MediaModality.IMAGE, "flux_direct", lambda: FluxDirectImageProvider(
+            endpoint=factory._settings.flux_endpoint, timeout=factory._settings.flux_timeout, resolver=resolver))
+        factory.register(MediaModality.IMAGE, "comfyui", ComfyUIImageProvider)
         factory.register(MediaModality.VIDEO, "mock", MockVideoProvider)
         factory.register(MediaModality.VISION, "mock", MockVisionProvider)
         factory.register(MediaModality.AUDIO, "mock", MockAudioProvider)
@@ -147,6 +175,7 @@ class ProviderFactory:
         return factory
 
     def build_registry(self, settings: MediaProviderSettings) -> ProviderRegistry:
+        self._settings = settings
         registry = ProviderRegistry()
         bindings = {
             MediaModality.IMAGE: settings.image_provider,

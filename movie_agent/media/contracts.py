@@ -39,6 +39,7 @@ class AudioPurpose(StrEnum):
 
 class ImageGenerationMode(StrEnum):
     TEXT_TO_IMAGE = "text_to_image"
+    IMAGE_TO_IMAGE = "image_to_image"
     REFERENCE_TO_IMAGE = "reference_to_image"
     IMAGE_EDIT = "image_edit"
     INPAINT = "inpaint"
@@ -81,6 +82,28 @@ class ReferenceType(StrEnum):
     PREVIOUS_SHOT = "previous_shot"
     VOICE = "voice"
     AUDIO_REFERENCE = "audio_reference"
+
+
+class ReferenceBindingScope(StrEnum):
+    PROJECT = "project"
+    CREATIVE_INPUT = "creative_input"
+    ENTITY = "entity"
+    SCENE = "scene"
+    SHOT = "shot"
+    FRAME = "frame"
+
+
+class ReferencePurpose(StrEnum):
+    VISUAL_STYLE = "visual_style"
+    CHARACTER_IDENTITY = "character_identity"
+    ENVIRONMENT = "environment"
+    PROP_IDENTITY = "prop_identity"
+    COMPOSITION = "composition"
+    SCENE_CONCEPT = "scene_concept"
+    KEY_VISUAL = "key_visual"
+    SHOT_GUIDANCE = "shot_guidance"
+    FIRST_FRAME = "first_frame"
+    LAST_FRAME = "last_frame"
 
 
 class MotionStrength(StrEnum):
@@ -192,12 +215,23 @@ class ResourceProfile(ContractModel):
 
 
 class MediaReference(ContractModel):
+    reference_id: str = Field(default_factory=lambda: new_id("reference"))
     reference_type: ReferenceType
     artifact_id: str = Field(min_length=1)
     version: int | None = Field(default=None, ge=1)
+    binding_scope: ReferenceBindingScope | None = None
+    purpose: ReferencePurpose | None = None
+    project_id: str | None = None
     entity_id: str | None = None
+    scene_id: str | None = None
     shot_id: str | None = None
+    binding_key: str | None = None
     selected: bool = True
+    original_filename: str | None = None
+    mime_type: str | None = Field(default=None, pattern=r"^image/(png|jpeg|webp)$")
+    size_bytes: int | None = Field(default=None, gt=0)
+    width: int | None = Field(default=None, gt=0)
+    height: int | None = Field(default=None, gt=0)
 
     @property
     def artifact_uri(self) -> str:
@@ -248,6 +282,11 @@ class ImageGenerationRequest(MediaRequestBase):
     aspect_ratio: AspectRatio | str
     source_image: MediaReference | None = None
     mask_artifact_id: str | None = None
+
+    @property
+    def input_artifact_ids(self) -> list[str]:
+        return list(dict.fromkeys([item.artifact_id for item in self.references]
+            + ([self.source_image.artifact_id] if self.source_image else [])))
 
 
 class CameraMotionSpec(ContractModel):
@@ -486,6 +525,7 @@ class FramePlan(ContractModel):
     first_frame_request: ImageGenerationRequest
     last_frame_request: ImageGenerationRequest
     previous_last_frame_reference: MediaReference | None = None
+    requested_dimensions: MediaDimensions | None = None
 
 
 class AudioCue(ContractModel):
@@ -566,6 +606,7 @@ class PostProductionResult(MediaResultBase):
 
 class ImageCapabilities(ContractModel):
     text_to_image: bool = False
+    image_to_image: bool = False
     image_edit: bool = False
     inpaint: bool = False
     outpaint: bool = False
@@ -574,6 +615,8 @@ class ImageCapabilities(ContractModel):
     character_reference: bool = False
     max_width: int | None = Field(default=None, gt=0)
     max_height: int | None = Field(default=None, gt=0)
+    min_dimension: int = Field(default=1, gt=0)
+    dimension_multiple: int = Field(default=1, gt=0)
 
 
 class VideoCapabilities(ContractModel):

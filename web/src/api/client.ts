@@ -1,4 +1,10 @@
-import type { CreateInput, Schema, Snapshot } from './types';
+import type {
+  CreateInput,
+  ImageReferenceUpload,
+  ReferenceBindingInput,
+  Schema,
+  Snapshot,
+} from './types';
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 export class ApiError extends Error {
@@ -28,6 +34,23 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
           ? 'Some fields are invalid. Check your brief.'
           : 'The request could not be completed.';
     throw new ApiError(response.status, detail);
+  }
+  if (response.status === 204) return undefined as T;
+  return response.json();
+}
+async function upload<T>(path: string, file: File, binding: unknown): Promise<T> {
+  const body = new FormData();
+  body.append('file', file, file.name);
+  body.append('binding', JSON.stringify(binding));
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, { method: 'POST', body });
+  } catch {
+    throw new ApiError(0, 'Cannot reach Movie Agent. Check that the backend is running.');
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    throw new ApiError(response.status, payload?.detail || 'Image upload failed.');
   }
   return response.json();
 }
@@ -63,4 +86,16 @@ export const api = {
       `/artifacts/${id(aid)}/select?project_id=${id(pid)}&version=${version}`,
       { method: 'POST' },
     ),
+  uploadDraftReference: (draftId: string, file: File, binding: ReferenceBindingInput) =>
+    upload<ImageReferenceUpload>(`/drafts/${id(draftId)}/image-references`, file, binding),
+  uploadProjectReference: (pid: string, file: File, binding: ReferenceBindingInput) =>
+    upload<ImageReferenceUpload>(`/projects/${id(pid)}/image-references`, file, binding),
+  removeDraftReference: (draftId: string, referenceId: string) =>
+    request<void>(`/drafts/${id(draftId)}/image-references/${id(referenceId)}`, {
+      method: 'DELETE',
+    }),
+  removeProjectReference: (pid: string, referenceId: string) =>
+    request<void>(`/projects/${id(pid)}/image-references/${id(referenceId)}`, {
+      method: 'DELETE',
+    }),
 };

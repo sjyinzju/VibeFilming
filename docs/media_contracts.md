@@ -9,7 +9,9 @@ All contracts in `movie_agent.media` derive from strict, versioned Pydantic `Con
 - `MediaRequestBase`, `MediaResultBase`, `MediaArtifactMetadata`
 - `MediaCapabilityRequirement`, `ResourceProfile`
 
-References contain artifact identity/version and optional entity/shot bindings. They never contain bytes or local paths.
+References contain a stable reference ID, artifact identity/version, `ReferenceBindingScope`, `ReferencePurpose`, and optional project/entity/scene/shot/creative-input binding. Display metadata may include the original basename, MIME, byte size, and dimensions. They never contain bytes or local paths.
+
+Uploaded bindings use project, creative-input, entity, scene, shot, or frame scope. `ReferenceResolver` applies deterministic scope precedence and relevance filtering before frame or video requests are compiled. Exact duplicate bindings are idempotent; unbinding does not delete the underlying Artifact.
 
 ## Image and frame
 
@@ -32,4 +34,3 @@ Speech, music, sound effects, and video-driven Foley have separate request types
 ## Post
 
 `Timeline`, `TimelineClip`, `VideoTrack`, `AudioTrack`, `SubtitleTrack`, `PostProductionRequest`, and `PostProductionResult` form the provider-neutral assembly boundary.
-

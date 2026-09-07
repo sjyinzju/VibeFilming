@@ -56,6 +56,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/drafts/{draft_id}/image-references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Draft References */
+        get: operations["list_draft_references_drafts__draft_id__image_references_get"];
+        put?: never;
+        /** Upload Draft Reference */
+        post: operations["upload_draft_reference_drafts__draft_id__image_references_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/drafts/{draft_id}/image-references/{reference_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Draft Reference */
+        delete: operations["remove_draft_reference_drafts__draft_id__image_references__reference_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/image-references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Project Reference */
+        post: operations["upload_project_reference_projects__project_id__image_references_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/image-references/{reference_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Project Reference */
+        delete: operations["remove_project_reference_projects__project_id__image_references__reference_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project_id}/studio": {
         parameters: {
             query?: never;
@@ -555,6 +624,20 @@ export interface components {
             /** Cues */
             cues?: components["schemas"]["AudioCue"][];
         };
+        /** Body_upload_draft_reference_drafts__draft_id__image_references_post */
+        Body_upload_draft_reference_drafts__draft_id__image_references_post: {
+            /** File */
+            file: string;
+            /** Binding */
+            binding?: string | null;
+        };
+        /** Body_upload_project_reference_projects__project_id__image_references_post */
+        Body_upload_project_reference_projects__project_id__image_references_post: {
+            /** File */
+            file: string;
+            /** Binding */
+            binding?: string | null;
+        };
         /**
          * CameraAngle
          * @enum {string}
@@ -1027,6 +1110,8 @@ export interface components {
             /** Must Preserve */
             must_preserve?: string[];
             creative_hints?: components["schemas"]["CreativeHints"];
+            /** Draft Id */
+            draft_id?: string | null;
         };
         /**
          * CreativeDirection
@@ -1079,6 +1164,8 @@ export interface components {
             key_visuals?: components["schemas"]["KeyVisualHint"][];
             /** Style References */
             style_references?: components["schemas"]["StyleReference"][];
+            /** Media References */
+            media_references?: components["schemas"]["MediaReference"][];
         };
         /**
          * CreativeMemory
@@ -1237,7 +1324,7 @@ export interface components {
          * EventType
          * @enum {string}
          */
-        EventType: "provider_request_started" | "provider_request_completed" | "role_output_received" | "role_output_validation_failed" | "role_output_validated" | "checkpoint_created" | "project_created" | "node_created" | "node_started" | "node_progress" | "node_completed" | "node_failed" | "edge_created" | "edge_activated" | "job_created" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "artifact_created" | "artifact_selected" | "evaluation_completed" | "repair_started" | "repair_completed" | "human_review_requested" | "human_review_resolved" | "workflow_completed" | "media_job_created" | "media_job_started" | "media_job_progress" | "media_job_completed" | "media_job_failed" | "media_evaluation_started" | "media_evaluation_completed" | "media_repair_started" | "media_repair_completed" | "model_service_status_changed";
+        EventType: "provider_request_started" | "provider_request_completed" | "role_output_received" | "role_output_validation_failed" | "role_output_validated" | "checkpoint_created" | "project_created" | "node_created" | "node_started" | "node_progress" | "node_completed" | "node_failed" | "edge_created" | "edge_activated" | "job_created" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "artifact_created" | "artifact_selected" | "evaluation_completed" | "repair_started" | "repair_completed" | "human_review_requested" | "human_review_resolved" | "workflow_completed" | "media_job_created" | "media_job_started" | "media_job_progress" | "media_job_completed" | "media_job_failed" | "media_evaluation_started" | "media_evaluation_completed" | "media_repair_started" | "media_repair_completed" | "model_service_status_changed" | "reference_bound" | "reference_unbound";
         /**
          * FrameAnchor
          * @description A planned or materialized boundary-frame dependency.
@@ -1509,6 +1596,11 @@ export interface components {
              */
             text_to_image?: boolean;
             /**
+             * Image To Image
+             * @default false
+             */
+            image_to_image?: boolean;
+            /**
              * Image Edit
              * @default false
              */
@@ -1542,6 +1634,75 @@ export interface components {
             max_width?: number | null;
             /** Max Height */
             max_height?: number | null;
+            /**
+             * Min Dimension
+             * @default 1
+             */
+            min_dimension?: number;
+            /**
+             * Dimension Multiple
+             * @default 1
+             */
+            dimension_multiple?: number;
+        };
+        /** ImageReferenceBindingInput */
+        ImageReferenceBindingInput: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            reference_type: components["schemas"]["ReferenceType"];
+            binding_scope: components["schemas"]["ReferenceBindingScope"];
+            purpose: components["schemas"]["ReferencePurpose"];
+            /** Project Id */
+            project_id?: string | null;
+            /** Entity Id */
+            entity_id?: string | null;
+            /** Scene Id */
+            scene_id?: string | null;
+            /** Shot Id */
+            shot_id?: string | null;
+            /** Binding Key */
+            binding_key?: string | null;
+        };
+        /** ImageReferenceUploadResult */
+        ImageReferenceUploadResult: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Artifact Id */
+            artifact_id: string;
+            /** Artifact Uri */
+            artifact_uri: string;
+            /** Version */
+            version: number;
+            /** Mime Type */
+            mime_type: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Sha256 */
+            sha256: string;
+            /** Preview Url */
+            preview_url: string;
+            /** Thumbnail Url */
+            thumbnail_url: string;
+            artifact: components["schemas"]["Artifact"];
+            reference: components["schemas"]["MediaReference"];
+            binding: components["schemas"]["ImageReferenceBindingInput"];
         };
         /**
          * InferenceMetrics
@@ -1630,6 +1791,8 @@ export interface components {
              * @default 1.0.0
              */
             schema_version?: string;
+            /** Hint Id */
+            hint_id?: string;
             /** Description */
             description: string;
             /** Scene Hint */
@@ -1643,6 +1806,8 @@ export interface components {
              * @default 1.0.0
              */
             schema_version?: string;
+            /** Hint Id */
+            hint_id?: string;
             /** Description */
             description: string;
             /** Reference */
@@ -1783,6 +1948,49 @@ export interface components {
             mime_type: string;
             /** Waveform */
             waveform?: number[];
+        };
+        /** MediaReference */
+        MediaReference: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Reference Id */
+            reference_id?: string;
+            reference_type: components["schemas"]["ReferenceType"];
+            /** Artifact Id */
+            artifact_id: string;
+            /** Version */
+            version?: number | null;
+            binding_scope?: components["schemas"]["ReferenceBindingScope"] | null;
+            purpose?: components["schemas"]["ReferencePurpose"] | null;
+            /** Project Id */
+            project_id?: string | null;
+            /** Entity Id */
+            entity_id?: string | null;
+            /** Scene Id */
+            scene_id?: string | null;
+            /** Shot Id */
+            shot_id?: string | null;
+            /** Binding Key */
+            binding_key?: string | null;
+            /**
+             * Selected
+             * @default true
+             */
+            selected?: boolean;
+            /** Original Filename */
+            original_filename?: string | null;
+            /** Mime Type */
+            mime_type?: string | null;
+            /** Size Bytes */
+            size_bytes?: number | null;
+            /** Width */
+            width?: number | null;
+            /** Height */
+            height?: number | null;
         };
         /** MediaRepairAction */
         MediaRepairAction: {
@@ -2389,6 +2597,21 @@ export interface components {
          */
         QualityProfile: "draft" | "standard" | "high" | "final";
         /**
+         * ReferenceBindingScope
+         * @enum {string}
+         */
+        ReferenceBindingScope: "project" | "creative_input" | "entity" | "scene" | "shot" | "frame";
+        /**
+         * ReferencePurpose
+         * @enum {string}
+         */
+        ReferencePurpose: "visual_style" | "character_identity" | "environment" | "prop_identity" | "composition" | "scene_concept" | "key_visual" | "shot_guidance" | "first_frame" | "last_frame";
+        /**
+         * ReferenceType
+         * @enum {string}
+         */
+        ReferenceType: "character" | "location" | "prop" | "style" | "first_frame" | "last_frame" | "previous_frame" | "source_image" | "previous_shot" | "voice" | "audio_reference";
+        /**
          * RepairAction
          * @description One bounded, executable response to a classified issue.
          */
@@ -2759,6 +2982,8 @@ export interface components {
              * @default 1.0.0
              */
             schema_version?: string;
+            /** Hint Id */
+            hint_id?: string;
             /** Title */
             title: string;
             /** Description */
@@ -3073,6 +3298,12 @@ export interface components {
             timeline?: components["schemas"]["Timeline"] | null;
             /** Media Provider Ids */
             media_provider_ids?: string[];
+            /** Media Provider Bindings */
+            media_provider_bindings?: {
+                [key: string]: string;
+            };
+            /** Media References */
+            media_references?: components["schemas"]["MediaReference"][];
             /** Reasoning Provider */
             reasoning_provider: string;
             /** Review Subjects */
@@ -3088,6 +3319,8 @@ export interface components {
              * @default 1.0.0
              */
             schema_version?: string;
+            /** Hint Id */
+            hint_id?: string;
             /** Title */
             title: string;
             /**
@@ -3695,6 +3928,167 @@ export interface operations {
             };
         };
     };
+    list_draft_references_drafts__draft_id__image_references_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draft_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaReference"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_draft_reference_drafts__draft_id__image_references_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draft_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_draft_reference_drafts__draft_id__image_references_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageReferenceUploadResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_draft_reference_drafts__draft_id__image_references__reference_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draft_id: string;
+                reference_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_project_reference_projects__project_id__image_references_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_project_reference_projects__project_id__image_references_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageReferenceUploadResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_project_reference_projects__project_id__image_references__reference_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                reference_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     studio_projects__project_id__studio_get: {
         parameters: {
             query?: never;
@@ -4183,6 +4577,7 @@ export interface operations {
         parameters: {
             query?: {
                 project_id?: string | null;
+                draft_id?: string | null;
                 version?: number | null;
             };
             header?: never;
@@ -4217,6 +4612,7 @@ export interface operations {
         parameters: {
             query?: {
                 project_id?: string | null;
+                draft_id?: string | null;
                 version?: number | null;
             };
             header?: never;
@@ -4251,6 +4647,7 @@ export interface operations {
         parameters: {
             query?: {
                 project_id?: string | null;
+                draft_id?: string | null;
                 version?: number | null;
             };
             header?: never;

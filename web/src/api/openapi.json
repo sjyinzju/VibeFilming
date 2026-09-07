@@ -101,6 +101,227 @@
         }
       }
     },
+    "/drafts/{draft_id}/image-references": {
+      "post": {
+        "summary": "Upload Draft Reference",
+        "operationId": "upload_draft_reference_drafts__draft_id__image_references_post",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Draft Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_draft_reference_drafts__draft_id__image_references_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageReferenceUploadResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List Draft References",
+        "operationId": "list_draft_references_drafts__draft_id__image_references_get",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Draft Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MediaReference"
+                  },
+                  "title": "Response List Draft References Drafts  Draft Id  Image References Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/drafts/{draft_id}/image-references/{reference_id}": {
+      "delete": {
+        "summary": "Remove Draft Reference",
+        "operationId": "remove_draft_reference_drafts__draft_id__image_references__reference_id__delete",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Draft Id"
+            }
+          },
+          {
+            "name": "reference_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Reference Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/image-references": {
+      "post": {
+        "summary": "Upload Project Reference",
+        "operationId": "upload_project_reference_projects__project_id__image_references_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_project_reference_projects__project_id__image_references_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageReferenceUploadResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/image-references/{reference_id}": {
+      "delete": {
+        "summary": "Remove Project Reference",
+        "operationId": "remove_project_reference_projects__project_id__image_references__reference_id__delete",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "reference_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Reference Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/{project_id}/studio": {
       "get": {
         "summary": "Studio",
@@ -841,6 +1062,22 @@
             }
           },
           {
+            "name": "draft_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Draft Id"
+            }
+          },
+          {
             "name": "version",
             "in": "query",
             "required": false,
@@ -911,6 +1148,22 @@
             }
           },
           {
+            "name": "draft_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Draft Id"
+            }
+          },
+          {
             "name": "version",
             "in": "query",
             "required": false,
@@ -978,6 +1231,22 @@
                 }
               ],
               "title": "Project Id"
+            }
+          },
+          {
+            "name": "draft_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Draft Id"
             }
           },
           {
@@ -1408,6 +1677,56 @@
         "additionalProperties": false,
         "type": "object",
         "title": "AudioTrack"
+      },
+      "Body_upload_draft_reference_drafts__draft_id__image_references_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "binding": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binding"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_draft_reference_drafts__draft_id__image_references_post"
+      },
+      "Body_upload_project_reference_projects__project_id__image_references_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "binding": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binding"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_project_reference_projects__project_id__image_references_post"
       },
       "CameraAngle": {
         "type": "string",
@@ -2353,6 +2672,18 @@
           },
           "creative_hints": {
             "$ref": "#/components/schemas/CreativeHints"
+          },
+          "draft_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^draft_[A-Za-z0-9-]{8,80}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Id"
           }
         },
         "additionalProperties": false,
@@ -2467,6 +2798,13 @@
             },
             "type": "array",
             "title": "Style References"
+          },
+          "media_references": {
+            "items": {
+              "$ref": "#/components/schemas/MediaReference"
+            },
+            "type": "array",
+            "title": "Media References"
           }
         },
         "additionalProperties": false,
@@ -2851,7 +3189,9 @@
           "media_evaluation_completed",
           "media_repair_started",
           "media_repair_completed",
-          "model_service_status_changed"
+          "model_service_status_changed",
+          "reference_bound",
+          "reference_unbound"
         ],
         "title": "EventType"
       },
@@ -3498,6 +3838,11 @@
             "title": "Text To Image",
             "default": false
           },
+          "image_to_image": {
+            "type": "boolean",
+            "title": "Image To Image",
+            "default": false
+          },
           "image_edit": {
             "type": "boolean",
             "title": "Image Edit",
@@ -3551,11 +3896,195 @@
               }
             ],
             "title": "Max Height"
+          },
+          "min_dimension": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Min Dimension",
+            "default": 1
+          },
+          "dimension_multiple": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Dimension Multiple",
+            "default": 1
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "ImageCapabilities"
+      },
+      "ImageReferenceBindingInput": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "reference_type": {
+            "$ref": "#/components/schemas/ReferenceType"
+          },
+          "binding_scope": {
+            "$ref": "#/components/schemas/ReferenceBindingScope"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/ReferencePurpose"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Id"
+          },
+          "scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
+          "shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Id"
+          },
+          "binding_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binding Key"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reference_type",
+          "binding_scope",
+          "purpose"
+        ],
+        "title": "ImageReferenceBindingInput"
+      },
+      "ImageReferenceUploadResult": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "artifact_id": {
+            "type": "string",
+            "title": "Artifact Id"
+          },
+          "artifact_uri": {
+            "type": "string",
+            "title": "Artifact Uri"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "mime_type": {
+            "type": "string",
+            "title": "Mime Type"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Size Bytes"
+          },
+          "width": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Height"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Sha256"
+          },
+          "preview_url": {
+            "type": "string",
+            "title": "Preview Url"
+          },
+          "thumbnail_url": {
+            "type": "string",
+            "title": "Thumbnail Url"
+          },
+          "artifact": {
+            "$ref": "#/components/schemas/Artifact"
+          },
+          "reference": {
+            "$ref": "#/components/schemas/MediaReference"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/ImageReferenceBindingInput"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "artifact_id",
+          "artifact_uri",
+          "version",
+          "mime_type",
+          "size_bytes",
+          "width",
+          "height",
+          "created_at",
+          "sha256",
+          "preview_url",
+          "thumbnail_url",
+          "artifact",
+          "reference",
+          "binding"
+        ],
+        "title": "ImageReferenceUploadResult"
       },
       "InferenceMetrics": {
         "properties": {
@@ -3768,6 +4297,10 @@
             "description": "Version of this serialized contract for future migrations.",
             "default": "1.0.0"
           },
+          "hint_id": {
+            "type": "string",
+            "title": "Hint Id"
+          },
           "description": {
             "type": "string",
             "minLength": 1,
@@ -3800,6 +4333,10 @@
             "title": "Schema Version",
             "description": "Version of this serialized contract for future migrations.",
             "default": "1.0.0"
+          },
+          "hint_id": {
+            "type": "string",
+            "title": "Hint Id"
           },
           "description": {
             "type": "string",
@@ -4178,6 +4715,187 @@
           "mime_type"
         ],
         "title": "MediaPreview"
+      },
+      "MediaReference": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "reference_id": {
+            "type": "string",
+            "title": "Reference Id"
+          },
+          "reference_type": {
+            "$ref": "#/components/schemas/ReferenceType"
+          },
+          "artifact_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Artifact Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "binding_scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReferenceBindingScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purpose": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReferencePurpose"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Id"
+          },
+          "scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
+          "shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Id"
+          },
+          "binding_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binding Key"
+          },
+          "selected": {
+            "type": "boolean",
+            "title": "Selected",
+            "default": true
+          },
+          "original_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Filename"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^image/(png|jpeg|webp)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reference_type",
+          "artifact_id"
+        ],
+        "title": "MediaReference"
       },
       "MediaRepairAction": {
         "properties": {
@@ -5540,6 +6258,51 @@
         ],
         "title": "QualityProfile"
       },
+      "ReferenceBindingScope": {
+        "type": "string",
+        "enum": [
+          "project",
+          "creative_input",
+          "entity",
+          "scene",
+          "shot",
+          "frame"
+        ],
+        "title": "ReferenceBindingScope"
+      },
+      "ReferencePurpose": {
+        "type": "string",
+        "enum": [
+          "visual_style",
+          "character_identity",
+          "environment",
+          "prop_identity",
+          "composition",
+          "scene_concept",
+          "key_visual",
+          "shot_guidance",
+          "first_frame",
+          "last_frame"
+        ],
+        "title": "ReferencePurpose"
+      },
+      "ReferenceType": {
+        "type": "string",
+        "enum": [
+          "character",
+          "location",
+          "prop",
+          "style",
+          "first_frame",
+          "last_frame",
+          "previous_frame",
+          "source_image",
+          "previous_shot",
+          "voice",
+          "audio_reference"
+        ],
+        "title": "ReferenceType"
+      },
       "RepairAction": {
         "properties": {
           "schema_version": {
@@ -6378,6 +7141,10 @@
             "description": "Version of this serialized contract for future migrations.",
             "default": "1.0.0"
           },
+          "hint_id": {
+            "type": "string",
+            "title": "Hint Id"
+          },
           "title": {
             "type": "string",
             "minLength": 1,
@@ -7118,6 +7885,20 @@
             "type": "array",
             "title": "Media Provider Ids"
           },
+          "media_provider_bindings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Media Provider Bindings"
+          },
+          "media_references": {
+            "items": {
+              "$ref": "#/components/schemas/MediaReference"
+            },
+            "type": "array",
+            "title": "Media References"
+          },
           "reasoning_provider": {
             "type": "string",
             "title": "Reasoning Provider"
@@ -7165,6 +7946,10 @@
             "title": "Schema Version",
             "description": "Version of this serialized contract for future migrations.",
             "default": "1.0.0"
+          },
+          "hint_id": {
+            "type": "string",
+            "title": "Hint Id"
           },
           "title": {
             "type": "string",

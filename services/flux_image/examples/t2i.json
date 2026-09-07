@@ -1,0 +1,9 @@
+{
+  "mode": "TEXT_TO_IMAGE",
+  "prompt": "A cinematic photograph of a blue ceramic teapot on a wooden table beside a window, soft morning light, a small green plant in the background, natural textures, no text.",
+  "width": 1024,
+  "height": 1024,
+  "steps": 28,
+  "guidance_scale": 3.5,
+  "seed": 42
+}

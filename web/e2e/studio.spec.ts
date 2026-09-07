@@ -4,6 +4,73 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('studio:v1:language', JSON.stringify('en')));
 });
 
+test('browser image upload persists, previews, binds, and reaches fake remote unchanged', async ({
+  page,
+}) => {
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64',
+  );
+  await page.goto('/');
+  await page
+    .getByLabel('Your story')
+    .fill('An uploaded image guides a quiet science-fiction scene.');
+  await page.getByRole('button', { name: 'Advanced' }).click();
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Visual/ })
+    .click();
+  await page.getByLabel('Upload Project visual references').setInputFiles({
+    name: 'browser-reference.png',
+    mimeType: 'image/png',
+    buffer: png,
+  });
+  await expect(page.getByText('browser-reference.png')).toBeVisible();
+  await expect(page.locator('.reference-card img')).toHaveAttribute(
+    'src',
+    /\/thumbnail\?draft_id=/,
+  );
+  await page.reload();
+  await page.getByRole('button', { name: 'Advanced' }).click();
+  await page
+    .locator('summary')
+    .filter({ hasText: /^Visual/ })
+    .click();
+  await expect(page.getByText('browser-reference.png')).toBeVisible();
+  await page.getByRole('button', { name: 'Start Film', exact: true }).click();
+  await expect(page).toHaveURL(/project=project_/);
+  const pid = new URL(page.url()).searchParams.get('project')!;
+  const snapshot = await (await page.request.get(`/api/projects/${pid}/studio`)).json();
+  expect(snapshot.media_references).toHaveLength(1);
+  const reference = snapshot.media_references[0];
+  expect(snapshot.project.brief.reference_images).toContain(reference.artifact_id);
+  expect(snapshot.creative_hints.media_references[0].artifact_id).toBe(reference.artifact_id);
+  const served = await page.request.get(
+    `/api/artifacts/${reference.artifact_id}/content?project_id=${pid}`,
+  );
+  expect(Buffer.compare(await served.body(), png)).toBe(0);
+
+  const transported = await (
+    await page.request.post(
+      `/api/test/projects/${pid}/reference-transport/${reference.artifact_id}`,
+    )
+  ).json();
+  expect(transported.receipts[0].kind).toBe('image');
+  expect(transported.receipts[0].parts[0]).toMatchObject({
+    field: 'references',
+    filename: 'browser-reference.png',
+    mime: 'image/png',
+    reference_type: 'style',
+  });
+  expect(transported.receipts[1].parts.map((part: { field: string }) => part.field)).toEqual([
+    'first_frame',
+    'last_frame',
+    'references',
+  ]);
+  for (const receipt of transported.receipts)
+    for (const part of receipt.parts) expect(part.sha256).toBe(transported.expected_sha256);
+});
+
 test('story-only production, live canvas, human gates, refresh and Mock completion', async ({
   page,
 }) => {

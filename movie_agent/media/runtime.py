@@ -85,25 +85,34 @@ class MediaRuntime:
         *,
         artifact_type: ArtifactType = ArtifactType.IMAGE,
     ) -> Artifact:
-        selection = await self.router.select(MediaRoutingRequest(
-            modality=MediaModality.IMAGE, task="frame" if artifact_type == ArtifactType.FRAME else "image",
-            required_capabilities=[item.capability for item in request.required_capabilities if item.required],
-            quality_profile=request.quality_profile, resource_class=request.resource_class,
-        ))
-        provider = self.providers.get(selection.provider_id)
-        if not isinstance(provider, ImageProvider):
-            raise TypeError("selected provider does not implement ImageProvider")
+        configured = next((item for item in self.providers.all() if isinstance(item, ImageProvider)), None)
+        initial_provider_id = configured.provider_id if configured else "unrouted-image"
         response: ProviderMediaResponse[ImageGenerationResult] | None = None
 
         async def operation(active: GenerationJob) -> ProviderResult:
             nonlocal response
             try:
+                selection = await self.router.select(MediaRoutingRequest(
+                    modality=MediaModality.IMAGE, task="frame" if artifact_type == ArtifactType.FRAME else "image",
+                    required_capabilities=[item.capability for item in request.required_capabilities if item.required],
+                    quality_profile=request.quality_profile, resource_class=request.resource_class,
+                ))
+                provider = self.providers.get(selection.provider_id)
+                if not isinstance(provider, ImageProvider):
+                    raise TypeError("selected provider does not implement ImageProvider")
+                self._request_routes[active.job_id] = (provider.provider_id, request.request_id)
+                active = active.model_copy(update={"provider_id": provider.provider_id})
+                self.job_manager._jobs[active.job_id] = active
                 response = await provider.generate(request)
+                if self.job_manager.get(active.job_id).cancellation_requested:
+                    from movie_agent.providers.base import ProviderFailure
+                    raise ProviderFailure("Image job cancelled before artifact registration", ProviderErrorType.CANCELLED)
                 artifact = self._register_response(
                     job=active, response=response, modality=MediaModality.IMAGE,
                     artifact_type=artifact_type, purpose=request.purpose.value,
-                    input_ids=[item.artifact_id for item in request.references],
-                    prompt=request.prompt_package, seed=request.seed,
+                    input_ids=[item.artifact_id for item in request.references]
+                              + ([request.source_image.artifact_id] if request.source_image else []),
+                    prompt=request.prompt_package, seed=response.result.seed,
                     dimensions=response.result.dimensions,
                     encoding=response.result.encoding,
                 )
@@ -113,7 +122,7 @@ class MediaRuntime:
             except BaseException as error:
                 return normalize_media_provider_error(request.request_id, error)
 
-        await self._execute(job, selection.provider_id, request.request_id, operation)
+        await self._execute(job, initial_provider_id, request.request_id, operation)
         return self._required(request.output_artifact_id)
 
     async def generate_video(self, job: GenerationJob, request: VideoGenerationRequest) -> Artifact:
@@ -352,7 +361,9 @@ class MediaRuntime:
             project_id=job.project_id, scene_id=job.scene_id, shot_id=job.shot_id,
             input_artifact_ids=list(dict.fromkeys([*job.input_artifact_ids, *input_ids])),
             generation_strategy=job.strategy_type, seed=seed,
-            parameters=response.result.provider_metadata,
+            parameters={**job.provenance.parameters, **response.result.provenance.parameters,
+                        **response.result.provider_metadata,
+                        "completed_at": response.result.completed_at.isoformat()},
             repair_plan_ids=job.provenance.repair_plan_ids,
             evaluation_ids=job.provenance.evaluation_ids,
         )

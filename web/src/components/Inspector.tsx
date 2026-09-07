@@ -5,6 +5,7 @@ import { X, ArrowDown, Check, FileText } from 'lucide-react';
 import { API_BASE, api } from '../api/client';
 import type { Snapshot, Artifact, Review, Schema } from '../api/types';
 import { ReviewSubjectRenderer } from './ReviewSubjectRenderer';
+import { ImageReferenceInput } from './ImageReferenceInput';
 
 export function RawJson({ value }: { value: unknown }) {
   return (
@@ -165,6 +166,7 @@ export function Inspector({
   onSource,
   onResolve,
   busy,
+  onReferencesChanged,
 }: {
   snapshot?: Snapshot;
   selected: string | null;
@@ -174,6 +176,7 @@ export function Inspector({
   onSource?: (id: string) => void;
   onResolve: (r: Review, approved: boolean, notes: string) => Promise<void>;
   busy: boolean;
+  onReferencesChanged?: () => void | Promise<void>;
 }) {
   useLocale();
   const [raw, setRaw] = useState(false);
@@ -209,6 +212,10 @@ export function Inspector({
       (item) => item.artifact_id === artifact.artifact_id && item.version === artifact.version,
     );
   const reviews = snapshot?.reviews.filter((r) => r.node_id === node?.node_id) || [];
+  const referenceWritable = Boolean(
+    snapshot && !['running', 'pausing', 'cancelled'].includes(snapshot.status),
+  );
+  const projectReferences = snapshot?.media_references || [];
   return (
     <aside className="inspector">
       <div className="inspector-heading">
@@ -270,7 +277,73 @@ export function Inspector({
                         <dd>{node.completed_at ? localeDate(node.completed_at) : '—'}</dd>
                       </dl>
                     )}
-                    {scene && <p>{scene.purpose}</p>}
+                    {scene && (
+                      <>
+                        <p>{scene.purpose}</p>
+                        <ImageReferenceInput
+                          owner={{ kind: 'project', id: snapshot!.project.project_id }}
+                          binding={{
+                            reference_type: 'location',
+                            binding_scope: 'scene',
+                            purpose: 'scene_concept',
+                            project_id: snapshot!.project.project_id,
+                            scene_id: scene.scene_id,
+                          }}
+                          references={projectReferences.filter(
+                            (reference) =>
+                              reference.binding_scope === 'scene' &&
+                              reference.scene_id === scene.scene_id,
+                          )}
+                          onReferencesChange={() => onReferencesChanged?.()}
+                          disabled={!referenceWritable || busy}
+                          label="Scene visual references"
+                        />
+                        {[scene.location_id, ...scene.character_ids, ...scene.prop_ids].map(
+                          (entityId) => {
+                            const character = snapshot!.project.characters.find(
+                              (item) => item.character_id === entityId,
+                            );
+                            const location = snapshot!.project.locations.find(
+                              (item) => item.location_id === entityId,
+                            );
+                            const prop = snapshot!.project.props.find(
+                              (item) => item.prop_id === entityId,
+                            );
+                            const kind = character ? 'character' : prop ? 'prop' : 'location';
+                            const purpose = character
+                              ? 'character_identity'
+                              : prop
+                                ? 'prop_identity'
+                                : 'environment';
+                            return (
+                              <div key={entityId}>
+                                <h3>
+                                  {character?.name || location?.name || prop?.name || entityId}
+                                </h3>
+                                <ImageReferenceInput
+                                  owner={{ kind: 'project', id: snapshot!.project.project_id }}
+                                  binding={{
+                                    reference_type: kind,
+                                    binding_scope: 'entity',
+                                    purpose,
+                                    project_id: snapshot!.project.project_id,
+                                    entity_id: entityId,
+                                  }}
+                                  references={projectReferences.filter(
+                                    (reference) =>
+                                      reference.binding_scope === 'entity' &&
+                                      reference.entity_id === entityId,
+                                  )}
+                                  onReferencesChange={() => onReferencesChanged?.()}
+                                  disabled={!referenceWritable || busy}
+                                  label={`${kind} references`}
+                                />
+                              </div>
+                            );
+                          },
+                        )}
+                      </>
+                    )}
                     {shot && (
                       <>
                         <p>{shot.narrative.purpose}</p>
@@ -286,6 +359,51 @@ export function Inspector({
                         </details>
                         <section className="shot-media" aria-label={t('Shot media')}>
                           <h3>{t('References')}</h3>
+                          <p className="help">
+                            {t(
+                              'FLUX uses one source image for Img2Img. Style, character and multiple references are not supported.',
+                            )}
+                          </p>
+                          <ImageReferenceInput
+                            owner={{ kind: 'project', id: snapshot!.project.project_id }}
+                            binding={{
+                              reference_type: 'source_image',
+                              binding_scope: 'frame',
+                              purpose: 'first_frame',
+                              project_id: snapshot!.project.project_id,
+                              scene_id: shot.scene_id,
+                              shot_id: shot.shot_id,
+                            }}
+                            references={projectReferences.filter(
+                              (reference) =>
+                                reference.reference_type === 'source_image' &&
+                                reference.shot_id === shot.shot_id &&
+                                reference.purpose === 'first_frame',
+                            )}
+                            onReferencesChange={() => onReferencesChanged?.()}
+                            disabled={!referenceWritable || busy}
+                            multiple={false}
+                            label="Img2Img first-frame source"
+                          />
+                          <ImageReferenceInput
+                            owner={{ kind: 'project', id: snapshot!.project.project_id }}
+                            binding={{
+                              reference_type: 'style',
+                              binding_scope: 'shot',
+                              purpose: 'shot_guidance',
+                              project_id: snapshot!.project.project_id,
+                              scene_id: shot.scene_id,
+                              shot_id: shot.shot_id,
+                            }}
+                            references={projectReferences.filter(
+                              (reference) =>
+                                reference.binding_scope === 'shot' &&
+                                reference.shot_id === shot.shot_id,
+                            )}
+                            onReferencesChange={() => onReferencesChanged?.()}
+                            disabled={!referenceWritable || busy}
+                            label="Shot visual references"
+                          />
                           <RawJson
                             value={{
                               references: shot.reference_artifact_ids,
@@ -448,14 +566,32 @@ export function Inspector({
               ))}
             </ul>
             <div className="eyebrow">{t('MEDIA RUNTIME')}</div>
-            {['Frame', 'Image', 'Video', 'Vision / Critic', 'Audio', 'Post / Final'].map((m) => (
-              <div className="model-row" key={m}>
-                {t(m)}
-                <MockBadge />
-              </div>
-            ))}
+            {[
+              ['Frame', 'image'],
+              ['Image', 'image'],
+              ['Video', 'video'],
+              ['Vision / Critic', 'vision'],
+              ['Audio', 'audio'],
+              ['Post / Final', 'post'],
+            ].map(([label, modality]) => {
+              const binding =
+                snapshot?.media_provider_bindings?.[modality] ||
+                snapshot?.media_provider_ids?.find((id) => id === `mock-${modality}`);
+              return (
+                <div className="model-row" key={label}>
+                  {t(label)}
+                  {binding?.startsWith('mock-') ? (
+                    <MockBadge />
+                  ) : (
+                    <span className="badge">{binding || t('Unavailable')}</span>
+                  )}
+                </div>
+              );
+            })}
             <p className="help">
-              {t(' Media Runtime Foundation is ready. Real model adapters are not installed. ')}
+              {t(
+                'Provider bindings are shown above. Artifact provenance identifies the provider used for each result.',
+              )}
             </p>
             <RawJson value={snapshot?.media_provider_ids} />
           </>

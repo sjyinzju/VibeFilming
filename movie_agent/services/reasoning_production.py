@@ -23,8 +23,10 @@ from .mock_production import MockMovieProduction
 class ReasoningMovieProduction(MockMovieProduction):
     """Showrunner with selectable real reasoning roles and the Phase 1 media pipeline."""
 
-    def __init__(self, workspace, llm_provider: LLMProvider, *, real_roles=None, event_bus=None):
-        super().__init__(workspace, event_bus=event_bus)
+    def __init__(self, workspace, llm_provider: LLMProvider, *, real_roles=None, event_bus=None,
+                 media_settings=None, media_provider_factory=None):
+        super().__init__(workspace, event_bus=event_bus, media_settings=media_settings,
+                         media_provider_factory=media_provider_factory)
         self.llm_provider = llm_provider
         self.real_roles = set(RoleId(r) for r in real_roles) if real_roles is not None else set(RoleId)
         self.role_results: dict[str, RoleResult] = {}

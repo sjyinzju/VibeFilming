@@ -85,6 +85,10 @@ from movie_agent.media import (
     PostProductionRequest,
     PreviewService,
     ReferenceType,
+    ReferenceBindingScope,
+    ReferencePurpose,
+    ReferenceBank,
+    ReferenceResolver,
     SoundEffectGenerationRequest,
     SpeechGenerationRequest,
     FoleyGenerationRequest,
@@ -152,7 +156,9 @@ class MockMovieProduction:
         self.checkpoint_store = LocalCheckpointStore(self.workspace / "checkpoints")
         self.trace_id = new_id("trace")
         settings = media_settings or MediaProviderSettings.from_env()
-        providers = (media_provider_factory or ProviderFactory.defaults()).build_registry(settings)
+        from movie_agent.media.transport import MediaReferenceBinaryResolver
+        providers = (media_provider_factory or ProviderFactory.defaults(settings=settings,
+            resolver=MediaReferenceBinaryResolver(self.artifact_store, self.binary_store))).build_registry(settings)
         try:
             vision_provider = providers.get("mock-vision")
             if isinstance(vision_provider, MockVisionProvider):
@@ -163,6 +169,8 @@ class MockMovieProduction:
             self.artifact_store, self.binary_store, providers, self.event_bus, self.trace_id
         )
         self.preview_service = PreviewService()
+        self.reference_bank = ReferenceBank()
+        self.reference_resolver = ReferenceResolver()
         self.job_manager: JobManager | None = None
         self.human_gates = HumanGateManager(self.event_bus, self.trace_id)
         self.frame_planner = MediaFramePlanner()
@@ -712,9 +720,10 @@ class MockMovieProduction:
         )
 
     async def _storyboard_planning(self, project: Project) -> None:
-        """Plan and generate real tiny Mock PNG boundaries through the media runtime."""
+        """Plan typed boundaries against the configured image provider's capabilities."""
 
         width, height = self._resolution(project.brief.resolution)
+        image_caps = next((item.image for item in await self.media_runtime.capabilities() if item.image), None)
         shots_by_id = {shot.shot_id: shot for shot in project.shots}
         planned_shots: dict[str, Shot] = {}
         frame_ids: list[str] = []
@@ -724,11 +733,15 @@ class MockMovieProduction:
             previous_last_id: str | None = None
             for shot_id in chain.shot_ids:
                 shot = shots_by_id[shot_id]
+                scene = next((item for item in project.scenes if item.scene_id == shot.scene_id), None)
+                uploaded_references = self._resolved_uploaded_references(project, shot, scene)
                 frame_plan, anchors = self.frame_planner.plan(
                     project.project_id, shot, width=width, height=height,
                     aspect_ratio=project.brief.aspect_ratio,
                     previous_shot=previous_shot,
                     previous_last_frame_artifact_id=previous_last_id,
+                    references=uploaded_references,
+                    capabilities=image_caps,
                 )
                 frame_plans.append(frame_plan)
                 first_request = frame_plan.first_frame_request
@@ -738,14 +751,16 @@ class MockMovieProduction:
                     shot_id=shot.shot_id, continuity_chain_id=shot.continuity_chain_id,
                     task="frame", resource_class=first_request.resource_class,
                     retry_budget=shot.retry_budget, idempotency_key=first_request.job_id,
-                    input_artifact_ids=[item.artifact_id for item in first_request.references],
+                    input_artifact_ids=first_request.input_artifact_ids,
                     provenance=Provenance(
                         role="Director", tool="media_frame_planner",
                         prompt_package_id=first_request.prompt_package.prompt_package_id,
                         compiler_id=first_request.prompt_package.compiler_id,
                         compiler_version=first_request.prompt_package.compiler_version,
                         project_id=project.project_id, scene_id=shot.scene_id, shot_id=shot.shot_id,
-                        input_artifact_ids=[item.artifact_id for item in first_request.references],
+                        parameters={"requested_dimensions": frame_plan.requested_dimensions.model_dump(mode="json"),
+                                    "canvas_policy": "fit_provider_bounds_round_down"},
+                        input_artifact_ids=first_request.input_artifact_ids,
                     ),
                 )
                 first = await self.media_runtime.generate_image(
@@ -761,14 +776,16 @@ class MockMovieProduction:
                     task="frame", dependencies=[first_job.job_id],
                     resource_class=last_request.resource_class,
                     retry_budget=shot.retry_budget, idempotency_key=last_request.job_id,
-                    input_artifact_ids=[item.artifact_id for item in last_request.references],
+                    input_artifact_ids=last_request.input_artifact_ids,
                     provenance=Provenance(
                         role="Director", tool="media_frame_planner",
                         prompt_package_id=last_request.prompt_package.prompt_package_id,
                         compiler_id=last_request.prompt_package.compiler_id,
                         compiler_version=last_request.prompt_package.compiler_version,
                         project_id=project.project_id, scene_id=shot.scene_id, shot_id=shot.shot_id,
-                        input_artifact_ids=[item.artifact_id for item in last_request.references],
+                        parameters={"requested_dimensions": frame_plan.requested_dimensions.model_dump(mode="json"),
+                                    "canvas_policy": "fit_provider_bounds_round_down"},
+                        input_artifact_ids=last_request.input_artifact_ids,
                     ),
                 )
                 last = await self.media_runtime.generate_image(
@@ -828,7 +845,8 @@ class MockMovieProduction:
         }
 
         for shot in shots:
-            media_strategy = self.strategy_planner.plan(shot, capabilities)
+            references = self._media_references(project, shot)
+            media_strategy = self.strategy_planner.plan(shot, capabilities, references)
             if media_strategy.split_shot:
                 raise RuntimeError("split_shot requires Director replanning before provider execution")
             strategy = GenerationStrategy(
@@ -838,7 +856,6 @@ class MockMovieProduction:
                 input_artifact_ids=media_strategy.input_artifact_ids,
                 fallback_types=media_strategy.fallback_types,
             )
-            references = self._media_references(shot)
             prompt = self.video_prompt_compiler.compile(shot, media_strategy, references)
             planned_shot = shot.model_copy(update={"generation_strategy": strategy}, deep=True)
             updated_shots[shot.shot_id] = planned_shot
@@ -944,7 +961,7 @@ class MockMovieProduction:
         request = VisionInspectionRequest(
             job_id=job_id, project_id=project.project_id, scene_id=shot.scene_id,
             shot_id=shot.shot_id, video_artifact_id=video.artifact_id,
-            reference_assets=self._media_references(shot), expected_shot=shot,
+            reference_assets=self._media_references(project, shot), expected_shot=shot,
             expected_requirements=shot.visual_requirements,
             profiles=[VisionInspectionProfile.VIDEO_QUALITY,
                       VisionInspectionProfile.PROMPT_ALIGNMENT,
@@ -1343,12 +1360,14 @@ class MockMovieProduction:
         ]
         return list(dict.fromkeys(item for item in ids if item))
 
-    @staticmethod
-    def _media_references(shot: Shot) -> list[MediaReference]:
-        references = [
+    def _media_references(self, project: Project, shot: Shot) -> list[MediaReference]:
+        scene = next((item for item in project.scenes if item.scene_id == shot.scene_id), None)
+        references = self._resolved_uploaded_references(project, shot, scene)
+        references.extend(
             MediaReference(reference_type=ReferenceType.STYLE, artifact_id=artifact_id)
             for artifact_id in shot.reference_artifact_ids
-        ]
+            if artifact_id not in {item.artifact_id for item in references}
+        )
         if shot.frame_anchors.first_frame.source_artifact_id:
             references.append(MediaReference(
                 reference_type=ReferenceType.FIRST_FRAME,
@@ -1362,6 +1381,27 @@ class MockMovieProduction:
                 shot_id=shot.shot_id,
             ))
         return references
+
+    def _resolved_uploaded_references(
+        self, project: Project, shot: Shot, scene: Scene | None = None
+    ) -> list[MediaReference]:
+        """Map proposed scene-seed images by stable seed order; other creative images stay global."""
+        scene = scene or next((item for item in project.scenes if item.scene_id == shot.scene_id), None)
+        references = []
+        for item in self.reference_bank.all():
+            if (item.binding_scope == ReferenceBindingScope.CREATIVE_INPUT
+                    and item.purpose == ReferencePurpose.SCENE_CONCEPT
+                    and item.binding_key and item.binding_key.startswith("scene-seed:")):
+                try:
+                    index = int(item.binding_key.split(":", 2)[1])
+                except (ValueError, IndexError):
+                    continue
+                if index >= len(project.scenes) or project.scenes[index].scene_id != shot.scene_id:
+                    continue
+            references.append(item)
+        return self.reference_resolver.resolve(
+            references, project_id=project.project_id, shot=shot, scene=scene
+        )
 
     @staticmethod
     def _resolution(value: str) -> tuple[int, int]:
@@ -1414,6 +1454,7 @@ class MockMovieProduction:
             "media_repair_plans": [item.model_dump(mode="json")
                                    for item in self.media_repair_plans],
             "timeline": self.timeline.model_dump(mode="json") if self.timeline else None,
+            "media_references": [item.model_dump(mode="json") for item in self.reference_bank.all()],
         }
 
     def _restore(self) -> tuple[Project, ProductionGraph]:
@@ -1453,6 +1494,9 @@ class MockMovieProduction:
         ]
         timeline = state.get("timeline")
         self.timeline = Timeline.model_validate(timeline) if timeline else None
+        self.reference_bank = ReferenceBank([
+            MediaReference.model_validate(item) for item in state.get("media_references", [])
+        ])
 
     def _result(
         self,

@@ -2,7 +2,9 @@
 
 Movie Agent Core is a model-agnostic foundation for long-running AI film production. Phase 2A adds six real reasoning roles through a configurable OpenAI-compatible endpoint and a FastAPI/SSE backend. Phase 2B adds a React Web Studio. Phase 3 adds the provider-neutral media runtime, binary artifact transport, preview/QC/repair, audio timeline, post-production contracts, and model-service lifecycle boundary.
 
-**Phase 3 Media Runtime Foundation is ready. Real media models are not installed.** Bundled Image, Video, Vision, Speech/Music/SFX/Foley, and Post providers remain deterministic Mock adapters that create small valid PNG/MP4/WAV test assets through the real runtime path.
+**Phase 3 now includes a real FLUX Direct ImageProvider.** Set `MOVIE_AGENT_IMAGE_PROVIDER=flux_direct` for real T2I/Img2Img through Spark. Defaults remain Mock; Video, Vision, Speech/Music/SFX/Foley and Post remain Mock. See [real Agent acceptance and setup](docs/flux_agent_acceptance.md).
+
+The Studio also supports validated PNG/JPEG/WebP reference upload, immutable Artifact-backed previews, typed Draft/Project/Entity/Scene/Shot binding, and shared image/video multipart transport. See [image reference upload and transport](docs/image_references.md).
 
 See `docs/architecture.md` for the design and `tests/fixtures/sample_brief.json` for the mock workflow input.
 
@@ -36,7 +38,7 @@ Regular tests never require the LLM endpoint. Opt in with `MOVIE_AGENT_RUN_INTEG
 
 See [P3 runtime](docs/p3_media_runtime.md), [media contracts](docs/media_contracts.md), [providers](docs/media_providers.md), [artifacts](docs/media_artifacts.md), [model services](docs/model_services.md), and the [extension guide](docs/p3_extension_guide.md).
 
-No P3 command downloads or launches a model. A real image adapter begins at `ImageProvider.generate(ImageGenerationRequest)`; a real video adapter begins at `VideoProvider.generate(VideoGenerationRequest)`.
+The Agent does not download or launch model weights. FLUX is a separately deployed loopback service, consumed through `ImageProvider.generate(ImageGenerationRequest)`. Real video integration remains out of scope.
 
 ## Run locally
 
@@ -56,7 +58,7 @@ npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173**. Only your story is required; Advanced exposes the full brief and optional typed creative guidance. Approve human gates in Inspector to continue. Reasoning is real on the normal backend; media remains clearly labelled Mock. The frontend's `/api` proxy calls FastAPI only.
+Open **http://127.0.0.1:5173**. Only your story is required; Advanced exposes the full brief and optional typed creative guidance. Approve human gates in Inspector to continue. Reasoning is real on the normal backend; media defaults to Mock unless `flux_direct` is configured for images. Provider labels and artifact provenance distinguish them. The frontend's `/api` proxy calls FastAPI only.
 
 See [Web Studio architecture, controls, tests and real opt-in E2E](docs/p2b_frontend.md). API types regenerate with `npm run gen:api` and are included in source; building does not require a running backend. Frontend checks: `npm test`, `npm run build`, `npm run test:e2e`.
 

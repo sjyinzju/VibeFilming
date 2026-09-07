@@ -11,6 +11,7 @@ from movie_agent.orchestration.runtime.terminal import is_terminal_only
 from movie_agent.orchestration.runtime.cinematographer_drafts import ShotPlanDraft
 from .repository import ProjectRecord, ProjectRepository, ProductionStatus as Status
 from .creative_inputs import CreativeHints, CreativeInputContextBuilder
+from movie_agent.media import ImageReferenceBindingInput, ImageReferenceUploadService, MediaReference
 
 
 class CommandConflict(ValueError):
@@ -26,18 +27,80 @@ class ProductionService:
         self.auto_approve = auto_approve
         self.engines: dict[str, ReasoningMovieProduction] = {}
         self.tasks: dict[str, asyncio.Task] = {}
+        repository_root = getattr(repository, "root", None)
+        if repository_root is None:
+            raise ValueError("ProductionService requires a repository with a local root for draft uploads")
+        self.reference_uploads = ImageReferenceUploadService(repository_root / "_draft_references")
 
-    def create(self, brief: ProjectBrief, creative_hints: CreativeHints | None = None) -> ProjectRecord:
+    def create(self, brief: ProjectBrief, creative_hints: CreativeHints | None = None,
+               draft_id: str | None = None) -> ProjectRecord:
         record = ProjectRecord(project=Project(brief=brief), creative_hints=creative_hints or CreativeHints())
-        self.repository.save(record)
         engine = self.factory(record.project.project_id)
-        engine.runner.context_builder = CreativeInputContextBuilder(record.creative_hints)
         graph = build_production_graph(record.project.project_id, engine.event_bus, engine.trace_id)
         engine.current_project, engine.current_production = record.project, graph
+        if draft_id:
+            adopted = self.reference_uploads.adopt_draft(
+                draft_id, record.project.project_id,
+                artifacts=engine.artifact_store, binaries=engine.binary_store,
+                bank=engine.reference_bank,
+            )
+            record.creative_hints.media_references = adopted
+            record.project.brief.reference_images = list(dict.fromkeys([
+                *record.project.brief.reference_images,
+                *[item.artifact_id for item in adopted if item.binding_scope.value == "project"],
+            ]))
+        self.repository.save(record)
+        engine.runner.context_builder = CreativeInputContextBuilder(record.creative_hints)
         engine._emit(EventType.PROJECT_CREATED, record.project.project_id, {"title": brief.title})
         engine._save_checkpoint(record.project, graph)
         self.engines[record.project.project_id] = engine
         return record
+
+    def _ensure_reference_mutation(self, project_id: str):
+        record = self.repository.get(project_id)
+        if record.status in {Status.RUNNING, Status.PAUSING, Status.CANCELLED}:
+            raise CommandConflict("References cannot change while production is running or cancelled")
+        return self.engine(project_id)
+
+    def add_image_reference(self, project_id: str, content: bytes, *, filename: str | None,
+                            mime_type: str, binding: ImageReferenceBindingInput):
+        engine = self._ensure_reference_mutation(project_id)
+        project = engine.current_project
+        if binding.binding_scope.value == "entity":
+            entity_ids = {item.character_id for item in project.characters}
+            entity_ids.update(item.location_id for item in project.locations)
+            entity_ids.update(item.prop_id for item in project.props)
+            if binding.entity_id not in entity_ids:
+                raise CommandConflict("Reference entity does not belong to this project")
+        if binding.binding_scope.value == "scene" and binding.scene_id not in {
+            item.scene_id for item in project.scenes
+        }:
+            raise CommandConflict("Reference scene does not belong to this project")
+        if binding.binding_scope.value in {"shot", "frame"} and binding.shot_id not in {
+            item.shot_id for item in project.shots
+        }:
+            raise CommandConflict("Reference shot does not belong to this project")
+        result = self.reference_uploads.upload_project(
+            project_id, content, filename=filename, mime_type=mime_type, binding=binding,
+            artifacts=engine.artifact_store, binaries=engine.binary_store,
+            bank=engine.reference_bank,
+        )
+        engine._emit(EventType.ARTIFACT_CREATED, project_id,
+                     {"artifact_id": result.artifact_id, "artifact_type": "image", "version": 1})
+        engine._emit(EventType.REFERENCE_BOUND, project_id,
+                     {"reference_id": result.reference.reference_id,
+                      "artifact_id": result.artifact_id,
+                      "binding_scope": result.reference.binding_scope.value})
+        engine._save_checkpoint(engine.current_project, engine.current_production)
+        return result
+
+    def remove_reference(self, project_id: str, reference_id: str) -> MediaReference:
+        engine = self._ensure_reference_mutation(project_id)
+        reference = engine.reference_bank.unbind(reference_id)
+        engine._emit(EventType.REFERENCE_UNBOUND, project_id,
+                     {"reference_id": reference_id, "artifact_id": reference.artifact_id})
+        engine._save_checkpoint(engine.current_project, engine.current_production)
+        return reference
 
     def engine(self, project_id: str) -> ReasoningMovieProduction:
         record = self.repository.get(project_id)

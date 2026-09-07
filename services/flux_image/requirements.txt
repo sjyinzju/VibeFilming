@@ -1,0 +1,16 @@
+# Only install inside an already CUDA/BF16-verified NVIDIA PyTorch container.
+# PyTorch is intentionally NOT sourced from PyPI; install.py preserves its exact build.
+# 0.37 fixes TorchAO import initialization on the verified NVIDIA 26.08 stack.
+diffusers==0.37.0
+transformers==4.56.2
+accelerate==1.10.1
+safetensors==0.6.2
+sentencepiece==0.2.1
+protobuf==6.33.6
+psutil==7.1.0
+fastapi==0.141.1
+starlette==1.6.0
+pydantic==2.13.5
+uvicorn==0.52.4
+python-multipart==0.0.32
+pillow==12.3.0

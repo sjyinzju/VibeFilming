@@ -5,7 +5,7 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, HTTPException, Query
+from fastapi import FastAPI, Request, HTTPException, Query, UploadFile, File, Form, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
@@ -15,7 +15,16 @@ from movie_agent.application.repository import ProjectRecord
 from movie_agent.application.views import ProjectSnapshot, WorkflowSnapshot, CommandAccepted, ProviderView
 from movie_agent.application.creative_inputs import CreateProjectInput
 from movie_agent.application.studio import StudioSnapshot, studio_snapshot
-from movie_agent.media import ProviderCapabilities, media_metadata, media_response
+from movie_agent.media import (
+    ImageReferenceBindingInput,
+    ImageReferenceUploadResult,
+    ImageUploadValidationError,
+    MediaReference,
+    ProviderCapabilities,
+    ReferenceBindingScope,
+    media_metadata,
+    media_response,
+)
 
 
 class ReviewResolution(BaseModel):
@@ -66,6 +75,11 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
     async def conflict(request, error):
         return JSONResponse(status_code=409, content={"detail": str(error)})
 
+    @app.exception_handler(ImageUploadValidationError)
+    async def invalid_image(request, error):
+        status_code = 413 if "limit" in str(error).lower() else 422
+        return JSONResponse(status_code=status_code, content={"detail": str(error)})
+
     @app.get("/health")
     async def health():
         return {"status": "ok", "runtime": "p3_media_foundation", "media": "mock"}
@@ -82,7 +96,67 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
 
     @app.post("/projects", status_code=201, response_model=ProjectRecord)
     async def create_project(brief: CreateProjectInput):
-        return service.create(brief.canonical_brief(), brief.creative_hints)
+        return service.create(brief.canonical_brief(), brief.creative_hints, brief.draft_id)
+
+    async def read_image(file: UploadFile) -> tuple[bytes, str]:
+        mime_type = (file.content_type or "").lower()
+        if mime_type not in {"image/png", "image/jpeg", "image/webp"}:
+            raise ImageUploadValidationError("Only PNG, JPEG, and WebP images are supported")
+        content = await file.read(service.reference_uploads.max_size_bytes + 1)
+        return content, mime_type
+
+    def parse_binding(value: str | None) -> ImageReferenceBindingInput:
+        if value is None:
+            return ImageReferenceBindingInput(
+                reference_type="style", binding_scope="project", purpose="visual_style"
+            )
+        try:
+            return ImageReferenceBindingInput.model_validate_json(value)
+        except ValueError as error:
+            raise HTTPException(422, "Reference binding metadata is invalid") from error
+
+    @app.post("/drafts/{draft_id}/image-references", status_code=201,
+              response_model=ImageReferenceUploadResult)
+    async def upload_draft_reference(
+        draft_id: str,
+        file: UploadFile = File(...),
+        binding: str | None = Form(None),
+    ):
+        parsed = parse_binding(binding)
+        if parsed.binding_scope not in {ReferenceBindingScope.PROJECT,
+                                        ReferenceBindingScope.CREATIVE_INPUT}:
+            raise HTTPException(422, "Draft references must bind to project or creative input")
+        content, mime_type = await read_image(file)
+        return service.reference_uploads.upload_draft(
+            draft_id, content, filename=file.filename, mime_type=mime_type, binding=parsed
+        )
+
+    @app.get("/drafts/{draft_id}/image-references", response_model=list[MediaReference])
+    async def list_draft_references(draft_id: str):
+        return service.reference_uploads.list_draft(draft_id)
+
+    @app.delete("/drafts/{draft_id}/image-references/{reference_id}", status_code=204)
+    async def remove_draft_reference(draft_id: str, reference_id: str):
+        service.reference_uploads.unbind_draft(draft_id, reference_id)
+        return Response(status_code=204)
+
+    @app.post("/projects/{project_id}/image-references", status_code=201,
+              response_model=ImageReferenceUploadResult)
+    async def upload_project_reference(
+        project_id: str,
+        file: UploadFile = File(...),
+        binding: str | None = Form(None),
+    ):
+        content, mime_type = await read_image(file)
+        return service.add_image_reference(
+            project_id, content, filename=file.filename, mime_type=mime_type,
+            binding=parse_binding(binding),
+        )
+
+    @app.delete("/projects/{project_id}/image-references/{reference_id}", status_code=204)
+    async def remove_project_reference(project_id: str, reference_id: str):
+        service.remove_reference(project_id, reference_id)
+        return Response(status_code=204)
 
     @app.get("/projects", response_model=list[ProjectRecord])
     async def list_projects():
@@ -167,13 +241,26 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
     def resolve_media_artifact(
         artifact_id: str,
         project_id: str | None,
+        draft_id: str | None,
         version: int | None,
         view: str,
     ):
-        engine, _ = service.locate("artifact", artifact_id, project_id)
-        source = engine.artifact_store.get(artifact_id, version)
-        if source is None:
-            raise KeyError(artifact_id)
+        if draft_id:
+            if project_id:
+                raise HTTPException(400, "Supply either project_id or draft_id")
+            source, binary_store = service.reference_uploads.locate_draft_artifact(
+                draft_id, artifact_id, version
+            )
+            get_artifact = lambda identity: service.reference_uploads.locate_draft_artifact(
+                draft_id, identity
+            )[0]
+        else:
+            engine, _ = service.locate("artifact", artifact_id, project_id)
+            source = engine.artifact_store.get(artifact_id, version)
+            if source is None:
+                raise KeyError(artifact_id)
+            binary_store = engine.binary_store
+            get_artifact = lambda identity: engine.artifact_store.get(identity)
         metadata = media_metadata(source)
         if metadata is None:
             raise HTTPException(404, "Artifact is not playable media")
@@ -186,31 +273,34 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
             )
         if not target_id:
             raise HTTPException(404, "Artifact has no thumbnail")
-        target = source if target_id == artifact_id else engine.artifact_store.get(target_id)
+        target = source if target_id == artifact_id else get_artifact(target_id)
         if target is None:
             raise HTTPException(404, "Preview artifact is unavailable")
-        return engine, target
+        return binary_store, target
 
     @app.get("/artifacts/{artifact_id}/content")
     async def artifact_content(request: Request, artifact_id: str,
                                project_id: str | None = None,
+                               draft_id: str | None = None,
                                version: int | None = Query(None, ge=1)):
-        engine, target = resolve_media_artifact(artifact_id, project_id, version, "content")
-        return media_response(request, target, engine.binary_store)
+        binary_store, target = resolve_media_artifact(artifact_id, project_id, draft_id, version, "content")
+        return media_response(request, target, binary_store)
 
     @app.get("/artifacts/{artifact_id}/preview")
     async def artifact_preview(request: Request, artifact_id: str,
                                project_id: str | None = None,
+                               draft_id: str | None = None,
                                version: int | None = Query(None, ge=1)):
-        engine, target = resolve_media_artifact(artifact_id, project_id, version, "preview")
-        return media_response(request, target, engine.binary_store)
+        binary_store, target = resolve_media_artifact(artifact_id, project_id, draft_id, version, "preview")
+        return media_response(request, target, binary_store)
 
     @app.get("/artifacts/{artifact_id}/thumbnail")
     async def artifact_thumbnail(request: Request, artifact_id: str,
                                  project_id: str | None = None,
+                                 draft_id: str | None = None,
                                  version: int | None = Query(None, ge=1)):
-        engine, target = resolve_media_artifact(artifact_id, project_id, version, "thumbnail")
-        return media_response(request, target, engine.binary_store)
+        binary_store, target = resolve_media_artifact(artifact_id, project_id, draft_id, version, "thumbnail")
+        return media_response(request, target, binary_store)
 
     @app.get("/projects/{project_id}/media/providers", response_model=list[ProviderCapabilities])
     async def media_providers(project_id: str):

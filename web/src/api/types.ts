@@ -16,3 +16,6 @@ export type WorkflowEdge = Schema['WorkflowEdge'];
 export type Event = Schema['EventEnvelope'];
 export type Review = Schema['HumanReviewRequest'];
 export type Artifact = Schema['Artifact'];
+export type MediaReferenceInput = components['schemas']['MediaReference'];
+export type ReferenceBindingInput = components['schemas']['ImageReferenceBindingInput'];
+export type ImageReferenceUpload = components['schemas']['ImageReferenceUploadResult'];

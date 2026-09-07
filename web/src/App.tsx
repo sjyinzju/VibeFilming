@@ -405,6 +405,7 @@ export default function App() {
             }}
             onResolve={resolve}
             busy={busy}
+            onReferencesChanged={studio.refresh}
           />
         )}
       </main>

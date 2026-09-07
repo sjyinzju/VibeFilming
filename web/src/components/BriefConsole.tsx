@@ -2,7 +2,8 @@ import { t, useLocale, getLanguage, type Language } from '../i18n';
 import { useState } from 'react';
 import { Plus, Trash2, ArrowUpRight } from 'lucide-react';
 import schema from '../api/brief.schema.json';
-import type { CreateInput, Hints } from '../api/types';
+import type { CreateInput, Hints, MediaReferenceInput } from '../api/types';
+import { ImageReferenceInput } from './ImageReferenceInput';
 
 export type Draft = Partial<CreateInput>;
 type FieldSchema = {
@@ -24,7 +25,13 @@ export const fieldLabel = (key: string) =>
       ? 'Target duration · seconds'
       : fields[key].title || key.replaceAll('_', ' ').replace(/^./, (s) => s.toUpperCase());
 const defs = schema.$defs as Record<string, { enum: string[] }>;
-export const emptyDraft: Draft = { story_description: '', target_duration: 30 };
+const clientId = (prefix: string) =>
+  `${prefix}_${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
+export const emptyDraft: Draft = {
+  story_description: '',
+  target_duration: 30,
+  draft_id: clientId('draft'),
+};
 const groups: Record<string, string[]> = {
   Basic: [
     'title',
@@ -256,6 +263,7 @@ export function BriefConsole({
   const [advanced, setAdvanced] = useState(false);
   const [mode, setMode] = useState('Story-first');
   const update = (key: string, value: unknown) => onChange({ ...draft, [key]: value });
+  const allReferences = draft.creative_hints?.media_references || [];
   const renderField = (key: string) => {
     const field = fields[key];
     const value =
@@ -288,7 +296,36 @@ export function BriefConsole({
       control = (
         <Cards label="Character" value={value as string[]} onChange={(v) => update(key, v)} />
       );
-    else if (field.type === 'array')
+    else if (key === 'reference_images' && draft.draft_id) {
+      const predicate = (reference: MediaReferenceInput) =>
+        reference.binding_scope === 'project' && reference.purpose === 'visual_style';
+      const references = allReferences.filter(predicate);
+      control = (
+        <ImageReferenceInput
+          owner={{ kind: 'draft', id: draft.draft_id }}
+          binding={{
+            reference_type: 'style',
+            binding_scope: 'project',
+            purpose: 'visual_style',
+          }}
+          references={references}
+          onReferencesChange={(next) => {
+            onChange({
+              ...draft,
+              reference_images: next.map((reference) => reference.artifact_id),
+              creative_hints: {
+                ...(draft.creative_hints || {}),
+                media_references: [
+                  ...allReferences.filter((reference) => !predicate(reference)),
+                  ...next,
+                ],
+              },
+            });
+          }}
+          label="Project visual references"
+        />
+      );
+    } else if (field.type === 'array')
       control = (
         <TagInput
           label={label}
@@ -447,6 +484,7 @@ export function BriefConsole({
           hints={draft.creative_hints || {}}
           onChange={(v) => update('creative_hints', v)}
           expanded={mode !== 'Story-first'}
+          draftId={draft.draft_id || undefined}
         />
       </fieldset>
       <div className="brief-footer">
@@ -474,11 +512,24 @@ function HintsEditor({
   hints,
   onChange,
   expanded,
+  draftId,
 }: {
   hints: Hints;
   onChange: (h: Hints) => void;
   expanded: boolean;
+  draftId?: string;
 }) {
+  const references = hints.media_references || [];
+  const referencesFor = (bindingKey: string) =>
+    references.filter((reference) => reference.binding_key === bindingKey);
+  const setReferences = (bindingKey: string, next: MediaReferenceInput[]) =>
+    onChange({
+      ...hints,
+      media_references: [
+        ...references.filter((reference) => reference.binding_key !== bindingKey),
+        ...next,
+      ],
+    });
   return (
     <details open={expanded || undefined} className="hints">
       <summary>
@@ -536,6 +587,22 @@ function HintsEditor({
                 })
               }
             />
+            {draftId && (
+              <ImageReferenceInput
+                owner={{ kind: 'draft', id: draftId }}
+                binding={{
+                  reference_type: 'location',
+                  binding_scope: 'creative_input',
+                  purpose: 'scene_concept',
+                  binding_key: `scene-seed:${i}:${s.hint_id || 'legacy'}`,
+                }}
+                references={referencesFor(`scene-seed:${i}:${s.hint_id || 'legacy'}`)}
+                onReferencesChange={(next) =>
+                  setReferences(`scene-seed:${i}:${s.hint_id || 'legacy'}`, next)
+                }
+                label={`Scene seed ${i + 1} images`}
+              />
+            )}
           </div>
         ))}
         <button
@@ -544,7 +611,10 @@ function HintsEditor({
           onClick={() =>
             onChange({
               ...hints,
-              scene_seeds: [...(hints.scene_seeds || []), { title: '', description: '' }],
+              scene_seeds: [
+                ...(hints.scene_seeds || []),
+                { hint_id: clientId('hint'), title: '', description: '' },
+              ],
             })
           }
         >
@@ -560,13 +630,72 @@ function HintsEditor({
           }
         />
         <label>{t('Key visuals')}</label>
-        <Cards
-          label="Visual"
-          value={(hints.key_visuals || []).map((m) => m.description)}
-          onChange={(v) =>
-            onChange({ ...hints, key_visuals: v.map((description) => ({ description })) })
+        {(hints.key_visuals || []).map((visual, i) => {
+          const bindingKey = visual.hint_id || `key-visual-${i}`;
+          return (
+            <div className="input-card" key={bindingKey}>
+              <div className="row">
+                <small>
+                  {t('Visual')} {i + 1}
+                </small>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={t(`Remove Visual ${i + 1}`)}
+                  onClick={() =>
+                    onChange({
+                      ...hints,
+                      key_visuals: hints.key_visuals!.filter((_, j) => i !== j),
+                    })
+                  }
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+              <textarea
+                aria-label={t(`Visual ${i + 1}`)}
+                value={visual.description}
+                onChange={(event) =>
+                  onChange({
+                    ...hints,
+                    key_visuals: hints.key_visuals!.map((item, j) =>
+                      i === j ? { ...item, description: event.target.value } : item,
+                    ),
+                  })
+                }
+              />
+              {draftId && (
+                <ImageReferenceInput
+                  owner={{ kind: 'draft', id: draftId }}
+                  binding={{
+                    reference_type: 'style',
+                    binding_scope: 'creative_input',
+                    purpose: 'key_visual',
+                    binding_key: bindingKey,
+                  }}
+                  references={referencesFor(bindingKey)}
+                  onReferencesChange={(next) => setReferences(bindingKey, next)}
+                  label={`Key visual ${i + 1} images`}
+                />
+              )}
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          className="text-button"
+          onClick={() =>
+            onChange({
+              ...hints,
+              key_visuals: [
+                ...(hints.key_visuals || []),
+                { hint_id: clientId('hint'), description: '' },
+              ],
+            })
           }
-        />
+        >
+          <Plus size={14} /> {t(' Add visual ')}
+        </button>
         <label>{t('Reference works')}</label>
         <p className="help">{t('Inspiration for tone and craft, never a request to copy.')}</p>
         {(hints.style_references || []).map((ref, i) => (
@@ -653,6 +782,22 @@ function HintsEditor({
                 </button>
               ))}
             </div>
+            {draftId && (
+              <ImageReferenceInput
+                owner={{ kind: 'draft', id: draftId }}
+                binding={{
+                  reference_type: 'style',
+                  binding_scope: 'creative_input',
+                  purpose: 'visual_style',
+                  binding_key: ref.hint_id || `style-reference-${i}`,
+                }}
+                references={referencesFor(ref.hint_id || `style-reference-${i}`)}
+                onReferencesChange={(next) =>
+                  setReferences(ref.hint_id || `style-reference-${i}`, next)
+                }
+                label={`Style reference ${i + 1} images`}
+              />
+            )}
           </div>
         ))}
         <button
@@ -663,7 +808,7 @@ function HintsEditor({
               ...hints,
               style_references: [
                 ...(hints.style_references || []),
-                { title: '', kind: 'film', dimensions: [] },
+                { hint_id: clientId('hint'), title: '', kind: 'film', dimensions: [] },
               ],
             })
           }

@@ -206,7 +206,11 @@ class MockImageProvider(_MockState, ImageProvider):
             primary_artifact_id=request.output_artifact_id, provider_id=self.provider_id,
             seed=request.seed, dimensions=MediaDimensions(width=request.width, height=request.height,
                                                            aspect_ratio=request.aspect_ratio),
-            encoding=encoding, provider_metadata={"mock": True, "test_asset": True},
+            encoding=encoding, provider_metadata={
+                "mock": True,
+                "test_asset": True,
+                "reference_artifact_ids": [item.artifact_id for item in request.references],
+            },
         )
         self._save(request.request_id, result)
         return ProviderMediaResponse(result, (BinaryPayload(request.output_artifact_id,
@@ -239,7 +243,13 @@ class MockVideoProvider(_MockState, VideoProvider):
             dimensions=MediaDimensions(width=request.width, height=request.height,
                                        aspect_ratio=request.aspect_ratio),
             frame_count=max(1, round(request.duration_seconds * request.fps)), codec="h264",
-            encoding=encoding, provider_metadata={"mock": True, "test_asset": True},
+            encoding=encoding, provider_metadata={
+                "mock": True,
+                "test_asset": True,
+                "reference_artifact_ids": [item.artifact_id for item in request.references],
+                "first_frame_artifact_id": request.first_frame.artifact_id if request.first_frame else None,
+                "last_frame_artifact_id": request.last_frame.artifact_id if request.last_frame else None,
+            },
         )
         self._save(request.request_id, result)
         return ProviderMediaResponse(result, (BinaryPayload(request.output_artifact_id,
