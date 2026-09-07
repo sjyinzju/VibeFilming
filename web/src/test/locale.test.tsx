@@ -32,11 +32,13 @@ it('switches all presentation labels while preserving story and film output lang
   expect(screen.getByRole('button', { name: 'Start Film' })).toBeVisible();
   expect(localStorage.getItem('studio:v1:language')).toBe('"en"');
   expect(document.documentElement.lang).toBe('en');
+  expect(document.title).toBe('VibeFilming — Web Studio');
   expect(toInput({ story_description: input.story_description, output_language: 'en' })).toEqual(
     input,
   );
   act(() => setLanguage('zh'));
   expect(document.documentElement.lang).toBe('zh-CN');
+  expect(document.title).toBe('VibeFilming · 电影创作工作室');
   expect(screen.getByRole('button', { name: '开始制作' })).toBeVisible();
 });
 it('localizes workflow vocabulary without changing unknown authored content', () => {

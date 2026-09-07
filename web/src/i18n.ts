@@ -14,7 +14,7 @@ export function setLanguage(next: Language) {
   language = next;
   save('language', next);
   document.documentElement.lang = next === 'zh' ? 'zh-CN' : 'en';
-  document.title = next === 'zh' ? 'Movie Agent · 电影创作工作室' : 'Movie Agent — Web Studio';
+  document.title = next === 'zh' ? 'VibeFilming · 电影创作工作室' : 'VibeFilming — Web Studio';
   listeners.forEach((listener) => listener());
 }
 export function useLocale() {

@@ -169,7 +169,7 @@ export default function App() {
         >
           <Aperture size={26} strokeWidth={1.6} />
           <span>
-            {t(' movie agent')}
+            VibeFilming
             <small>{t('WEB STUDIO')}</small>
           </span>
         </a>
