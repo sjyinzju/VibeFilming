@@ -9,16 +9,19 @@ from .contracts import (
     WorkflowBindingManifest,
     compute_workflow_hash,
 )
-
-
-MINIMAX_H3_FL2VA_PROFILE_ID = "minimax_h3_fl2va"
+from .profiles import MINIMAX_H3_FL2VA_PROFILE_ID, minimax_h3_fl2va_components
 
 
 class ComfyUIWorkflowRegistry:
-    def __init__(self) -> None:
+    def __init__(self, *, include_builtin_profiles: bool = True) -> None:
         self._templates: dict[tuple[str, str], ComfyUIWorkflowTemplate] = {}
         self._manifests: dict[tuple[str, str], WorkflowBindingManifest] = {}
         self._profiles: dict[str, ComfyUIWorkflowProfile] = {}
+        if include_builtin_profiles:
+            profile, template, manifest = minimax_h3_fl2va_components()
+            self.register_template(template)
+            self.register_manifest(manifest)
+            self.register_profile(profile)
 
     def register_template(self, template: ComfyUIWorkflowTemplate) -> None:
         key = (template.template_id, template.version)

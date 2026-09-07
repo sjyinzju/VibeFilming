@@ -19,3 +19,5 @@ export type Artifact = Schema['Artifact'];
 export type MediaReferenceInput = components['schemas']['MediaReference'];
 export type ReferenceBindingInput = components['schemas']['ImageReferenceBindingInput'];
 export type ImageReferenceUpload = components['schemas']['ImageReferenceUploadResult'];
+export type ProviderExecutionGraph = Schema['ProviderExecutionGraphView'];
+export type ProviderExecutionGraphNode = Schema['ProviderExecutionGraphNode'];

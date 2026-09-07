@@ -48,6 +48,22 @@ def validate_template_binding(
                 raise ComfyUIWorkflowValidationError(
                     f"ComfyUI node class is unavailable: {node.class_type}"
                 )
+            node_schema = object_info[node.class_type]
+            schema_inputs = node_schema.get("input", {})
+            known = {**schema_inputs.get("required", {}), **schema_inputs.get("optional", {})}
+            for input_name, value in node.inputs.items():
+                declaration = known.get(input_name)
+                if (
+                    input_name in {"unet_name", "clip_name", "vae_name"}
+                    and isinstance(value, str)
+                    and isinstance(declaration, (list, tuple))
+                    and declaration
+                    and isinstance(declaration[0], list)
+                    and value not in declaration[0]
+                ):
+                    raise ComfyUIWorkflowValidationError(
+                        f"ComfyUI model is unavailable: {node.class_type}.{input_name}={value}"
+                    )
     for binding in manifest.bindings:
         node = template.api_workflow.get(binding.node_id)
         if node is None:
@@ -101,7 +117,28 @@ class ComfyUIWorkflowCompiler:
                 f"ComfyUI workflow does not bind input asset slot: {unbound_assets[0]}",
                 ProviderErrorType.UNSUPPORTED_CAPABILITY,
             )
-        slots = self._semantic_values(request, assets)
+        slots = self._semantic_values(
+            request, assets, inline_negative_prompt=binding_manifest.inline_negative_prompt
+        )
+        if "camera_motion" not in bound_slots and (
+            request.camera_motion.motion_type.value != "static"
+            or request.camera_motion.direction is not None
+            or request.camera_motion.speed is not None
+            or request.camera_motion.path
+        ):
+            raise ProviderFailure(
+                "ComfyUI workflow does not support structured camera motion",
+                ProviderErrorType.UNSUPPORTED_CAPABILITY,
+            )
+        if (
+            "temporal_control" not in bound_slots
+            and request.temporal_control.model_dump()
+            != type(request.temporal_control)().model_dump()
+        ):
+            raise ProviderFailure(
+                "ComfyUI workflow does not support custom temporal control",
+                ProviderErrorType.UNSUPPORTED_CAPABILITY,
+            )
         declared_parameters = {
             item.semantic_slot.removeprefix("provider_parameters.")
             for item in binding_manifest.bindings
@@ -111,6 +148,15 @@ class ComfyUIWorkflowCompiler:
         if unknown_parameters:
             raise ProviderFailure(
                 f"ComfyUI workflow does not declare provider parameter: {sorted(unknown_parameters)[0]}",
+                ProviderErrorType.UNSUPPORTED_CAPABILITY,
+            )
+        if (
+            request.prompt_package.negative_prompt
+            and "negative_prompt" not in bound_slots
+            and not binding_manifest.inline_negative_prompt
+        ):
+            raise ProviderFailure(
+                "ComfyUI workflow does not support a separate negative prompt",
                 ProviderErrorType.UNSUPPORTED_CAPABILITY,
             )
         prompt = {
@@ -148,13 +194,19 @@ class ComfyUIWorkflowCompiler:
 
     @staticmethod
     def _semantic_values(
-        request: VideoGenerationRequest, assets: list[ComfyUIInputAsset]
+        request: VideoGenerationRequest,
+        assets: list[ComfyUIInputAsset],
+        *,
+        inline_negative_prompt: bool = False,
     ) -> dict[str, Any]:
         by_slot: dict[str, list[ComfyUIInputAsset]] = {}
         for asset in assets:
             by_slot.setdefault(asset.semantic_slot, []).append(asset)
+        prompt = request.prompt_package.positive_prompt
+        if inline_negative_prompt and request.prompt_package.negative_prompt:
+            prompt = f"{prompt}\nAvoid: {request.prompt_package.negative_prompt}"
         values: dict[str, Any] = {
-            "prompt": request.prompt_package.positive_prompt,
+            "prompt": prompt,
             "negative_prompt": request.prompt_package.negative_prompt,
             "seed": request.seed,
             "width": request.width,

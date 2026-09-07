@@ -1,16 +1,16 @@
 """Request-only cinematographer types and deterministic mapping into Cinematic IR."""
 
-from pydantic import Field, PositiveFloat
+from pydantic import Field, PositiveFloat, model_validator
 
 from movie_agent.domain import (
     CameraSpec, CharacterState, ContinuityChain, ContinuityState, ContractModel,
     FrameAnchor, FrameAnchors, LightingSpec, LocationState, PerformanceSpec,
-    PlanningCommitments, Project, PropState, Scene, Shot, ShotNarrative, Vector3,
+    Project, PropState, Scene, Shot, ShotNarrative, Vector3,
 )
 from movie_agent.domain.enums import Orientation, PropCondition
 from .contracts import OutputErrorCode as Code, OutputIssue, ValidationReport
 
-MAPPER_VERSION = "cinematographer-draft-mapper/2"
+MAPPER_VERSION = "cinematographer-draft-mapper/3"
 
 
 class CanonicalChainContext(ContractModel):
@@ -94,10 +94,19 @@ class ShotDraft(ContractModel):
     local_state_delta: ShotLocalStateDraft = Field(default_factory=ShotLocalStateDraft)
 
 
-class ShotPlanDraft(PlanningCommitments):
-    """Cinematographer output. Canonical chain state/topology cannot be expressed."""
+class ShotPlanDraft(ContractModel):
+    """LLM-owned shot choices; canonical facts/state/topology are Core-owned."""
 
+    preserved_constraints: list[str]
     shots: list[ShotDraft] = Field(min_length=1)
+
+    @model_validator(mode="before")
+    @classmethod
+    def discard_legacy_immutable_facts(cls, value):
+        """Accept persisted pre-v3 drafts without treating their fact copy as authoritative."""
+        if isinstance(value, dict) and "immutable_facts" in value:
+            value = {key: item for key, item in value.items() if key != "immutable_facts"}
+        return value
 
 
 class CinematographerDraftMapper:
@@ -225,5 +234,5 @@ class CinematographerDraftMapper:
             continuity_chains=[ContinuityChain(chain_id=chain_id, label=scene.title,
                 shot_ids=shot_ids, initial_state=scene.initial_state.model_copy(deep=True))],
             preserved_constraints=draft.preserved_constraints,
-            immutable_facts=draft.immutable_facts)
+            immutable_facts=list(project.story_bible.immutable_facts) if project.story_bible else [])
         return plan, report

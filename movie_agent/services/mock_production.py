@@ -1152,11 +1152,30 @@ class MockMovieProduction:
         selected_videos = [self._latest_video(shot.shot_id) for shot in project.shots]
         offset = 0.0
         clips = []
+        native_audio_cues = []
         for shot, artifact in zip(project.shots, selected_videos, strict=True):
             clips.append(TimelineClip(
                 artifact_id=artifact.artifact_id, start_time_seconds=offset,
                 duration_seconds=shot.duration_seconds, shot_id=shot.shot_id,
             ))
+            native_audio = next((
+                item for item in reversed(self.artifact_store.list_all())
+                if item.artifact_type == ArtifactType.AUDIO
+                and item.source_job_id == artifact.source_job_id
+                and item.metadata.get("media", {}).get("purpose")
+                == AudioPurpose.GENERATED_NATIVE_AUDIO.value
+            ), None)
+            if native_audio is not None:
+                native_duration = native_audio.metadata.get("duration_seconds")
+                native_audio_cues.append(AudioCue(
+                    start_time_seconds=offset,
+                    duration_seconds=min(float(native_duration), shot.duration_seconds)
+                    if native_duration else shot.duration_seconds,
+                    cue_type=AudioPurpose.GENERATED_NATIVE_AUDIO,
+                    artifact_id=native_audio.artifact_id,
+                    scene_id=shot.scene_id,
+                    shot_id=shot.shot_id,
+                ))
             offset += shot.duration_seconds
         audio_ids = ["audio_speech", "audio_music", "audio_sfx", "audio_foley",
                      "audio_ambience", "audio_mix"]
@@ -1165,6 +1184,8 @@ class MockMovieProduction:
         audio_tracks = [AudioTrack(cues=[AudioCue(
             start_time_seconds=0, duration_seconds=offset, cue_type=kind, artifact_id=artifact_id,
         )]) for artifact_id, kind in zip(audio_ids, audio_types, strict=True)]
+        if native_audio_cues:
+            audio_tracks.insert(0, AudioTrack(cues=native_audio_cues))
         self.timeline = Timeline(
             project_id=project.project_id, duration_seconds=offset,
             video_tracks=[VideoTrack(clips=clips)], audio_tracks=audio_tracks,

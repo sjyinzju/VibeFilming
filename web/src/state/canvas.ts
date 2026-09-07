@@ -1,6 +1,6 @@
 import dagre from '@dagrejs/dagre';
 import type { Edge, Node, XYPosition } from '@xyflow/react';
-import type { Snapshot } from '../api/types';
+import type { ProviderExecutionGraph, Snapshot } from '../api/types';
 
 export type CanvasKind = 'role' | 'scene' | 'shot' | 'human' | 'production' | 'final';
 export type CanvasData = {
@@ -11,10 +11,17 @@ export type CanvasData = {
   identity: string;
   metadata?: string;
   media?: { frames: string; video: string; qc: string };
+  executionGraph?: ProviderExecutionGraph;
+  executionExpanded?: boolean;
+  onToggleExecution?: (executionId: string) => void;
 };
 export type StudioNode = Node<CanvasData>;
 export type Positions = Record<string, XYPosition>;
 export function projectCanvas(snapshot: Snapshot) {
+  const executionByParent = new Map<string, ProviderExecutionGraph>();
+  for (const graph of snapshot.provider_execution_graphs || []) {
+    if (graph.parent_node_id) executionByParent.set(graph.parent_node_id, graph);
+  }
   const artifactsByShot = new Map<string, typeof snapshot.artifacts>();
   for (const artifact of snapshot.artifacts) {
     const shotId = artifact.provenance?.shot_id;
@@ -30,6 +37,7 @@ export function projectCanvas(snapshot: Snapshot) {
     ]);
   }
   const nodes: StudioNode[] = (snapshot.graph.nodes || []).map((n) => {
+    const executionGraph = executionByParent.get(n.node_id);
     const kind: CanvasKind =
       n.node_type === 'human_gate'
         ? 'human'
@@ -51,6 +59,7 @@ export function projectCanvas(snapshot: Snapshot) {
         kind,
         identity: n.node_id,
         metadata: n.group,
+        executionGraph,
       },
     };
   });
@@ -127,6 +136,34 @@ export function projectCanvas(snapshot: Snapshot) {
     });
   });
   return { nodes, edges };
+}
+
+export type ProviderExecutionLayout = {
+  positions: Record<string, XYPosition>;
+  width: number;
+  height: number;
+};
+
+export function layoutProviderExecutionGraph(
+  execution: ProviderExecutionGraph,
+): ProviderExecutionLayout {
+  const width = 168;
+  const height = 68;
+  const graph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+  graph.setGraph({ rankdir: 'TB', nodesep: 24, ranksep: 42, marginx: 20, marginy: 20 });
+  execution.nodes.forEach((node) => graph.setNode(node.remote_node_id, { width, height }));
+  execution.edges.forEach((edge) => graph.setEdge(edge.source, edge.target));
+  dagre.layout(graph);
+  return {
+    positions: Object.fromEntries(
+      execution.nodes.map((node) => {
+        const point = graph.node(node.remote_node_id);
+        return [node.remote_node_id, { x: point.x - width / 2, y: point.y - height / 2 }];
+      }),
+    ),
+    width: Math.max(660, graph.graph().width || 0),
+    height: Math.max(390, graph.graph().height || 0),
+  };
 }
 
 export function layoutNodes(

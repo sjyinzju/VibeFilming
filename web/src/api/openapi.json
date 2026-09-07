@@ -1649,7 +1649,8 @@
           "sfx",
           "foley",
           "ambience",
-          "mix"
+          "mix",
+          "generated_native_audio"
         ],
         "title": "AudioPurpose"
       },
@@ -3172,6 +3173,7 @@
           "job_progress",
           "job_completed",
           "job_failed",
+          "job_cancelled",
           "artifact_created",
           "artifact_selected",
           "evaluation_completed",
@@ -3185,6 +3187,7 @@
           "media_job_progress",
           "media_job_completed",
           "media_job_failed",
+          "media_job_cancelled",
           "media_evaluation_started",
           "media_evaluation_completed",
           "media_repair_started",
@@ -3546,6 +3549,21 @@
             "type": "boolean",
             "title": "Cancellation Requested",
             "default": false
+          },
+          "remote_cancellation_dispatched": {
+            "type": "boolean",
+            "title": "Remote Cancellation Dispatched",
+            "default": false
+          },
+          "remote_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "created_at": {
             "type": "string",
@@ -6211,6 +6229,351 @@
         "title": "ProviderCapability",
         "description": "Advertised provider behavior used by strategy planning and routing."
       },
+      "ProviderExecutionGraphEdge": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "edge_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Edge Id"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Source"
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Target"
+          },
+          "source_slot": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Slot"
+          },
+          "target_slot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Slot"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "edge_id",
+          "source",
+          "target"
+        ],
+        "title": "ProviderExecutionGraphEdge"
+      },
+      "ProviderExecutionGraphNode": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "remote_node_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Remote Node Id"
+          },
+          "class_type": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Class Type"
+          },
+          "display_label": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Display Label"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "default": "other"
+          },
+          "runtime_state": {
+            "$ref": "#/components/schemas/ProviderExecutionNodeState",
+            "default": "waiting"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress"
+          },
+          "progress_is_determinate": {
+            "type": "boolean",
+            "title": "Progress Is Determinate",
+            "default": false
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "input_summary": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Input Summary"
+          },
+          "output_artifact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Output Artifact Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "remote_node_id",
+          "class_type",
+          "display_label"
+        ],
+        "title": "ProviderExecutionGraphNode"
+      },
+      "ProviderExecutionGraphView": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "execution_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Execution Id"
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Provider"
+          },
+          "workflow_template_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Workflow Template Id"
+          },
+          "workflow_template_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Workflow Template Version"
+          },
+          "workflow_template_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Workflow Template Hash"
+          },
+          "binding_manifest_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binding Manifest Id"
+          },
+          "binding_manifest_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binding Manifest Version"
+          },
+          "parent_node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Node Id"
+          },
+          "parent_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Job Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
+          "shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Id"
+          },
+          "remote_prompt_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Prompt Id"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderExecutionGraphNode"
+            },
+            "type": "array",
+            "title": "Nodes"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderExecutionGraphEdge"
+            },
+            "type": "array",
+            "title": "Edges"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "execution_id",
+          "provider",
+          "workflow_template_id",
+          "workflow_template_version",
+          "workflow_template_hash",
+          "nodes",
+          "edges"
+        ],
+        "title": "ProviderExecutionGraphView"
+      },
+      "ProviderExecutionNodeState": {
+        "type": "string",
+        "enum": [
+          "waiting",
+          "running",
+          "succeeded",
+          "failed",
+          "interrupted"
+        ],
+        "title": "ProviderExecutionNodeState"
+      },
       "ProviderKind": {
         "type": "string",
         "enum": [
@@ -7920,6 +8283,13 @@
               }
             ],
             "title": "Terminal Revision Scene Id"
+          },
+          "provider_execution_graphs": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderExecutionGraphView"
+            },
+            "type": "array",
+            "title": "Provider Execution Graphs"
           }
         },
         "additionalProperties": false,
@@ -8402,6 +8772,16 @@
           "image_to_video": {
             "type": "boolean",
             "title": "Image To Video",
+            "default": false
+          },
+          "video_to_video": {
+            "type": "boolean",
+            "title": "Video To Video",
+            "default": false
+          },
+          "video_extend": {
+            "type": "boolean",
+            "title": "Video Extend",
             "default": false
           },
           "first_frame": {

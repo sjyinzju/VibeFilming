@@ -125,31 +125,11 @@ def test_local_cancel_request_remote_dispatch_and_remote_confirmation_are_distin
     assert events.events(EventType.MEDIA_JOB_CANCELLED)
 
 
-def test_reserved_h3_profile_fails_as_unsupported_until_official_workflow_is_registered() -> None:
-    async def scenario() -> None:
-        async def healthy(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(200, json={"system": {"comfyui_version": "fixture"}})
-
-        async with httpx.AsyncClient(
-            transport=httpx.MockTransport(healthy), base_url="http://comfyui"
-        ) as http:
-            provider = ComfyUIVideoProvider(
-                client=ComfyUIClient(endpoint="http://comfyui", http_client=http),
-                workflows=ComfyUIWorkflowRegistry(), workflow_profile="minimax_h3_fl2va",
-                resolver=None,
-            )
-            request = VideoGenerationRequest(
-                job_id="h3_job", project_id="h3_project", scene_id="h3_scene",
-                shot_id="h3_shot", output_artifact_id="h3_video",
-                prompt_package=PromptPackage(
-                    compiler_id="generic", compiler_version="1.0.0", positive_prompt="future H3"
-                ),
-                mode=VideoGenerationMode.TEXT_TO_VIDEO, duration_seconds=1, fps=24,
-                width=640, height=360, aspect_ratio="16:9",
-                camera_motion=CameraMotionSpec(motion_type="static"),
-            )
-            with pytest.raises(ProviderFailure) as captured:
-                await provider.generate(request)
-            assert getattr(captured.value, "error_type", None) == ProviderErrorType.UNSUPPORTED_CAPABILITY
-
-    asyncio.run(scenario())
+def test_official_h3_profile_is_installed_but_only_advertises_verified_capabilities() -> None:
+    profile, template, manifest = ComfyUIWorkflowRegistry().resolve("minimax_h3_fl2va")
+    assert profile.model_profile == "minimax-h3-fl2va-int8-convrot"
+    assert template.generation_mode == VideoGenerationMode.FIRST_LAST_FRAME_TO_VIDEO
+    assert set(template.supported_capabilities) == {
+        "first_frame", "last_frame", "first_last_frame", "audio_generation"
+    }
+    assert manifest.inline_negative_prompt

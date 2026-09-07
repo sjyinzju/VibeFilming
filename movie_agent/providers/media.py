@@ -87,6 +87,9 @@ class MediaProviderProgress:
     remote_event: str
     progress: float | None = None
     progress_is_determinate: bool = False
+    node_id: str | None = None
+    provider_execution_graph: dict | None = None
+    provider_execution_update: dict | None = None
 
 
 MediaProviderProgressCallback = Callable[[MediaProviderProgress], Awaitable[None] | None]

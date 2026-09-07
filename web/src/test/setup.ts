@@ -15,6 +15,14 @@ beforeEach(() => {
       return values.size;
     },
   });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class ResizeObserver {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
   setLanguage('en');
 });
 afterEach(() => {

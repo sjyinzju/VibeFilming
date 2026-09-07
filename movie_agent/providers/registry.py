@@ -211,7 +211,16 @@ class ProviderFactory:
             workflows=comfyui_workflows or ComfyUIWorkflowRegistry(),
             workflow_profile=factory._settings.comfyui_workflow_profile,
             resolver=resolver,
-            runtime_capabilities=comfyui_runtime_capabilities or VideoCapabilities(),
+            runtime_capabilities=comfyui_runtime_capabilities or VideoCapabilities(
+                first_frame=True,
+                last_frame=True,
+                first_last_frame=True,
+                audio_generation=True,
+                max_duration_seconds=15,
+                max_width=1344,
+                max_height=1344,
+                supported_fps=[24],
+            ),
         ))
         factory.register(MediaModality.VISION, "mock", MockVisionProvider)
         factory.register(MediaModality.AUDIO, "mock", MockAudioProvider)

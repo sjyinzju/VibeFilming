@@ -7,7 +7,8 @@ from pathlib import Path
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from movie_agent.api.app import create_app as api_app
-from movie_agent.domain import PromptPackage
+from movie_agent.comfyui.profiles import minimax_h3_fl2va_components
+from movie_agent.domain import EventEnvelope, EventType, PromptPackage
 from movie_agent.media import (
     ArtifactMultipartTransport,
     CameraMotionSpec,
@@ -17,8 +18,11 @@ from movie_agent.media import (
     MediaReferenceBinaryResolver,
     MultipartMediaEncoder,
     ReferenceType,
+    ProviderExecutionGraphUpdate,
+    ProviderExecutionNodeState,
     VideoGenerationMode,
     VideoGenerationRequest,
+    build_provider_execution_graph,
 )
 from tests.p2a_fakes import FakeReasoningProvider
 from tests.test_p2a_api import service_at
@@ -96,5 +100,59 @@ def create_app():
             await transport.post_video('/receive/video', video_request)
         return {'expected_sha256': engine.artifact_store.get(artifact_id).metadata['sha256'],
                 'receipts': receipts}
+
+    @app.post('/test/projects/{project_id}/comfyui-execution/{phase}')
+    async def comfyui_execution(project_id: str, phase: str):
+        """E2E-only ComfyUI event fixture exercising the production SSE path."""
+        engine = service.engine(project_id)
+        _, template, manifest = minimax_h3_fl2va_components()
+        execution_id = f'e2e-comfyui-{project_id}'
+        graph = build_provider_execution_graph(
+            execution_id=execution_id,
+            provider='comfyui-video',
+            workflow_template_id=template.template_id,
+            workflow_template_version=template.version,
+            workflow_template_hash=template.template_hash,
+            binding_manifest_id=manifest.manifest_id,
+            binding_manifest_version=manifest.version,
+            prompt={node_id: node.model_dump(mode='json')
+                    for node_id, node in template.api_workflow.items()},
+            node_metadata=template.node_metadata,
+            parent_node_id='shot_production',
+            parent_job_id='e2e-comfyui-video',
+            project_id=project_id,
+            scene_id='scene-e2e',
+            shot_id='shot-e2e',
+        )
+        updates = {
+            'start': ProviderExecutionGraphUpdate(
+                execution_id=execution_id, remote_event='execution_start',
+                remote_node_id='105:6', runtime_state=ProviderExecutionNodeState.RUNNING,
+                activity='Loading H3 model',
+            ),
+            'sampling': ProviderExecutionGraphUpdate(
+                execution_id=execution_id, remote_event='progress_state',
+                remote_node_id='105:14', runtime_state=ProviderExecutionNodeState.RUNNING,
+                progress=0.43, progress_is_determinate=True, activity='Sampling',
+            ),
+            'success': ProviderExecutionGraphUpdate(
+                execution_id=execution_id, remote_event='execution_success',
+            ),
+        }
+        if phase not in updates:
+            raise HTTPException(400, 'Unknown execution phase')
+        payload = {'provider_execution_update': updates[phase].model_dump(mode='json')}
+        if phase == 'start':
+            payload['provider_execution_graph'] = graph.model_dump(mode='json')
+        engine.event_bus.emit(EventEnvelope(
+            event_type=EventType.MEDIA_JOB_PROGRESS,
+            project_id=project_id,
+            trace_id=engine.trace_id,
+            node_id='shot_production',
+            job_id='e2e-comfyui-video',
+            payload=payload,
+        ))
+        return {'execution_id': execution_id, 'phase': phase,
+                'node_count': len(graph.nodes)}
 
     return app

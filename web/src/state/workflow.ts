@@ -1,4 +1,5 @@
 import type { Event, Snapshot, WorkflowNode } from '../api/types';
+import { applyProviderExecutionEvent } from './providerExecution';
 
 export function mergeEvents(a: Event[], b: Event[]): Event[] {
   return [...new Map([...a, ...b].map((event) => [event.event_id, event])).values()]
@@ -55,6 +56,10 @@ export function applyEvent(state: Snapshot, event: Event): Snapshot {
     ...state,
     graph: { ...state.graph, nodes },
     events: mergeEvents(state.events, [event]),
+    provider_execution_graphs: applyProviderExecutionEvent(
+      state.provider_execution_graphs || [],
+      event,
+    ),
     status:
       event.event_type === 'workflow_completed'
         ? 'completed'

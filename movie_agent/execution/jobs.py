@@ -147,6 +147,9 @@ class JobManager:
         activity: str,
         progress: float | None = None,
         progress_is_determinate: bool = False,
+        remote_event: str | None = None,
+        provider_execution_graph: dict | None = None,
+        provider_execution_update: dict | None = None,
     ) -> GenerationJob:
         job = self.get(job_id)
         changes: dict[str, object] = {
@@ -163,6 +166,9 @@ class JobManager:
             "activity": activity,
             "progress": progress,
             "progress_is_determinate": progress_is_determinate,
+            "remote_event": remote_event,
+            "provider_execution_graph": provider_execution_graph,
+            "provider_execution_update": provider_execution_update,
         })
         return updated
 

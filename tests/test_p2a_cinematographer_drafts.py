@@ -46,7 +46,7 @@ def scene2_fixture():
 
 
 def draft(*deltas):
-    return ShotPlanDraft(preserved_constraints=["Truth wins"], immutable_facts=["Truth wins"],
+    return ShotPlanDraft(preserved_constraints=["Truth wins"],
         shots=[ShotDraft(narrative=ShotNarrative(purpose="Reveal", beat=f"Beat {index}"),
             duration_seconds=6 / len(deltas), camera=CameraSpec(shot_size=ShotSize.CLOSE_UP),
             lighting=LightingSpec(setup="console practical"), local_state_delta=delta)
@@ -63,6 +63,24 @@ def test_canonical_snapshot_cannot_be_expressed_in_output_contract():
     payload["continuity_chains"] = [{"initial_state": {"prop_states": {"OVERRIDE": {}}}}]
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         ShotPlanDraft.model_validate(payload)
+
+
+def test_immutable_facts_are_core_owned_and_legacy_raw_replays_canonically():
+    project, scene = scene2_fixture()
+    candidate = draft(ShotLocalStateDraft(character_updates=[{
+        "character_id": "MARA", "held_prop_ids": []}], prop_updates=[PropLocalStateDraft(
+        prop_id="OVERRIDE", condition=PropCondition.DAMAGED, clear_holder_character_id=True)]))
+    legacy_payload = candidate.model_dump(mode="json")
+    legacy_payload["immutable_facts"] = ["model-rewritten fact"]
+
+    plan, report = RoleOutputValidator().parse(
+        ShotPlanDraft, json.dumps(legacy_payload), project, scene=scene)
+
+    assert report.valid
+    assert plan.immutable_facts == project.story_bible.immutable_facts
+    schema = StructuredOutputAdapter().response_format(
+        ShotPlanDraft, max_scene_shots=2, scene=scene)["json_schema"]["schema"]
+    assert "immutable_facts" not in schema["properties"]
 
 
 @pytest.mark.parametrize("entity_id,code", [("CONSOLE", "broken_reference"),

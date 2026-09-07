@@ -1405,5 +1405,6 @@
   "media_provider_bindings": {"image": "mock-image", "video": "mock-video", "vision": "mock-vision", "audio": "mock-audio", "post": "mock-post"},
   "media_provider_ids": ["mock-image", "mock-video", "mock-vision", "mock-audio", "mock-post"],
   "media_mode": "mock",
-  "reasoning_provider": "fake-reasoning"
+  "reasoning_provider": "fake-reasoning",
+  "provider_execution_graphs": []
 }

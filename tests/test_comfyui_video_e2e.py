@@ -182,6 +182,10 @@ def test_video_provider_fake_http_e2e_preserves_frames_and_registers_video_audio
                 "MovieAgentSaveAudioFixture": {"input": {"required": {"source": ["AUDIO", {}]}}},
             }
 
+        @app.get("/object_info/{node_class}")
+        async def object_info_node(node_class: str):
+            return {node_class: (await object_info())[node_class]}
+
         @app.post("/upload/image")
         async def upload(
             image: UploadFile = File(...), type: str = Form(...),

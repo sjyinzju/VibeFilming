@@ -3,21 +3,26 @@
 from __future__ import annotations
 
 import inspect
+import json
+import subprocess
 import time
 import wave
 from io import BytesIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from movie_agent.comfyui import (
     ComfyUIAssetBridge,
     ComfyUIClient,
     ComfyUIExecutionEventAdapter,
     ComfyUIExecutionUpdate,
+    ComfyUIOutputSource,
     ComfyUIWorkflowCompiler,
     ComfyUIWorkflowRegistry,
     validate_template_binding,
 )
 from movie_agent.domain import GenerationStrategyType, ProviderErrorType, ProviderKind, QualityProfile, ResourceClass
-from movie_agent.domain.base import Provenance
+from movie_agent.domain.base import Provenance, utc_now
 from movie_agent.media.contracts import (
     AudioPurpose,
     GeneratedAudioOutput,
@@ -32,6 +37,12 @@ from movie_agent.media.contracts import (
     VideoGenerationResult,
 )
 from movie_agent.media.transport import MediaReferenceBinaryResolver
+from movie_agent.media.execution_graph import (
+    ProviderExecutionGraphUpdate,
+    ProviderExecutionNodeState,
+    apply_provider_execution_update,
+    build_provider_execution_graph,
+)
 from movie_agent.providers.base import ProviderFailure
 from movie_agent.providers.media import (
     BinaryPayload,
@@ -67,6 +78,7 @@ class ComfyUIVideoProvider(VideoProvider):
         self.test_mode = test_mode
         self._status: dict[str, ComfyUIExecutionUpdate | VideoGenerationResult] = {}
         self._remote_prompts: dict[str, str] = {}
+        self._execution_graphs = {}
 
     async def health(self) -> bool:
         return await self.client.health()
@@ -144,7 +156,13 @@ class ComfyUIVideoProvider(VideoProvider):
         started = time.perf_counter()
         stats = await self.client.system_stats()
         if self.validate_remote_schema:
-            validate_template_binding(template, manifest, await self.client.object_info())
+            validate_template_binding(
+                template,
+                manifest,
+                await self.client.object_info(sorted({
+                    node.class_type for node in template.api_workflow.values()
+                })),
+            )
         input_assets = await ComfyUIAssetBridge(self.client, self.resolver).upload_video_inputs(request)
         spec = ComfyUIWorkflowCompiler().compile(
             request=request,
@@ -155,9 +173,56 @@ class ComfyUIVideoProvider(VideoProvider):
             binding_manifest=manifest,
             model_profile=profile.model_profile,
         )
+        execution_graph = build_provider_execution_graph(
+            execution_id=request.request_id,
+            provider=self.provider_id,
+            workflow_template_id=spec.template_id,
+            workflow_template_version=spec.template_version,
+            workflow_template_hash=spec.template_hash,
+            binding_manifest_id=spec.binding_manifest_id,
+            binding_manifest_version=spec.binding_manifest_version,
+            prompt=spec.prompt,
+            node_metadata=template.node_metadata,
+            parent_node_id="shot_production",
+            parent_job_id=request.job_id,
+            project_id=request.project_id,
+            scene_id=request.scene_id,
+            shot_id=request.shot_id,
+        )
+        self._execution_graphs[request.request_id] = execution_graph
 
         async def progress(update: ComfyUIExecutionUpdate) -> None:
+            nonlocal execution_graph
             self._status[request.request_id] = update
+            for cached_node_id in update.cached_node_ids:
+                execution_graph = apply_provider_execution_update(
+                    execution_graph,
+                    ProviderExecutionGraphUpdate(
+                        execution_id=execution_graph.execution_id,
+                        remote_event="execution_cached",
+                        remote_node_id=cached_node_id,
+                        runtime_state=ProviderExecutionNodeState.SUCCEEDED,
+                    ),
+                )
+            state = {
+                "executing": ProviderExecutionNodeState.RUNNING,
+                "progress_state": ProviderExecutionNodeState.RUNNING,
+                "execution_error": ProviderExecutionNodeState.FAILED,
+                "execution_interrupted": ProviderExecutionNodeState.INTERRUPTED,
+            }.get(update.remote_event)
+            graph_update = ProviderExecutionGraphUpdate(
+                execution_id=execution_graph.execution_id,
+                remote_event=update.remote_event,
+                remote_node_id=update.node_id,
+                runtime_state=state,
+                progress=update.progress,
+                progress_is_determinate=update.progress_is_determinate,
+                activity=update.activity,
+                error=update.error,
+                timestamp=utc_now(),
+            )
+            execution_graph = apply_provider_execution_update(execution_graph, graph_update)
+            self._execution_graphs[request.request_id] = execution_graph
             if on_progress is not None:
                 result = on_progress(MediaProviderProgress(
                     status=update.status,
@@ -165,12 +230,32 @@ class ComfyUIVideoProvider(VideoProvider):
                     remote_event=update.remote_event,
                     progress=update.progress,
                     progress_is_determinate=update.progress_is_determinate,
+                    node_id=update.node_id,
+                    provider_execution_graph=(
+                        execution_graph.model_dump(mode="json")
+                        if update.remote_event in {
+                            "prompt_submitted", "execution_cached", "execution_success",
+                            "execution_error", "execution_interrupted",
+                        }
+                        else None
+                    ),
+                    provider_execution_update=(
+                        graph_update.model_dump(mode="json")
+                        if update.remote_event not in {"execution_cached"}
+                        else None
+                    ),
                 ))
                 if inspect.isawaitable(result):
                     await result
 
         async def submitted(value) -> None:
+            nonlocal execution_graph
             self._remote_prompts[request.request_id] = value.prompt_id
+            execution_graph = execution_graph.model_copy(update={
+                "execution_id": value.prompt_id,
+                "remote_prompt_id": value.prompt_id,
+            })
+            self._execution_graphs[request.request_id] = execution_graph
 
         submission = await self.client.execute_prompt(
             spec.prompt,
@@ -185,6 +270,7 @@ class ComfyUIVideoProvider(VideoProvider):
         primary_encoding: MediaEncoding | None = None
         primary_codec: str | None = None
         purpose_counts: dict[str, int] = {}
+        remote_payloads: dict[tuple[str, str, str], bytes] = {}
         for declaration in spec.expected_outputs:
             remote_files = self.client.output_files(
                 history, node_id=declaration.node_id, history_key=declaration.history_key
@@ -197,7 +283,12 @@ class ComfyUIVideoProvider(VideoProvider):
                     )
                 continue
             for remote_file in remote_files:
-                content = await self.client.view(remote_file)
+                remote_key = (remote_file.filename, remote_file.subfolder, remote_file.type)
+                if remote_key not in remote_payloads:
+                    remote_payloads[remote_key] = await self.client.view(remote_file)
+                content = remote_payloads[remote_key]
+                if declaration.source == ComfyUIOutputSource.MUXED_AUDIO:
+                    content = self._extract_muxed_audio(content)
                 self._validate_output(content, declaration.mime_type)
                 if declaration.primary:
                     artifact_id = request.output_artifact_id
@@ -225,7 +316,7 @@ class ComfyUIVideoProvider(VideoProvider):
                     duration, sample_rate, channels = self._audio_properties(content, declaration.mime_type)
                     audio_outputs.append(GeneratedAudioOutput(
                         artifact_id=artifact_id,
-                        purpose=AudioPurpose.MIX,
+                        purpose=AudioPurpose.GENERATED_NATIVE_AUDIO,
                         duration_seconds=duration,
                         sample_rate=sample_rate,
                         channels=channels,
@@ -233,6 +324,15 @@ class ComfyUIVideoProvider(VideoProvider):
                     ))
         if primary_encoding is None:
             raise ProviderFailure("ComfyUI primary video output is missing", ProviderErrorType.GENERATION_FAILED)
+
+        execution_graph = execution_graph.model_copy(update={
+            "nodes": [
+                node.model_copy(update={"output_artifact_ids": artifact_ids})
+                if node.remote_node_id == "92" else node
+                for node in execution_graph.nodes
+            ],
+        })
+        self._execution_graphs[request.request_id] = execution_graph
 
         system = stats.get("system", {})
         provider_metadata = {
@@ -255,6 +355,9 @@ class ComfyUIVideoProvider(VideoProvider):
             "prompt_parameters": {
                 "positive_prompt": request.prompt_package.positive_prompt,
                 "negative_prompt": request.prompt_package.negative_prompt,
+                "negative_prompt_policy": (
+                    "inline_guidance" if manifest.inline_negative_prompt else "separate_or_unsupported"
+                ),
             },
             "input_artifacts": [
                 {"semantic_slot": item.semantic_slot, "artifact_id": item.artifact_id,
@@ -262,6 +365,8 @@ class ComfyUIVideoProvider(VideoProvider):
                 for item in input_assets
             ],
             "timings": {"total_seconds": time.perf_counter() - started},
+            "native_audio_derivation": "ffmpeg_audio_stream_copy_from_h3_muxed_video",
+            "provider_execution_graph": execution_graph.model_dump(mode="json"),
         }
         result = VideoGenerationResult(
             request_id=request.request_id,
@@ -298,16 +403,78 @@ class ComfyUIVideoProvider(VideoProvider):
             valid = len(content) >= 12 and content[4:8] == b"ftyp"
         elif mime_type == "audio/wav":
             valid = len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WAVE"
+        elif mime_type == "audio/mp4":
+            valid = len(content) >= 12 and content[4:8] == b"ftyp"
         if not valid:
             raise ProviderFailure("ComfyUI returned corrupt media", ProviderErrorType.MEDIA_CORRUPT)
 
     @staticmethod
     def _audio_properties(content: bytes, mime_type: str) -> tuple[float | None, int | None, int | None]:
-        if mime_type != "audio/wav":
-            return None, None, None
-        try:
-            with wave.open(BytesIO(content), "rb") as decoded:
-                rate = decoded.getframerate()
-                return decoded.getnframes() / rate, rate, decoded.getnchannels()
-        except (EOFError, wave.Error) as error:
-            raise ProviderFailure("ComfyUI returned corrupt WAV audio", ProviderErrorType.MEDIA_CORRUPT) from error
+        if mime_type == "audio/wav":
+            try:
+                with wave.open(BytesIO(content), "rb") as decoded:
+                    rate = decoded.getframerate()
+                    return decoded.getnframes() / rate, rate, decoded.getnchannels()
+            except (EOFError, wave.Error) as error:
+                raise ProviderFailure("ComfyUI returned corrupt WAV audio", ProviderErrorType.MEDIA_CORRUPT) from error
+        if mime_type == "audio/mp4":
+            with TemporaryDirectory(prefix="movie-agent-probe-") as directory:
+                source = Path(directory) / "native.m4a"
+                source.write_bytes(content)
+                try:
+                    completed = subprocess.run(
+                        [
+                            "ffprobe", "-v", "error", "-select_streams", "a:0",
+                            "-show_entries", "stream=sample_rate,channels,duration",
+                            "-of", "json", str(source),
+                        ],
+                        capture_output=True, text=True, timeout=30, check=False,
+                    )
+                except (FileNotFoundError, subprocess.TimeoutExpired) as error:
+                    raise ProviderFailure(
+                        "FFprobe is unavailable for native audio validation",
+                        ProviderErrorType.UNAVAILABLE,
+                    ) from error
+                if completed.returncode != 0:
+                    raise ProviderFailure(
+                        "Extracted native audio could not be probed",
+                        ProviderErrorType.MEDIA_CORRUPT,
+                    )
+                streams = json.loads(completed.stdout).get("streams", [])
+                if not streams:
+                    raise ProviderFailure("H3 output has no native audio stream", ProviderErrorType.MEDIA_CORRUPT)
+                stream = streams[0]
+                return (
+                    float(stream["duration"]) if stream.get("duration") else None,
+                    int(stream["sample_rate"]) if stream.get("sample_rate") else None,
+                    int(stream["channels"]) if stream.get("channels") else None,
+                )
+        return None, None, None
+
+    @staticmethod
+    def _extract_muxed_audio(content: bytes) -> bytes:
+        """Deterministically copy H3's native audio stream without re-encoding it."""
+
+        with TemporaryDirectory(prefix="movie-agent-h3-audio-") as directory:
+            source = Path(directory) / "source.mp4"
+            target = Path(directory) / "native.m4a"
+            source.write_bytes(content)
+            try:
+                completed = subprocess.run(
+                    [
+                        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                        "-i", str(source), "-map", "0:a:0", "-c:a", "copy", str(target),
+                    ],
+                    capture_output=True, timeout=120, check=False,
+                )
+            except (FileNotFoundError, subprocess.TimeoutExpired) as error:
+                raise ProviderFailure(
+                    "FFmpeg is unavailable for native audio extraction",
+                    ProviderErrorType.UNAVAILABLE,
+                ) from error
+            if completed.returncode != 0 or not target.exists():
+                raise ProviderFailure(
+                    "H3 muxed video has no extractable native audio stream",
+                    ProviderErrorType.MEDIA_CORRUPT,
+                )
+            return target.read_bytes()

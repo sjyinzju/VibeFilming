@@ -71,6 +71,49 @@ test('browser image upload persists, previews, binds, and reaches fake remote un
     for (const part of receipt.parts) expect(part.sha256).toBe(transported.expected_sha256);
 });
 
+test('fake ComfyUI events grow a selected video node and remain inspectable after completion', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByLabel('Your story').fill('A camera follows one quiet mechanical gesture.');
+  const eventStreamReady = page.waitForResponse(
+    (response) => response.url().endsWith('/events') && response.status() === 200,
+  );
+  await page.getByRole('button', { name: 'Start Film', exact: true }).click();
+  await expect(page).toHaveURL(/project=project_/);
+  await eventStreamReady;
+  const projectId = new URL(page.url()).searchParams.get('project')!;
+  const videoNode = page.locator('.react-flow__node[data-id="shot_production"]');
+  await expect(videoNode).toHaveCount(1);
+  await videoNode.click({ force: true });
+  await expect(videoNode.locator('.execution-node')).toHaveCount(0);
+
+  const start = await page.request.post(`/api/test/projects/${projectId}/comfyui-execution/start`);
+  expect(start.ok()).toBe(true);
+  expect((await start.json()).node_count).toBe(18);
+  await expect(videoNode.locator('.execution-graph-panel')).toBeAttached();
+  await expect(videoNode.locator('.execution-node')).toHaveCount(18);
+  await expect(
+    videoNode.locator('[aria-label="Load MiniMax H3 FL2VA INT8 ConvRot: running"]'),
+  ).toBeAttached();
+
+  await page.request.post(`/api/test/projects/${projectId}/comfyui-execution/sampling`);
+  await expect(
+    videoNode.locator('[aria-label="Sample video and audio latents: running 43%"]'),
+  ).toBeAttached();
+
+  await page.request.post(`/api/test/projects/${projectId}/comfyui-execution/success`);
+  await expect(videoNode.locator('.execution-succeeded')).toHaveCount(18);
+  await videoNode.getByRole('button', { name: 'Collapse ComfyUI execution graph' }).click();
+  await expect(videoNode.locator('.execution-node')).toHaveCount(0);
+
+  await page.reload();
+  const restoredVideoNode = page.locator('.react-flow__node[data-id="shot_production"]');
+  await expect(restoredVideoNode.locator('.execution-node')).toHaveCount(0);
+  await restoredVideoNode.getByRole('button', { name: 'Expand ComfyUI execution graph' }).click();
+  await expect(restoredVideoNode.locator('.execution-succeeded')).toHaveCount(18);
+});
+
 test('story-only production, live canvas, human gates, refresh and Mock completion', async ({
   page,
 }) => {
@@ -92,7 +135,9 @@ test('story-only production, live canvas, human gates, refresh and Mock completi
   await expect(page).toHaveURL(/project=project_/);
   await expect(page.locator('.studio-node')).toHaveCount(21);
   for (let gate = 0; gate < 3; gate++) {
-    const approve = page.getByRole('button', { name: 'Approve & resume' });
+    const approve = page
+      .locator('button:enabled')
+      .filter({ hasText: 'Approve & resume' });
     await expect(approve).toBeVisible({ timeout: 30000 });
     if (gate === 0) {
       const subject = page.locator('.review-subject');
@@ -147,7 +192,7 @@ test('story-only production, live canvas, human gates, refresh and Mock completi
       page
         .locator(`[data-review-id="${reviewId}"]`)
         .getByRole('button', { name: 'Approve & resume' }),
-    ).not.toBeVisible();
+    ).toBeDisabled();
   }
   await expect(page.locator('.stage-label')).toHaveText('Workflow completed', { timeout: 30000 });
   await expect(page.locator('.react-flow__node-scene')).toHaveCount(1);

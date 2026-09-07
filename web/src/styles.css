@@ -613,6 +613,135 @@ summary span:last-child {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
+.studio-node.has-execution.expanded {
+  width: 780px;
+}
+.execution-summary {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.execution-summary button {
+  width: 100%;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  text-align: left;
+}
+.execution-summary button small {
+  margin-left: auto;
+  color: var(--muted);
+}
+.execution-summary.is-running button {
+  color: var(--accent);
+}
+.execution-graph-panel {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--background);
+  overflow: hidden;
+}
+.execution-graph-panel > header {
+  height: 32px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 9px;
+}
+.execution-graph-panel > header span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.execution-graph-panel code {
+  font-size: 8px;
+}
+.execution-graph-scroll {
+  width: 746px;
+  height: 460px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.execution-graph-canvas {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+}
+.execution-graph-canvas > svg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.execution-graph-canvas > svg path {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.2;
+}
+.execution-node {
+  position: absolute;
+  width: 168px;
+  height: 68px;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--text);
+  overflow: hidden;
+}
+.execution-node > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.execution-node strong,
+.execution-node small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.execution-node strong {
+  font-size: 9px;
+}
+.execution-node small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-family: Consolas, monospace;
+  font-size: 7px;
+}
+.execution-running {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-soft);
+}
+.execution-running > div,
+.execution-running small {
+  color: var(--accent);
+}
+.execution-succeeded > div {
+  color: var(--success);
+}
+.execution-failed,
+.execution-interrupted {
+  border-color: var(--error);
+}
+.execution-failed > div,
+.execution-interrupted > div {
+  color: var(--error);
+}
 .node-top {
   display: flex;
   align-items: center;

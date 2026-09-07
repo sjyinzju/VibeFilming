@@ -109,7 +109,6 @@ def test_exhausted_output_can_be_revalidated_after_code_fix_without_inference(tm
     project = exhausted.current_project
     saved.pending_output = ShotPlanDraft(
         preserved_constraints=project.brief.user_constraints + project.brief.must_preserve,
-        immutable_facts=project.story_bible.immutable_facts,
         shots=[ShotDraft(duration_seconds=project.brief.target_duration,
             narrative=ShotNarrative(purpose="Listen", beat="The signal stops"),
             camera=CameraSpec(shot_size=ShotSize.WIDE),

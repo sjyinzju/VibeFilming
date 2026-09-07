@@ -54,6 +54,11 @@ class BindingTransform(StrEnum):
     NUMBER = "number"
 
 
+class ComfyUIOutputSource(StrEnum):
+    REMOTE_FILE = "remote_file"
+    MUXED_AUDIO = "muxed_audio"
+
+
 class ComfyUIAPINode(ContractModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -72,6 +77,7 @@ class ComfyUIOutputDeclaration(ContractModel):
     primary: bool = False
     required: bool = True
     codec: str | None = None
+    source: ComfyUIOutputSource = ComfyUIOutputSource.REMOTE_FILE
 
 
 class ComfyUIWorkflowTemplate(ContractModel):
@@ -89,6 +95,7 @@ class ComfyUIWorkflowTemplate(ContractModel):
     supported_capabilities: list[str] = Field(default_factory=list)
     required_semantic_slots: list[str] = Field(default_factory=list)
     outputs: list[ComfyUIOutputDeclaration]
+    display_metadata: dict[str, JSONValue] = Field(default_factory=dict)
     node_metadata: dict[str, dict[str, JSONValue]] = Field(default_factory=dict)
     edge_metadata: list[dict[str, JSONValue]] = Field(default_factory=list)
 
@@ -98,7 +105,7 @@ class ComfyUIWorkflowTemplate(ContractModel):
             raise ValueError("ComfyUI API workflow cannot be empty")
         if self.template_hash != compute_workflow_hash(self.api_workflow):
             raise ValueError("ComfyUI workflow template hash does not match API workflow")
-        output_targets = [(item.node_id, item.history_key) for item in self.outputs]
+        output_targets = [(item.node_id, item.history_key, item.source) for item in self.outputs]
         if len(output_targets) != len(set(output_targets)):
             raise ValueError("ComfyUI workflow output node/history targets must be unique")
         output_ids = [item.node_id for item in self.outputs]
@@ -130,6 +137,7 @@ class WorkflowBindingManifest(ContractModel):
     template_id: str = Field(min_length=1)
     template_version: str = Field(min_length=1)
     bindings: list[WorkflowBinding]
+    inline_negative_prompt: bool = False
 
     @model_validator(mode="after")
     def validate_unique_bindings(self) -> "WorkflowBindingManifest":

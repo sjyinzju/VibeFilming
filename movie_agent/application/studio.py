@@ -12,6 +12,8 @@ from .views import ProjectSnapshot
 from .creative_inputs import CreativeHints
 from .review_subjects import ReviewSubject, project_review_subject
 from movie_agent.providers.media import ImageProvider, VideoProvider, VisionProvider, AudioProvider, PostProcessor
+from movie_agent.media.execution_graph import ProviderExecutionGraphView
+from .provider_execution import project_provider_execution_graphs
 
 
 class StudioSnapshot(ProjectSnapshot):
@@ -35,6 +37,7 @@ class StudioSnapshot(ProjectSnapshot):
     reasoning_provider: str
     review_subjects: list[ReviewSubject] = Field(default_factory=list)
     terminal_revision_scene_id: str | None = None
+    provider_execution_graphs: list[ProviderExecutionGraphView] = Field(default_factory=list)
 
 
 def studio_snapshot(service, project_id):
@@ -67,4 +70,5 @@ def studio_snapshot(service, project_id):
         media_mode="mock" if mock_count == len(providers) else "mixed" if mock_count else "real",
         media_references=engine.reference_bank.all(),
         reasoning_provider=engine.llm_provider.provider_id,
-        terminal_revision_scene_id=service.terminal_revision_scene(project_id))
+        terminal_revision_scene_id=service.terminal_revision_scene(project_id),
+        provider_execution_graphs=project_provider_execution_graphs(artifacts, events))

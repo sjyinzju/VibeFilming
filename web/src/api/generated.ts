@@ -610,7 +610,7 @@ export interface components {
          * AudioPurpose
          * @enum {string}
          */
-        AudioPurpose: "speech" | "music" | "sfx" | "foley" | "ambience" | "mix";
+        AudioPurpose: "speech" | "music" | "sfx" | "foley" | "ambience" | "mix" | "generated_native_audio";
         /** AudioTrack */
         AudioTrack: {
             /**
@@ -1324,7 +1324,7 @@ export interface components {
          * EventType
          * @enum {string}
          */
-        EventType: "provider_request_started" | "provider_request_completed" | "role_output_received" | "role_output_validation_failed" | "role_output_validated" | "checkpoint_created" | "project_created" | "node_created" | "node_started" | "node_progress" | "node_completed" | "node_failed" | "edge_created" | "edge_activated" | "job_created" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "artifact_created" | "artifact_selected" | "evaluation_completed" | "repair_started" | "repair_completed" | "human_review_requested" | "human_review_resolved" | "workflow_completed" | "media_job_created" | "media_job_started" | "media_job_progress" | "media_job_completed" | "media_job_failed" | "media_evaluation_started" | "media_evaluation_completed" | "media_repair_started" | "media_repair_completed" | "model_service_status_changed" | "reference_bound" | "reference_unbound";
+        EventType: "provider_request_started" | "provider_request_completed" | "role_output_received" | "role_output_validation_failed" | "role_output_validated" | "checkpoint_created" | "project_created" | "node_created" | "node_started" | "node_progress" | "node_completed" | "node_failed" | "edge_created" | "edge_activated" | "job_created" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "job_cancelled" | "artifact_created" | "artifact_selected" | "evaluation_completed" | "repair_started" | "repair_completed" | "human_review_requested" | "human_review_resolved" | "workflow_completed" | "media_job_created" | "media_job_started" | "media_job_progress" | "media_job_completed" | "media_job_failed" | "media_job_cancelled" | "media_evaluation_started" | "media_evaluation_completed" | "media_repair_started" | "media_repair_completed" | "model_service_status_changed" | "reference_bound" | "reference_unbound";
         /**
          * FrameAnchor
          * @description A planned or materialized boundary-frame dependency.
@@ -1479,6 +1479,12 @@ export interface components {
              * @default false
              */
             cancellation_requested?: boolean;
+            /**
+             * Remote Cancellation Dispatched
+             * @default false
+             */
+            remote_cancellation_dispatched?: boolean;
+            remote_status?: components["schemas"]["JobStatus"] | null;
             /**
              * Created At
              * Format: date-time
@@ -2571,6 +2577,115 @@ export interface components {
             /** Max Duration Seconds */
             max_duration_seconds?: number | null;
         };
+        /** ProviderExecutionGraphEdge */
+        ProviderExecutionGraphEdge: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Edge Id */
+            edge_id: string;
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+            /** Source Slot */
+            source_slot?: number | null;
+            /** Target Slot */
+            target_slot?: string | null;
+        };
+        /** ProviderExecutionGraphNode */
+        ProviderExecutionGraphNode: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Remote Node Id */
+            remote_node_id: string;
+            /** Class Type */
+            class_type: string;
+            /** Display Label */
+            display_label: string;
+            /**
+             * Category
+             * @default other
+             */
+            category?: string;
+            /** @default waiting */
+            runtime_state?: components["schemas"]["ProviderExecutionNodeState"];
+            /** Progress */
+            progress?: number | null;
+            /**
+             * Progress Is Determinate
+             * @default false
+             */
+            progress_is_determinate?: boolean;
+            /** Started At */
+            started_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Input Summary */
+            input_summary?: string[];
+            /** Output Artifact Ids */
+            output_artifact_ids?: string[];
+        };
+        /** ProviderExecutionGraphView */
+        ProviderExecutionGraphView: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Execution Id */
+            execution_id: string;
+            /** Provider */
+            provider: string;
+            /** Workflow Template Id */
+            workflow_template_id: string;
+            /** Workflow Template Version */
+            workflow_template_version: string;
+            /** Workflow Template Hash */
+            workflow_template_hash: string;
+            /** Binding Manifest Id */
+            binding_manifest_id?: string | null;
+            /** Binding Manifest Version */
+            binding_manifest_version?: string | null;
+            /** Parent Node Id */
+            parent_node_id?: string | null;
+            /** Parent Job Id */
+            parent_job_id?: string | null;
+            /** Project Id */
+            project_id?: string | null;
+            /** Scene Id */
+            scene_id?: string | null;
+            /** Shot Id */
+            shot_id?: string | null;
+            /** Remote Prompt Id */
+            remote_prompt_id?: string | null;
+            /** Nodes */
+            nodes: components["schemas"]["ProviderExecutionGraphNode"][];
+            /** Edges */
+            edges: components["schemas"]["ProviderExecutionGraphEdge"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+            /** Completed At */
+            completed_at?: string | null;
+        };
+        /**
+         * ProviderExecutionNodeState
+         * @enum {string}
+         */
+        ProviderExecutionNodeState: "waiting" | "running" | "succeeded" | "failed" | "interrupted";
         /**
          * ProviderKind
          * @enum {string}
@@ -3310,6 +3425,8 @@ export interface components {
             review_subjects?: components["schemas"]["ReviewSubject"][];
             /** Terminal Revision Scene Id */
             terminal_revision_scene_id?: string | null;
+            /** Provider Execution Graphs */
+            provider_execution_graphs?: components["schemas"]["ProviderExecutionGraphView"][];
         };
         /** StyleReference */
         StyleReference: {
@@ -3537,6 +3654,16 @@ export interface components {
              * @default false
              */
             image_to_video?: boolean;
+            /**
+             * Video To Video
+             * @default false
+             */
+            video_to_video?: boolean;
+            /**
+             * Video Extend
+             * @default false
+             */
+            video_extend?: boolean;
             /**
              * First Frame
              * @default false

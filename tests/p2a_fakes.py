@@ -55,6 +55,6 @@ class FakeReasoningProvider(MockProvider, LLMProvider):
                 camera=CameraSpec(shot_size=ShotSize.WIDE), lighting=LightingSpec(setup="practical"),
                 frame_planning=FramePlanningDraft(first_frame_description="Canonical opening",
                     last_frame_description="Resolved ending"),
-                local_state_delta=ShotLocalStateDraft())], **commitments)
+                local_state_delta=ShotLocalStateDraft())], preserved_constraints=hard)
         return ProviderResult(provider_request_id=request.provider_request_id, success=True,
             metadata={"content": output.model_dump_json(), "served_model": "fake", "usage": {"total_tokens": 40}})

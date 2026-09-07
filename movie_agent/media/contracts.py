@@ -35,6 +35,7 @@ class AudioPurpose(StrEnum):
     FOLEY = "foley"
     AMBIENCE = "ambience"
     MIX = "mix"
+    GENERATED_NATIVE_AUDIO = "generated_native_audio"
 
 
 class ImageGenerationMode(StrEnum):

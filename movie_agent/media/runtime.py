@@ -169,6 +169,9 @@ class MediaRuntime:
                         activity=update.activity,
                         progress=update.progress,
                         progress_is_determinate=update.progress_is_determinate,
+                        remote_event=update.remote_event,
+                        provider_execution_graph=update.provider_execution_graph,
+                        provider_execution_update=update.provider_execution_update,
                     )
 
                 response = await provider.generate(request, strategy=strategy, on_progress=progress)
@@ -405,6 +408,11 @@ class MediaRuntime:
             "sample_rate": output.sample_rate,
             "channels": output.channels,
         }
+        parent_ids = list(dict.fromkeys([
+            response.result.primary_artifact_id,
+            *job.input_artifact_ids,
+            *input_ids,
+        ]))
         provenance = Provenance(
             role="Media Runtime",
             tool=f"{response.result.provider_id}_{payload.purpose}",
@@ -416,7 +424,7 @@ class MediaRuntime:
             project_id=job.project_id,
             scene_id=job.scene_id,
             shot_id=job.shot_id,
-            input_artifact_ids=list(dict.fromkeys([*job.input_artifact_ids, *input_ids])),
+            input_artifact_ids=parent_ids,
             generation_strategy=job.strategy_type,
             seed=seed,
             parameters={
@@ -434,7 +442,7 @@ class MediaRuntime:
             uri=binary.uri,
             version=version,
             source_job_id=job.job_id,
-            parent_artifact_ids=list(dict.fromkeys([*job.input_artifact_ids, *input_ids])),
+            parent_artifact_ids=parent_ids,
             metadata=metadata,
             provenance=provenance,
         )

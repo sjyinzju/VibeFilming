@@ -177,8 +177,22 @@ class ComfyUIClient:
             raise ProviderFailure("ComfyUI returned invalid system stats", ProviderErrorType.UNAVAILABLE)
         return payload
 
-    async def object_info(self) -> dict[str, Any]:
-        return await self._json("GET", "/object_info")
+    async def object_info(self, node_classes: list[str] | None = None) -> dict[str, Any]:
+        """Read all schemas, or only the explicitly requested workflow classes."""
+
+        if node_classes is None:
+            return await self._json("GET", "/object_info")
+        classes = sorted(set(node_classes))
+        payloads = await asyncio.gather(*(
+            self._json("GET", f"/object_info/{quote(node_class, safe='')}")
+            for node_class in classes
+        ))
+        merged: dict[str, Any] = {}
+        for node_class, payload in zip(classes, payloads, strict=True):
+            schema = payload.get(node_class)
+            if isinstance(schema, dict):
+                merged[node_class] = schema
+        return merged
 
     async def _json(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
         response = await self._request(method, path, **kwargs)
@@ -224,6 +238,8 @@ class ComfyUIExecutionUpdate(ContractModel):
     progress: float | None = Field(default=None, ge=0, le=1)
     progress_is_determinate: bool = False
     node_id: str | None = None
+    cached_node_ids: list[str] = Field(default_factory=list)
+    error: str | None = None
 
 
 async def _notify(
@@ -390,6 +406,15 @@ class ComfyUIWebSocketExecutionEventAdapter(ComfyUIExecutionEventAdapter):
                 remote_event=event,
                 node_id=str(data["node"]) if data.get("node") is not None else None,
             )
+        if event == "execution_cached":
+            nodes = data.get("nodes", [])
+            cached = [str(node) for node in nodes] if isinstance(nodes, list) else []
+            return ComfyUIExecutionUpdate(
+                status=JobStatus.RUNNING,
+                activity=f"ComfyUI reused {len(cached)} cached nodes",
+                remote_event=event,
+                cached_node_ids=cached,
+            )
         if event == "progress_state":
             nodes = data.get("nodes", {})
             active = [item for item in nodes.values() if isinstance(item, dict)] if isinstance(nodes, dict) else []
@@ -414,7 +439,11 @@ class ComfyUIWebSocketExecutionEventAdapter(ComfyUIExecutionEventAdapter):
             )
         if event == "execution_error":
             return ComfyUIExecutionUpdate(
-                status=JobStatus.FAILED, activity="ComfyUI execution failed", remote_event=event
+                status=JobStatus.FAILED,
+                activity="ComfyUI execution failed",
+                remote_event=event,
+                node_id=str(data["node_id"]) if data.get("node_id") is not None else None,
+                error="ComfyUI node execution failed",
             )
         return None
 
