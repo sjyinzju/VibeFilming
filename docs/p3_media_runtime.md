@@ -1,6 +1,6 @@
 # Phase 3 — Media Runtime Foundation
 
-Status: **foundation ready; FLUX Direct is the first real ImageProvider**. Other media remains Mock. No ComfyUI or video model integration.
+Status: **media foundation ready; FLUX Direct is the first real ImageProvider; the ComfyUI video bridge is compiled and fake-HTTP verified**. No real video model is activated.
 
 Layer 1 adds a standalone [FLUX Direct Image Service](../services/flux_image/README.md)
 outside this Agent runtime. Layer 2 connects it through the existing image runtime.
@@ -32,6 +32,7 @@ The reasoning roles, `Shot`, continuity validation, workflow graph, and role run
 - `MockVisionProvider` returns structured scores, issues, evidence, and decisions.
 - `MockAudioProvider` returns valid WAV fixtures for speech, music, SFX, Foley, ambience, and mix.
 - `MockPostProcessor` returns a valid MP4 fixture from a typed Timeline.
+- `ComfyUIVideoProvider` resolves immutable frame Artifacts, uploads bytes, compiles a registered API-format workflow, observes remote execution, retrieves declared outputs, and returns video plus optional native-audio payloads. Its bundled tests use a fake HTTP service; there is no bundled H3 workflow.
 - Every output follows the same Provider → Job → Artifact → Event path intended for real adapters.
 
 These are deterministic test assets, not AI-generated media. Studio marks them `MOCK` while allowing browser playback.
@@ -53,10 +54,14 @@ MOVIE_AGENT_VISION_PROVIDER=mock
 MOVIE_AGENT_AUDIO_PROVIDER=mock
 MOVIE_AGENT_POST_PROVIDER=mock
 MOVIE_AGENT_IMAGE_UPLOAD_MAX_BYTES=20971520
+MOVIE_AGENT_COMFYUI_ENDPOINT=http://127.0.0.1:8188
+MOVIE_AGENT_COMFYUI_TIMEOUT=3600
+MOVIE_AGENT_COMFYUI_WEBSOCKET_TIMEOUT=3600
+MOVIE_AGENT_COMFYUI_WORKFLOW_PROFILE=minimax_h3_fl2va
 ```
 
-Selecting an unregistered binding fails explicitly. There is no silent real-to-Mock fallback.
+Selecting an unregistered binding or unavailable workflow profile fails explicitly. There is no silent real-to-Mock fallback. `minimax_h3_fl2va` is reserved but intentionally unregistered in this phase.
 
 ## Progress and cancellation
 
-Providers may report determinate progress through the job manager. Without a real progress signal the Studio displays activity/status only; it never synthesizes percentages. Local cancellation prevents later Core commits. Provider cancellation is best effort and does not claim that remote computation stopped.
+Providers may report determinate progress through the job manager. ComfyUI `progress_state` values are forwarded only when the server supplies a real value/max pair; otherwise the Studio receives activity/status without a fabricated percentage. Local cancellation requested, remote cancellation dispatched, and remote interruption confirmed are separate job facts.

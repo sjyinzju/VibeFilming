@@ -11,6 +11,7 @@ from movie_agent.domain import (
     EventEnvelope,
     EventType,
     GenerationJob,
+    GenerationStrategyType,
     JobStatus,
     ProviderErrorType,
     ProviderResult,
@@ -28,6 +29,7 @@ from movie_agent.media.contracts import (
     MediaEncoding,
     MediaModality,
     MediaRoutingRequest,
+    MediaGenerationStrategy,
     PostProductionRequest,
     PostProductionResult,
     VideoGenerationRequest,
@@ -43,10 +45,12 @@ from movie_agent.providers.media import (
     PostProcessor,
     ProviderMediaResponse,
     VideoProvider,
+    MediaProviderProgress,
     VisionProvider,
     _png,
     normalize_media_provider_error,
 )
+from movie_agent.providers.base import ProviderFailure
 from movie_agent.providers.registry import MediaRouter, ProviderRegistry
 
 
@@ -126,9 +130,21 @@ class MediaRuntime:
         return self._required(request.output_artifact_id)
 
     async def generate_video(self, job: GenerationJob, request: VideoGenerationRequest) -> Artifact:
+        required_by_mode = {
+            "image_to_video": ["image_to_video"],
+            "first_frame_to_video": ["first_frame"],
+            "first_last_frame_to_video": ["first_frame", "last_frame", "first_last_frame"],
+            "reference_to_video": ["multi_reference"],
+            "video_to_video": ["video_to_video"],
+            "video_extend": ["video_extend"],
+        }
+        routing_capabilities = list(dict.fromkeys([
+            *required_by_mode.get(request.mode.value, []),
+            *[item.capability for item in request.required_capabilities if item.required],
+        ]))
         selection = await self.router.select(MediaRoutingRequest(
             modality=MediaModality.VIDEO, task="video",
-            required_capabilities=[item.capability for item in request.required_capabilities if item.required],
+            required_capabilities=routing_capabilities,
             quality_profile=request.quality_profile, resource_class=request.resource_class,
         ))
         provider = self.providers.get(selection.provider_id)
@@ -137,11 +153,35 @@ class MediaRuntime:
 
         async def operation(active: GenerationJob) -> ProviderResult:
             try:
-                response = await provider.generate(request)
+                strategy = MediaGenerationStrategy(
+                    strategy_type=GenerationStrategyType(active.strategy_type or request.mode.value),
+                    reason="Persisted GenerationStrategy selected before provider routing.",
+                    required_capabilities=list(dict.fromkeys([
+                        *routing_capabilities,
+                    ])),
+                    input_artifact_ids=list(active.input_artifact_ids),
+                )
+
+                async def progress(update: MediaProviderProgress) -> None:
+                    self.job_manager.provider_activity(
+                        active.job_id,
+                        remote_status=update.status,
+                        activity=update.activity,
+                        progress=update.progress,
+                        progress_is_determinate=update.progress_is_determinate,
+                    )
+
+                response = await provider.generate(request, strategy=strategy, on_progress=progress)
+                input_ids = list(dict.fromkeys([
+                    *[item.artifact_id for item in request.references],
+                    *[item.artifact_id for item in (
+                        request.first_frame, request.last_frame, request.previous_shot
+                    ) if item is not None],
+                ]))
                 artifact = self._register_response(
                     job=active, response=response, modality=MediaModality.VIDEO,
                     artifact_type=ArtifactType.VIDEO, purpose="shot_video",
-                    input_ids=[item.artifact_id for item in request.references],
+                    input_ids=input_ids,
                     prompt=request.prompt_package, seed=request.seed,
                     dimensions=response.result.dimensions,
                     duration=response.result.duration_seconds,
@@ -149,8 +189,30 @@ class MediaRuntime:
                     extra={"fps": request.fps, "frame_count": response.result.frame_count,
                            "codec": response.result.codec},
                 )
+                related = [artifact]
+                for audio in response.result.native_audio_outputs:
+                    related.append(self._register_native_video_audio(
+                        job=active,
+                        response=response,
+                        output=audio,
+                        input_ids=input_ids,
+                        prompt=request.prompt_package,
+                        seed=request.seed,
+                    ))
+                registered_ids = {item.artifact_id for item in related}
+                for payload in response.payloads:
+                    if payload.artifact_id not in registered_ids:
+                        related.append(self._register_related_video_payload(
+                            job=active,
+                            response=response,
+                            payload=payload,
+                            input_ids=input_ids,
+                            prompt=request.prompt_package,
+                            seed=request.seed,
+                        ))
+                        registered_ids.add(payload.artifact_id)
                 return ProviderResult(provider_request_id=request.request_id, success=True,
-                                      artifact_ids=[artifact.artifact_id],
+                                      artifact_ids=[item.artifact_id for item in related],
                                       metadata=response.result.provider_metadata)
             except BaseException as error:
                 return normalize_media_provider_error(request.request_id, error)
@@ -267,8 +329,23 @@ class MediaRuntime:
         completed = await LocalJobExecutor(self.job_manager).execute(job.job_id, operation)
         if completed.status != JobStatus.SUCCEEDED:
             # Do not expose raw SDK/remote details through the workflow surface.
-            error_type = ProviderErrorType.CANCELLED if completed.status == JobStatus.CANCELLED else ProviderErrorType.GENERATION_FAILED
-            raise RuntimeError(error_type.value)
+            if completed.status == JobStatus.CANCELLED:
+                error_type = ProviderErrorType.CANCELLED
+            else:
+                prefix = "media_provider_"
+                normalized = completed.failure_reason or ""
+                try:
+                    error_type = ProviderErrorType(
+                        normalized.removeprefix(prefix)
+                    ) if normalized.startswith(prefix) else ProviderErrorType.GENERATION_FAILED
+                except ValueError:
+                    error_type = ProviderErrorType.GENERATION_FAILED
+            message = (
+                "PROVIDER_UNAVAILABLE"
+                if error_type == ProviderErrorType.UNAVAILABLE
+                else error_type.value.upper()
+            )
+            raise ProviderFailure(message, error_type)
         completed = completed.model_copy(update={
             "output_artifact_ids": list(completed.related_artifact_ids),
             "activity": "completed",
@@ -287,7 +364,159 @@ class MediaRuntime:
         if route is None:
             return False
         provider_id, request_id = route
-        return await self.providers.get(provider_id).cancel(request_id)
+        dispatched = await self.providers.get(provider_id).cancel(request_id)
+        self.job_manager.mark_remote_cancel_dispatched(job_id, dispatched)
+        return dispatched
+
+    def _register_native_video_audio(
+        self,
+        *,
+        job: GenerationJob,
+        response: ProviderMediaResponse,
+        output,
+        input_ids: list[str],
+        prompt,
+        seed: int | None,
+    ) -> Artifact:
+        payload = next((item for item in response.payloads if item.artifact_id == output.artifact_id), None)
+        if payload is None:
+            raise ValueError("provider result did not include a declared native audio payload")
+        version = len(self.artifact_store.list_versions(output.artifact_id)) + 1
+        binary = self.binary_store.put(
+            output.artifact_id, version, payload.content,
+            mime_type=payload.mime_type, extension=payload.extension,
+        )
+        media = MediaArtifactMetadata(
+            modality=MediaModality.AUDIO,
+            purpose=payload.purpose,
+            duration=MediaDuration(seconds=output.duration_seconds) if output.duration_seconds else None,
+            encoding=output.encoding,
+            mock=bool(response.result.provider_metadata.get("mock")),
+            test_asset=bool(response.result.provider_metadata.get("test_asset")),
+            preview_artifact_id=output.artifact_id,
+            waveform=[],
+        )
+        metadata = {
+            "media": media.model_dump(mode="json"),
+            "mime_type": payload.mime_type,
+            "size_bytes": binary.size,
+            "mock": media.mock,
+            "duration_seconds": output.duration_seconds,
+            "sample_rate": output.sample_rate,
+            "channels": output.channels,
+        }
+        provenance = Provenance(
+            role="Media Runtime",
+            tool=f"{response.result.provider_id}_{payload.purpose}",
+            provider_id=response.result.provider_id,
+            model_service_id=response.result.model_service_id,
+            prompt_package_id=prompt.prompt_package_id,
+            compiler_id=prompt.compiler_id,
+            compiler_version=prompt.compiler_version,
+            project_id=job.project_id,
+            scene_id=job.scene_id,
+            shot_id=job.shot_id,
+            input_artifact_ids=list(dict.fromkeys([*job.input_artifact_ids, *input_ids])),
+            generation_strategy=job.strategy_type,
+            seed=seed,
+            parameters={
+                **job.provenance.parameters,
+                **response.result.provenance.parameters,
+                **response.result.provider_metadata,
+                "completed_at": response.result.completed_at.isoformat(),
+            },
+            repair_plan_ids=job.provenance.repair_plan_ids,
+            evaluation_ids=job.provenance.evaluation_ids,
+        )
+        artifact = Artifact(
+            artifact_id=output.artifact_id,
+            artifact_type=ArtifactType.AUDIO,
+            uri=binary.uri,
+            version=version,
+            source_job_id=job.job_id,
+            parent_artifact_ids=list(dict.fromkeys([*job.input_artifact_ids, *input_ids])),
+            metadata=metadata,
+            provenance=provenance,
+        )
+        self.artifact_store.register(artifact)
+        self._artifact_event(artifact, job)
+        return artifact
+
+    def _register_related_video_payload(
+        self,
+        *,
+        job: GenerationJob,
+        response: ProviderMediaResponse,
+        payload: BinaryPayload,
+        input_ids: list[str],
+        prompt,
+        seed: int | None,
+    ) -> Artifact:
+        if payload.mime_type.startswith("image/"):
+            modality, artifact_type = MediaModality.IMAGE, ArtifactType.IMAGE
+        elif payload.mime_type.startswith("audio/"):
+            modality, artifact_type = MediaModality.AUDIO, ArtifactType.AUDIO
+        elif payload.mime_type.startswith("video/"):
+            modality, artifact_type = MediaModality.VIDEO, ArtifactType.VIDEO
+        else:
+            raise ValueError("provider returned an unsupported related media payload")
+        version = len(self.artifact_store.list_versions(payload.artifact_id)) + 1
+        binary = self.binary_store.put(
+            payload.artifact_id, version, payload.content,
+            mime_type=payload.mime_type, extension=payload.extension,
+        )
+        encoding = MediaEncoding(
+            mime_type=payload.mime_type, format=payload.extension, codec=None
+        )
+        media = MediaArtifactMetadata(
+            modality=modality,
+            purpose=payload.purpose,
+            encoding=encoding,
+            mock=bool(response.result.provider_metadata.get("mock")),
+            test_asset=bool(response.result.provider_metadata.get("test_asset")),
+            preview_artifact_id=payload.artifact_id,
+        )
+        parameters = {
+            **job.provenance.parameters,
+            **response.result.provenance.parameters,
+            **response.result.provider_metadata,
+            "completed_at": response.result.completed_at.isoformat(),
+        }
+        artifact = Artifact(
+            artifact_id=payload.artifact_id,
+            artifact_type=artifact_type,
+            uri=binary.uri,
+            version=version,
+            source_job_id=job.job_id,
+            parent_artifact_ids=list(dict.fromkeys([*job.input_artifact_ids, *input_ids])),
+            metadata={
+                "media": media.model_dump(mode="json"),
+                "mime_type": payload.mime_type,
+                "size_bytes": binary.size,
+                "mock": media.mock,
+            },
+            provenance=Provenance(
+                role="Media Runtime",
+                tool=f"{response.result.provider_id}_{payload.purpose}",
+                provider_id=response.result.provider_id,
+                model_service_id=response.result.model_service_id,
+                prompt_package_id=prompt.prompt_package_id,
+                compiler_id=prompt.compiler_id,
+                compiler_version=prompt.compiler_version,
+                project_id=job.project_id,
+                scene_id=job.scene_id,
+                shot_id=job.shot_id,
+                input_artifact_ids=list(dict.fromkeys([*job.input_artifact_ids, *input_ids])),
+                generation_strategy=job.strategy_type,
+                seed=seed,
+                parameters=parameters,
+                repair_plan_ids=job.provenance.repair_plan_ids,
+                evaluation_ids=job.provenance.evaluation_ids,
+            ),
+        )
+        self.artifact_store.register(artifact)
+        self._artifact_event(artifact, job)
+        return artifact
 
     def _register_response(
         self,

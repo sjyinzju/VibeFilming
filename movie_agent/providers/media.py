@@ -10,9 +10,10 @@ import wave
 import zlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from collections.abc import Awaitable, Callable
 from typing import Generic, TypeVar
 
-from movie_agent.domain import ProviderErrorType, ProviderKind, ProviderResult, ResourceClass, QualityProfile
+from movie_agent.domain import JobStatus, ProviderErrorType, ProviderKind, ProviderResult, ResourceClass, QualityProfile
 from movie_agent.providers.base import ProviderFailure
 from movie_agent.media.contracts import (
     AudioCapabilities,
@@ -24,6 +25,7 @@ from movie_agent.media.contracts import (
     ImageGenerationResult,
     MediaDimensions,
     MediaEncoding,
+    MediaGenerationStrategy,
     MediaModality,
     PostProductionRequest,
     PostProductionResult,
@@ -78,6 +80,18 @@ class ProviderMediaResponse(Generic[ResultT]):
     payloads: tuple[BinaryPayload, ...] = ()
 
 
+@dataclass(frozen=True)
+class MediaProviderProgress:
+    status: JobStatus
+    activity: str
+    remote_event: str
+    progress: float | None = None
+    progress_is_determinate: bool = False
+
+
+MediaProviderProgressCallback = Callable[[MediaProviderProgress], Awaitable[None] | None]
+
+
 class MediaProvider(ABC):
     provider_id: str
 
@@ -101,7 +115,13 @@ class ImageProvider(MediaProvider):
 
 class VideoProvider(MediaProvider):
     @abstractmethod
-    async def generate(self, request: VideoGenerationRequest) -> ProviderMediaResponse[VideoGenerationResult]: ...
+    async def generate(
+        self,
+        request: VideoGenerationRequest,
+        *,
+        strategy: MediaGenerationStrategy | None = None,
+        on_progress: MediaProviderProgressCallback | None = None,
+    ) -> ProviderMediaResponse[VideoGenerationResult]: ...
 
 
 class VisionProvider(MediaProvider):
@@ -227,14 +247,21 @@ class MockVideoProvider(_MockState, VideoProvider):
         return ProviderCapabilities(
             provider_id=self.provider_id, kind=ProviderKind.VIDEO,
             modalities=[MediaModality.VIDEO], tasks=["video"],
-            video=VideoCapabilities(text_to_video=True, image_to_video=True, first_frame=True,
-                last_frame=True, first_last_frame=True, multi_reference=True,
+            video=VideoCapabilities(text_to_video=True, image_to_video=True, video_to_video=True,
+                video_extend=True, first_frame=True, last_frame=True,
+                first_last_frame=True, multi_reference=True,
                 camera_control=True, max_duration_seconds=120, max_width=7680,
                 max_height=4320, supported_fps=[24, 25, 30, 60]),
             resource_profiles=_resource_profiles(), quality_profiles=list(QualityProfile),
         )
 
-    async def generate(self, request: VideoGenerationRequest) -> ProviderMediaResponse[VideoGenerationResult]:
+    async def generate(
+        self,
+        request: VideoGenerationRequest,
+        *,
+        strategy: MediaGenerationStrategy | None = None,
+        on_progress: MediaProviderProgressCallback | None = None,
+    ) -> ProviderMediaResponse[VideoGenerationResult]:
         encoding = MediaEncoding(mime_type="video/mp4", format="mp4", codec="h264")
         result = VideoGenerationResult(
             request_id=request.request_id, artifact_ids=[request.output_artifact_id],

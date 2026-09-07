@@ -1,0 +1,35 @@
+{
+  "10": {
+    "class_type": "MovieAgentVideoFixture",
+    "inputs": {
+      "duration_seconds": 1.0,
+      "first_frame": "placeholder-first.png",
+      "fps": 24.0,
+      "frame_count": 24,
+      "height": 360,
+      "last_frame": "placeholder-last.png",
+      "negative_prompt": "",
+      "prompt": "placeholder",
+      "seed": 0,
+      "width": 640
+    }
+  },
+  "20": {
+    "class_type": "MovieAgentSaveVideoFixture",
+    "inputs": {
+      "source": [
+        "10",
+        0
+      ]
+    }
+  },
+  "21": {
+    "class_type": "MovieAgentSaveAudioFixture",
+    "inputs": {
+      "source": [
+        "10",
+        1
+      ]
+    }
+  }
+}

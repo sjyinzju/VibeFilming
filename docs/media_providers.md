@@ -12,7 +12,7 @@ The multipart contract uses a `request` JSON field, image `references`/`source_i
 
 ## Registry and factory
 
-`ProviderRegistry` owns callable adapters. `CapabilityRegistry` owns their current advertised capability snapshots. `ProviderFactory` maps a modality plus configured binding key to a builder. Image bindings include `mock`, real `flux_direct`, and unavailable `comfyui` (extension point only).
+`ProviderRegistry` owns callable adapters. `CapabilityRegistry` owns their current advertised capability snapshots. `ProviderFactory` maps a modality plus configured binding key to a builder. Image bindings include `mock`, real `flux_direct`, and unavailable `comfyui` (extension point only). Video bindings include `mock` and the model-neutral `comfyui` adapter.
 
 Registering a real binding is additive:
 
@@ -22,7 +22,9 @@ factory.register(MediaModality.IMAGE, "my-image-service", MyImageProvider)
 
 The workflow does not change.
 
-The [FLUX adapter](flux_agent_acceptance.md) reuses the Artifact resolver and explicitly maps the standalone service's `request_json` / `source_image` multipart contract; it does not send the generic encoder's `request` / `references` format. [Service acceptance](flux_direct_acceptance.md) is recorded separately. ComfyUI has no backend implementation.
+The [FLUX adapter](flux_agent_acceptance.md) reuses the Artifact resolver and explicitly maps the standalone service's `request_json` / `source_image` multipart contract; it does not send the generic encoder's `request` / `references` format. [Service acceptance](flux_direct_acceptance.md) is recorded separately.
+
+The [ComfyUI video bridge](comfyui_video_integration_plan.md) keeps API-format workflow templates, semantic binding manifests, compilation, HTTP/WebSocket transport, and Artifact input/output bridging in adapter modules. Effective video capability is the intersection of configured runtime capability and the selected workflow template. `minimax_h3_fl2va` is a reserved, unavailable profile until the official workflow is registered; it is never replaced by Mock.
 
 ## Capability routing
 
@@ -33,3 +35,5 @@ The [FLUX adapter](flux_agent_acceptance.md) reuses the Artifact resolver and ex
 ## Errors
 
 Adapters normalize errors to timeout, unavailable, model-not-ready, resource-exhausted, invalid-request, unsupported-capability, generation-failed, cancelled, corrupt-media, or internal. Raw CUDA/HTTP/SDK exception text is not forwarded to workflow consumers.
+
+ComfyUI configuration uses `MOVIE_AGENT_COMFYUI_ENDPOINT`, `MOVIE_AGENT_COMFYUI_TIMEOUT`, `MOVIE_AGENT_COMFYUI_WEBSOCKET_TIMEOUT`, and `MOVIE_AGENT_COMFYUI_WORKFLOW_PROFILE`. The endpoint defaults to loopback and cannot contain credentials, query, fragment, or a path.

@@ -71,6 +71,8 @@ class GenerationJob(ContractModel):
     retry_count: int = Field(default=0, ge=0)
     idempotency_key: str = Field(min_length=1)
     cancellation_requested: bool = False
+    remote_cancellation_dispatched: bool = False
+    remote_status: JobStatus | None = None
     created_at: datetime = Field(default_factory=utc_now)
     queued_at: datetime | None = None
     started_at: datetime | None = None

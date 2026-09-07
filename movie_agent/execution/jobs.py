@@ -116,6 +116,7 @@ class JobManager:
             JobStatus.RUNNING: EventType.JOB_STARTED,
             JobStatus.SUCCEEDED: EventType.JOB_COMPLETED,
             JobStatus.FAILED: EventType.JOB_FAILED,
+            JobStatus.CANCELLED: EventType.JOB_CANCELLED,
         }.get(target)
         if event_type:
             self._emit(updated, event_type)
@@ -123,6 +124,7 @@ class JobManager:
             JobStatus.RUNNING: EventType.MEDIA_JOB_STARTED,
             JobStatus.SUCCEEDED: EventType.MEDIA_JOB_COMPLETED,
             JobStatus.FAILED: EventType.MEDIA_JOB_FAILED,
+            JobStatus.CANCELLED: EventType.MEDIA_JOB_CANCELLED,
         }.get(target)
         if media_event and self._is_media(updated):
             self._emit_media(updated, media_event)
@@ -135,6 +137,39 @@ class JobManager:
         self._emit(updated, EventType.JOB_PROGRESS, {"progress": value})
         if self._is_media(updated):
             self._emit_media(updated, EventType.MEDIA_JOB_PROGRESS, {"progress": value})
+        return updated
+
+    def provider_activity(
+        self,
+        job_id: str,
+        *,
+        remote_status: JobStatus,
+        activity: str,
+        progress: float | None = None,
+        progress_is_determinate: bool = False,
+    ) -> GenerationJob:
+        job = self.get(job_id)
+        changes: dict[str, object] = {
+            "remote_status": remote_status,
+            "activity": activity,
+            "progress_is_determinate": progress_is_determinate,
+        }
+        if progress is not None:
+            changes["progress"] = progress
+        updated = job.model_copy(update=changes)
+        self._jobs[job_id] = updated
+        self._emit_media(updated, EventType.MEDIA_JOB_PROGRESS, {
+            "remote_status": remote_status.value,
+            "activity": activity,
+            "progress": progress,
+            "progress_is_determinate": progress_is_determinate,
+        })
+        return updated
+
+    def mark_remote_cancel_dispatched(self, job_id: str, dispatched: bool) -> GenerationJob:
+        job = self.get(job_id)
+        updated = job.model_copy(update={"remote_cancellation_dispatched": dispatched})
+        self._jobs[job_id] = updated
         return updated
 
     def request_cancel(self, job_id: str) -> GenerationJob:

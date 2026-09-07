@@ -19,7 +19,7 @@ Uploaded bindings use project, creative-input, entity, scene, shot, or frame sco
 
 ## Video
 
-`VideoGenerationRequest` contains duration, fps, dimensions, aspect ratio, first/last/previous references, `CameraMotionSpec`, `TemporalControl`, `StartState`, and `EndState`. No field contains model syntax. `VideoGenerationResult` records frames, codec, dimensions, duration, provider metadata, and provenance.
+`VideoGenerationRequest` contains duration, fps, dimensions, aspect ratio, first/last/previous references, `CameraMotionSpec`, `TemporalControl`, `StartState`, and `EndState`. No field contains model syntax. `VideoGenerationResult` records frames, codec, dimensions, duration, provider metadata, and provenance. Its additive `native_audio_outputs` list describes normal Audio Artifacts emitted by the same generation job; older single-video results remain valid unchanged.
 
 ## Audio
 

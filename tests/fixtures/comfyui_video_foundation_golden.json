@@ -1,0 +1,35 @@
+{
+  "10": {
+    "class_type": "MovieAgentVideoFixture",
+    "inputs": {
+      "duration_seconds": 2.5,
+      "first_frame": "movie-agent/first_v3_111111111111.png",
+      "fps": 24.0,
+      "frame_count": 60,
+      "height": 720,
+      "last_frame": "movie-agent/last_v2_222222222222.png",
+      "negative_prompt": "flicker, warped hands",
+      "prompt": "A locked-off cinematic test shot",
+      "seed": 42,
+      "width": 1280
+    }
+  },
+  "20": {
+    "class_type": "MovieAgentSaveVideoFixture",
+    "inputs": {
+      "source": [
+        "10",
+        0
+      ]
+    }
+  },
+  "21": {
+    "class_type": "MovieAgentSaveAudioFixture",
+    "inputs": {
+      "source": [
+        "10",
+        1
+      ]
+    }
+  }
+}

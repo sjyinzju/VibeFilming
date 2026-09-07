@@ -2,7 +2,7 @@
 
 Movie Agent Core is a model-agnostic foundation for long-running AI film production. Phase 2A adds six real reasoning roles through a configurable OpenAI-compatible endpoint and a FastAPI/SSE backend. Phase 2B adds a React Web Studio. Phase 3 adds the provider-neutral media runtime, binary artifact transport, preview/QC/repair, audio timeline, post-production contracts, and model-service lifecycle boundary.
 
-**Phase 3 now includes a real FLUX Direct ImageProvider.** Set `MOVIE_AGENT_IMAGE_PROVIDER=flux_direct` for real T2I/Img2Img through Spark. Defaults remain Mock; Video, Vision, Speech/Music/SFX/Foley and Post remain Mock. See [real Agent acceptance and setup](docs/flux_agent_acceptance.md).
+**Phase 3 now includes a real FLUX Direct ImageProvider and a model-neutral ComfyUI video bridge.** Set `MOVIE_AGENT_IMAGE_PROVIDER=flux_direct` for real T2I/Img2Img through Spark. Defaults remain Mock. The ComfyUI bridge is verified against an HTTP fake; no H3 workflow is activated and no real video inference is performed. See [real FLUX Agent acceptance](docs/flux_agent_acceptance.md) and the [ComfyUI integration plan](docs/comfyui_video_integration_plan.md).
 
 The Studio also supports validated PNG/JPEG/WebP reference upload, immutable Artifact-backed previews, typed Draft/Project/Entity/Scene/Shot binding, and shared image/video multipart transport. See [image reference upload and transport](docs/image_references.md).
 
@@ -38,7 +38,7 @@ Regular tests never require the LLM endpoint. Opt in with `MOVIE_AGENT_RUN_INTEG
 
 See [P3 runtime](docs/p3_media_runtime.md), [media contracts](docs/media_contracts.md), [providers](docs/media_providers.md), [artifacts](docs/media_artifacts.md), [model services](docs/model_services.md), and the [extension guide](docs/p3_extension_guide.md).
 
-The Agent does not download or launch model weights. FLUX is a separately deployed loopback service, consumed through `ImageProvider.generate(ImageGenerationRequest)`. Real video integration remains out of scope.
+The Agent does not download or launch model weights. FLUX and ComfyUI are separately managed loopback services. ComfyUI integration compiles versioned API-format workflows behind `VideoProvider`; an official MiniMax H3 workflow/profile remains a separate acceptance step.
 
 ## Run locally
 

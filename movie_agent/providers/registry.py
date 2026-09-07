@@ -10,7 +10,13 @@ from pathlib import Path
 from dotenv import dotenv_values
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from movie_agent.media import MediaModality, MediaProviderSelection, MediaRoutingRequest, ProviderCapabilities
+from movie_agent.media import (
+    MediaModality,
+    MediaProviderSelection,
+    MediaRoutingRequest,
+    ProviderCapabilities,
+    VideoCapabilities,
+)
 from movie_agent.providers.media import (
     MediaProvider, MockAudioProvider, MockImageProvider, MockPostProcessor,
     MockVideoProvider, MockVisionProvider,
@@ -113,12 +119,29 @@ class MediaProviderSettings(BaseModel):
     post_provider: str = "mock"
     flux_endpoint: str = "http://127.0.0.1:9001"
     flux_timeout: float = Field(default=660, gt=0, allow_inf_nan=False)
+    comfyui_endpoint: str = "http://127.0.0.1:8188"
+    comfyui_timeout: float = Field(default=3600, gt=0, allow_inf_nan=False)
+    comfyui_websocket_timeout: float = Field(default=3600, gt=0, allow_inf_nan=False)
+    comfyui_workflow_profile: str = "minimax_h3_fl2va"
 
     @field_validator("flux_endpoint")
     @classmethod
     def validate_flux_endpoint(cls, value):
         from movie_agent.providers.flux_direct import validate_endpoint
         return validate_endpoint(value)
+
+    @field_validator("comfyui_endpoint")
+    @classmethod
+    def validate_comfyui_endpoint(cls, value):
+        from movie_agent.comfyui import validate_comfyui_endpoint
+        return validate_comfyui_endpoint(value)
+
+    @field_validator("comfyui_workflow_profile")
+    @classmethod
+    def validate_workflow_profile(cls, value: str) -> str:
+        if not re.fullmatch(r"[a-z][a-z0-9_.-]*", value):
+            raise ValueError("ComfyUI workflow profile must be a stable lower-case ID")
+        return value
 
     @field_validator("image_provider", "video_provider", "vision_provider", "audio_provider", "post_provider")
     @classmethod
@@ -159,7 +182,17 @@ class ProviderFactory:
             ) from error
 
     @classmethod
-    def defaults(cls, *, settings: MediaProviderSettings | None = None, resolver=None) -> "ProviderFactory":
+    def defaults(
+        cls,
+        *,
+        settings: MediaProviderSettings | None = None,
+        resolver=None,
+        comfyui_client=None,
+        comfyui_workflows=None,
+        comfyui_runtime_capabilities: VideoCapabilities | None = None,
+    ) -> "ProviderFactory":
+        from movie_agent.comfyui import ComfyUIClient, ComfyUIWorkflowRegistry
+        from movie_agent.providers.comfyui_video import ComfyUIVideoProvider
         from movie_agent.providers.flux_direct import ComfyUIImageProvider, FluxDirectImageProvider
         settings = settings or MediaProviderSettings()
         factory = cls()
@@ -169,6 +202,17 @@ class ProviderFactory:
             endpoint=factory._settings.flux_endpoint, timeout=factory._settings.flux_timeout, resolver=resolver))
         factory.register(MediaModality.IMAGE, "comfyui", ComfyUIImageProvider)
         factory.register(MediaModality.VIDEO, "mock", MockVideoProvider)
+        factory.register(MediaModality.VIDEO, "comfyui", lambda: ComfyUIVideoProvider(
+            client=comfyui_client or ComfyUIClient(
+                endpoint=factory._settings.comfyui_endpoint,
+                timeout=factory._settings.comfyui_timeout,
+                websocket_timeout=factory._settings.comfyui_websocket_timeout,
+            ),
+            workflows=comfyui_workflows or ComfyUIWorkflowRegistry(),
+            workflow_profile=factory._settings.comfyui_workflow_profile,
+            resolver=resolver,
+            runtime_capabilities=comfyui_runtime_capabilities or VideoCapabilities(),
+        ))
         factory.register(MediaModality.VISION, "mock", MockVisionProvider)
         factory.register(MediaModality.AUDIO, "mock", MockAudioProvider)
         factory.register(MediaModality.POST, "mock", MockPostProcessor)

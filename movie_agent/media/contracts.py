@@ -408,6 +408,17 @@ class ImageGenerationResult(MediaResultBase):
     encoding: MediaEncoding
 
 
+class GeneratedAudioOutput(ContractModel):
+    """A normal audio Artifact emitted by the same job as a generated video."""
+
+    artifact_id: str = Field(min_length=1)
+    purpose: AudioPurpose = AudioPurpose.MIX
+    duration_seconds: PositiveFloat | None = None
+    sample_rate: int | None = Field(default=None, gt=0)
+    channels: int | None = Field(default=None, gt=0)
+    encoding: MediaEncoding
+
+
 class VideoGenerationResult(MediaResultBase):
     duration_seconds: PositiveFloat
     fps: PositiveFloat
@@ -415,6 +426,7 @@ class VideoGenerationResult(MediaResultBase):
     frame_count: int = Field(gt=0)
     codec: str
     encoding: MediaEncoding
+    native_audio_outputs: list[GeneratedAudioOutput] = Field(default_factory=list)
 
 
 class AudioGenerationResult(MediaResultBase):
@@ -622,6 +634,8 @@ class ImageCapabilities(ContractModel):
 class VideoCapabilities(ContractModel):
     text_to_video: bool = False
     image_to_video: bool = False
+    video_to_video: bool = False
+    video_extend: bool = False
     first_frame: bool = False
     last_frame: bool = False
     first_last_frame: bool = False
