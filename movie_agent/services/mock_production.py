@@ -856,14 +856,22 @@ class MockMovieProduction:
                 input_artifact_ids=media_strategy.input_artifact_ids,
                 fallback_types=media_strategy.fallback_types,
             )
-            prompt = self.video_prompt_compiler.compile(shot, media_strategy, references)
             planned_shot = shot.model_copy(update={"generation_strategy": strategy}, deep=True)
             updated_shots[shot.shot_id] = planned_shot
+            plan_id = repair_plan_ids.get(shot.shot_id)
+            reusable = None if plan_id else self._reusable_video_generation(shot.shot_id)
+            if reusable is not None:
+                completed_job, artifact = reusable
+                created.append((completed_job, planned_shot, artifact))
+                continue
+
+            prompt = self.video_prompt_compiler.compile(shot, media_strategy, references)
             next_version = len(self.artifact_store.list_versions(f"video_{shot.shot_id}")) + 1
-            job_id = f"generate:{shot.shot_id}:v{next_version}"
+            job_id, adaptation_history = self._video_job_identity(
+                shot.shot_id, next_version
+            )
             dependencies = ([f"generate:{shot.previous_shot_id}:v{next_version}"]
                             if shot.previous_shot_id in shot_ids else [])
-            plan_id = repair_plan_ids.get(shot.shot_id)
             job = GenerationJob(
                 job_id=job_id, project_id=project.project_id,
                 node_id="repair_accept" if plan_id else "shot_production",
@@ -880,6 +888,7 @@ class MockMovieProduction:
                     project_id=project.project_id, scene_id=shot.scene_id, shot_id=shot.shot_id,
                     input_artifact_ids=[item.artifact_id for item in references],
                     generation_strategy=strategy.strategy_type.value,
+                    retry_history=adaptation_history,
                     repair_plan_ids=[plan_id] if plan_id else [],
                 ),
             )
@@ -917,7 +926,10 @@ class MockMovieProduction:
             created.append((self.job_manager.get(job_id), planned_shot, artifact))
 
         project.shots = [updated_shots[shot.shot_id] for shot in project.shots]
+        recorded_job_ids = {entry.job_id for entry in project.generation_history.entries}
         for job, shot, artifact in created:
+            if job.job_id in recorded_job_ids:
+                continue
             project.generation_history.entries.append(
                 GenerationHistoryEntry(
                     job_id=job.job_id,
@@ -928,7 +940,62 @@ class MockMovieProduction:
                     metadata={"artifact_version": artifact.version},
                 )
             )
+            recorded_job_ids.add(job.job_id)
         return [artifact for _, _, artifact in created]
+
+    def _reusable_video_generation(
+        self, shot_id: str
+    ) -> tuple[GenerationJob, Artifact] | None:
+        """Reuse a completed partial shot when resuming the same failed production node."""
+
+        versions = self.artifact_store.list_versions(f"video_{shot_id}")
+        if not versions:
+            return None
+        artifact = versions[-1]
+        if artifact.source_job_id is None:
+            return None
+        known = dict(self._restored_jobs)
+        if self.job_manager is not None:
+            known.update({item.job_id: item for item in self.job_manager.all()})
+        job = known.get(artifact.source_job_id)
+        if (
+            job is None
+            or job.status != JobStatus.SUCCEEDED
+            or job.node_id != "shot_production"
+            or artifact.artifact_id not in job.output_artifact_ids
+        ):
+            return None
+        return job, artifact
+
+    def _video_job_identity(self, shot_id: str, artifact_version: int) -> tuple[str, list[str]]:
+        """Keep a local preflight failure and create a distinct deterministic replay job."""
+
+        base = f"generate:{shot_id}:v{artifact_version}"
+        known = dict(self._restored_jobs)
+        if self.job_manager is not None:
+            known.update({item.job_id: item for item in self.job_manager.all()})
+        if base not in known:
+            return base, []
+
+        history = [base]
+        index = 1
+        candidate = f"{base}:adaptation{index}"
+        while candidate in known:
+            history.append(candidate)
+            index += 1
+            candidate = f"{base}:adaptation{index}"
+        previous = known[history[-1]]
+        local_preflight_failure = (
+            previous.status == JobStatus.FAILED
+            and previous.remote_status is None
+            and not previous.output_artifact_ids
+            and previous.failure_reason == "media_provider_unsupported_capability"
+        )
+        if not local_preflight_failure:
+            raise RuntimeError(
+                f"Video job {previous.job_id} cannot be replayed without an explicit remote recovery decision"
+            )
+        return candidate, history
 
     async def _technical_qc(self, project: Project) -> None:
         for shot in project.shots:

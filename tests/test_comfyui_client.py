@@ -7,10 +7,12 @@ import hashlib
 import json
 
 import httpx
+import pytest
 from fastapi import FastAPI, File, Form, Response, UploadFile
 
 from movie_agent.comfyui import ComfyUIClient, ComfyUIPollingExecutionEventAdapter
-from movie_agent.domain import JobStatus
+from movie_agent.domain import JobStatus, ProviderErrorType
+from movie_agent.providers import ProviderFailure
 
 
 def test_client_reads_health_and_node_schema_from_local_api_contract() -> None:
@@ -242,5 +244,39 @@ def test_default_websocket_adapter_maps_live_comfyui_event_frames() -> None:
         ]
         assert updates[2].progress == 0.3 and updates[2].progress_is_determinate
         assert updates[2].node_id == "30"
+
+    asyncio.run(scenario())
+
+
+def test_websocket_close_after_submission_is_non_retryable_remote_uncertainty() -> None:
+    async def scenario() -> None:
+        from websockets.asyncio.server import serve
+
+        async def websocket_handler(websocket):
+            await websocket.close()
+
+        async def prompt_transport(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/prompt"
+            return httpx.Response(200, json={
+                "prompt_id": "prompt_uncertain", "number": 1, "node_errors": {},
+            })
+
+        async with serve(websocket_handler, "127.0.0.1", 0) as server:
+            port = server.sockets[0].getsockname()[1]
+            async with httpx.AsyncClient(
+                transport=httpx.MockTransport(prompt_transport),
+                base_url=f"http://127.0.0.1:{port}",
+            ) as http:
+                client = ComfyUIClient(
+                    endpoint=f"http://127.0.0.1:{port}", http_client=http,
+                    websocket_timeout=2,
+                )
+                with pytest.raises(ProviderFailure) as captured:
+                    await client.execute_prompt({
+                        "10": {"class_type": "Fixture", "inputs": {}}
+                    })
+
+        assert captured.value.error_type == ProviderErrorType.REMOTE_COMPLETION_UNCERTAIN
+        assert not captured.value.retryable
 
     asyncio.run(scenario())

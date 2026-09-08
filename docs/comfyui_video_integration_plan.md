@@ -28,7 +28,7 @@ was inspected read-only. Its local API uses `/prompt`, `/ws`, `/history/{prompt_
 | `seed` | Optional seed slot | Binding manifest |
 | `width`, `height`, `fps`, `duration_seconds` | Typed scalar slots; frame count may be derived deterministically | Binding manifest |
 | `first_frame`, `last_frame`, `previous_shot`, selected references | Resolve immutable Artifact version, hash bytes, upload, then bind returned ComfyUI input identifier | Asset bridge + binding manifest |
-| `camera_motion`, `temporal_control`, `start_state`, `end_state` | Bind only when the selected workflow explicitly declares support | Template capability + binding manifest |
+| `camera_motion`, `temporal_control`, `start_state`, `end_state` | Bind only when the selected workflow explicitly declares support. Camera motion may instead use the prompt only when the versioned manifest declares `camera_motion_in_prompt` and the bound prompt contains a matching camera section. | Template capability + binding manifest |
 | `provider_parameters` | Only explicitly declared parameter slots; unknown values fail | Binding manifest |
 | `mode` and planned generation strategy | Select and validate a workflow profile | Provider/profile registry |
 | `required_capabilities`, quality and resource class | Routing and validation only | Movie Agent runtime |
@@ -56,6 +56,21 @@ manifest. It deep-copies the template and produces a deterministic
 outputs, template ID/version/hash, binding ID/version, model profile, and normalized
 execution metadata. Unsupported capabilities or undeclared provider parameters fail
 before transport.
+
+Before the compiler or remote transport runs, `VideoGenerationPreflight` evaluates the
+complete request against that template, manifest, effective capability snapshot, and
+immutable input Artifact metadata. It returns all adaptable and hard-unsupported issues
+in one result. Safe adaptations materialize a stable seed, reuse a compatible existing
+first/last-frame canvas, and canonicalize static camera no-op tokens. Real motion is
+accepted through a prompt-only workflow only under the manifest's explicit, validated
+`camera_motion_in_prompt` contract; it is never silently discarded. Requested delivery
+dimensions, effective generation dimensions, adaptation reasons, and Artifact facts are
+persisted in provenance; model-specific intent is never silently discarded.
+
+Once ComfyUI returns a prompt id, a WebSocket timeout or disconnect is recorded as
+non-retryable `remote_completion_uncertain`. Core preserves the prompt/execution
+identity for later history recovery and never resubmits the whole graph automatically;
+transport failures before submission remain eligible for bounded retry.
 
 `ComfyUIClient` owns all HTTP/WebSocket details and normalized errors. The video
 provider owns profile selection and capability intersection, while `MediaRuntime` keeps

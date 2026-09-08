@@ -33,6 +33,7 @@ from movie_agent.media.contracts import (
     ResourceProfile,
     VideoCapabilities,
     VideoGenerationRequest,
+    VideoPreflightResult,
     VideoGenerationResult,
     VisionCapabilities,
     VisionDecision,
@@ -117,6 +118,25 @@ class ImageProvider(MediaProvider):
 
 
 class VideoProvider(MediaProvider):
+    async def preflight(
+        self,
+        request: VideoGenerationRequest,
+        *,
+        strategy: MediaGenerationStrategy | None = None,
+    ) -> VideoPreflightResult:
+        """Default pass-through for providers without a workflow-specific preflight."""
+
+        dimensions = MediaDimensions(
+            width=request.width, height=request.height, aspect_ratio=request.aspect_ratio
+        )
+        return VideoPreflightResult(
+            original_request=request.model_copy(deep=True),
+            effective_request=request.model_copy(deep=True),
+            compatible=True,
+            requested_delivery_dimensions=dimensions,
+            effective_generation_dimensions=dimensions.model_copy(deep=True),
+        )
+
     @abstractmethod
     async def generate(
         self,

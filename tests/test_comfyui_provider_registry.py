@@ -133,3 +133,4 @@ def test_official_h3_profile_is_installed_but_only_advertises_verified_capabilit
         "first_frame", "last_frame", "first_last_frame", "audio_generation"
     }
     assert manifest.inline_negative_prompt
+    assert manifest.camera_motion_in_prompt

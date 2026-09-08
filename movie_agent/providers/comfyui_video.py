@@ -19,6 +19,7 @@ from movie_agent.comfyui import (
     ComfyUIOutputSource,
     ComfyUIWorkflowCompiler,
     ComfyUIWorkflowRegistry,
+    VideoGenerationPreflight,
     validate_template_binding,
 )
 from movie_agent.domain import GenerationStrategyType, ProviderErrorType, ProviderKind, QualityProfile, ResourceClass
@@ -135,6 +136,45 @@ class ComfyUIVideoProvider(VideoProvider):
             return False
         return await self.client.cancel_job(prompt_id)
 
+    async def preflight(
+        self,
+        request: VideoGenerationRequest,
+        *,
+        strategy: MediaGenerationStrategy | None = None,
+    ):
+        try:
+            _, template, manifest = self.workflows.resolve(self.workflow_profile)
+        except LookupError as error:
+            raise ProviderFailure(
+                f"ComfyUI workflow profile is not installed: {self.workflow_profile}",
+                ProviderErrorType.UNSUPPORTED_CAPABILITY,
+            ) from error
+        if self.resolver is None:
+            raise ProviderFailure("ComfyUI Artifact resolver is not configured", ProviderErrorType.UNAVAILABLE)
+        strategy = strategy or self._strategy_from_request(request)
+        artifacts = []
+        seen = set()
+        for reference in [
+            *request.references,
+            *[item for item in (request.first_frame, request.last_frame, request.previous_shot)
+              if item is not None],
+        ]:
+            key = (reference.artifact_id, reference.version)
+            if key in seen:
+                continue
+            seen.add(key)
+            artifact = self.resolver.artifacts.get(reference.artifact_id, reference.version)
+            if artifact is not None:
+                artifacts.append(artifact)
+        return VideoGenerationPreflight().prepare(
+            request=request,
+            strategy=strategy,
+            capabilities=await self.capabilities(),
+            template=template,
+            binding_manifest=manifest,
+            input_artifacts=artifacts,
+        )
+
     async def generate(
         self,
         request: VideoGenerationRequest,
@@ -152,6 +192,16 @@ class ComfyUIVideoProvider(VideoProvider):
         if self.resolver is None:
             raise ProviderFailure("ComfyUI Artifact resolver is not configured", ProviderErrorType.UNAVAILABLE)
         strategy = strategy or self._strategy_from_request(request)
+        preflight = await self.preflight(request, strategy=strategy)
+        if not preflight.compatible:
+            details = "; ".join(
+                f"{item.code}:{item.field_path}" for item in preflight.remaining_issues
+            )
+            raise ProviderFailure(
+                f"Video generation preflight failed: {details}",
+                ProviderErrorType.UNSUPPORTED_CAPABILITY,
+            )
+        request = preflight.effective_request
         capabilities = await self.capabilities()
         started = time.perf_counter()
         stats = await self.client.system_stats()

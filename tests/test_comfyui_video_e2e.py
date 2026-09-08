@@ -139,7 +139,8 @@ def register_image_versions(
         binary = binaries.put(artifact_id, version, content, mime_type="image/png", extension="png")
         artifacts.register(Artifact(
             artifact_id=artifact_id, artifact_type=ArtifactType.FRAME, uri=binary.uri,
-            version=version, metadata={"mime_type": "image/png", "size_bytes": len(content)},
+            version=version, metadata={"mime_type": "image/png", "size_bytes": len(content),
+                "width": 32, "height": 18},
         ))
     artifacts.select(artifact_id, len(versions))
     return MediaReference(
@@ -234,7 +235,7 @@ def test_video_provider_fake_http_e2e_preserves_frames_and_registers_video_audio
                 runtime_capabilities=VideoCapabilities(
                     first_frame=True, last_frame=True, first_last_frame=True,
                     audio_generation=True, max_duration_seconds=10,
-                    max_width=1920, max_height=1080, supported_fps=[24],
+                    max_width=1344, max_height=1344, supported_fps=[24],
                 ),
                 execution_adapter=ComfyUIPollingExecutionEventAdapter(poll_interval=0),
                 test_mode=True,
@@ -254,9 +255,11 @@ def test_video_provider_fake_http_e2e_preserves_frames_and_registers_video_audio
                 ),
                 references=[first, last], first_frame=first, last_frame=last,
                 mode=VideoGenerationMode.FIRST_LAST_FRAME_TO_VIDEO,
-                duration_seconds=2, fps=24, width=1280, height=720,
-                aspect_ratio="16:9", seed=99,
-                camera_motion=CameraMotionSpec(motion_type="static"),
+                duration_seconds=2, fps=24, width=1920, height=1080,
+                aspect_ratio="16:9", seed=None,
+                camera_motion=CameraMotionSpec(
+                    motion_type="static", direction="none", speed="N/A"
+                ),
             )
             job_record = GenerationJob(
                 job_id=request.job_id, project_id=request.project_id, scene_id=request.scene_id,
@@ -272,7 +275,8 @@ def test_video_provider_fake_http_e2e_preserves_frames_and_registers_video_audio
         compiled = submitted["prompt"]["10"]["inputs"]
         assert compiled["first_frame"].startswith("movie-agent/first_v2_")
         assert compiled["last_frame"].startswith("movie-agent/last_v1_")
-        assert compiled["seed"] == 99 and compiled["frame_count"] == 48
+        assert compiled["frame_count"] == 48
+        assert (compiled["width"], compiled["height"]) == (32, 18)
 
         audio = artifacts.get("video_e2e_native_audio")
         assert video.artifact_type == ArtifactType.VIDEO and audio is not None
@@ -284,6 +288,15 @@ def test_video_provider_fake_http_e2e_preserves_frames_and_registers_video_audio
         completed_job = jobs.get("job_e2e")
         assert completed_job.output_artifact_ids == ["video_e2e", "video_e2e_native_audio"]
         assert completed_job.remote_status.value == "succeeded"
+        assert compiled["seed"] == completed_job.provenance.seed == video.provenance.seed
+        assert completed_job.provenance.parameters["requested_delivery_dimensions"]["width"] == 1920
+        assert completed_job.provenance.parameters["effective_generation_dimensions"] == {
+            "schema_version": "1.0.0", "width": 32, "height": 18, "aspect_ratio": "16:9"
+        }
+        assert "existing boundary frame canvas" in " ".join(
+            completed_job.provenance.parameters["adaptation_reason"]
+        )
+        assert video.provenance.parameters["effective_generation_dimensions"]["height"] == 18
         assert video.provenance.parameters["workflow_template_id"] == "comfyui_video_foundation_fixture"
         inputs = video.provenance.parameters["input_artifacts"]
         assert {(item["artifact_id"], item["version"], item["sha256"]) for item in inputs} == {

@@ -19,7 +19,7 @@ Uploaded bindings use project, creative-input, entity, scene, shot, or frame sco
 
 ## Video
 
-`VideoGenerationRequest` contains duration, fps, dimensions, aspect ratio, first/last/previous references, `CameraMotionSpec`, `TemporalControl`, `StartState`, and `EndState`. No field contains model syntax. `VideoGenerationResult` records frames, codec, dimensions, duration, provider metadata, and provenance. Its additive `native_audio_outputs` list describes normal Audio Artifacts emitted by the same generation job; older single-video results remain valid unchanged.
+`VideoGenerationRequest` contains duration, fps, dimensions, aspect ratio, first/last/previous references, `CameraMotionSpec`, `TemporalControl`, `StartState`, and `EndState`. No field contains model syntax. Before provider execution, `VideoGenerationPreflight` reports every request/workflow incompatibility together and distinguishes deterministic adaptations from hard unsupported intent. Delivery dimensions remain on the ProjectBrief; the effective generation canvas, stable Core-owned seed, adaptation reasons, and input Artifact facts are recorded in Job and output Artifact provenance. A workflow without a structured camera binding may accept real camera motion only when its versioned binding manifest explicitly declares `camera_motion_in_prompt` and the request's bound positive prompt contains a matching `camera` section; omission or mismatch is hard unsupported. `VideoGenerationResult` records frames, codec, dimensions, duration, provider metadata, and provenance. Its additive `native_audio_outputs` list describes normal Audio Artifacts emitted by the same generation job; older single-video results remain valid unchanged.
 
 ## Audio
 

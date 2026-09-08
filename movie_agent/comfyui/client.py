@@ -392,10 +392,33 @@ class ComfyUIWebSocketExecutionEventAdapter(ComfyUIExecutionEventAdapter):
         except ProviderFailure:
             raise
         except TimeoutError as error:
-            raise ProviderFailure("ComfyUI WebSocket timed out", ProviderErrorType.TIMEOUT, retryable=True) from error
+            if submission is not None:
+                raise ProviderFailure(
+                    "ComfyUI remote completion is uncertain after submission",
+                    ProviderErrorType.REMOTE_COMPLETION_UNCERTAIN,
+                ) from error
+            raise ProviderFailure(
+                "ComfyUI WebSocket timed out", ProviderErrorType.TIMEOUT, retryable=True
+            ) from error
         except Exception as error:
-            raise ProviderFailure("PROVIDER_UNAVAILABLE: ComfyUI WebSocket failed", ProviderErrorType.UNAVAILABLE, retryable=True) from error
-        raise ProviderFailure("ComfyUI WebSocket closed before completion", ProviderErrorType.GENERATION_FAILED)
+            if submission is not None:
+                raise ProviderFailure(
+                    "ComfyUI remote completion is uncertain after submission",
+                    ProviderErrorType.REMOTE_COMPLETION_UNCERTAIN,
+                ) from error
+            raise ProviderFailure(
+                "PROVIDER_UNAVAILABLE: ComfyUI WebSocket failed",
+                ProviderErrorType.UNAVAILABLE,
+                retryable=True,
+            ) from error
+        if submission is not None:
+            raise ProviderFailure(
+                "ComfyUI remote completion is uncertain after submission",
+                ProviderErrorType.REMOTE_COMPLETION_UNCERTAIN,
+            )
+        raise ProviderFailure(
+            "ComfyUI WebSocket closed before submission", ProviderErrorType.GENERATION_FAILED
+        )
 
     @staticmethod
     def _update(event: str, data: dict[str, Any]) -> ComfyUIExecutionUpdate | None:

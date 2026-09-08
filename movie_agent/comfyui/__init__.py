@@ -6,3 +6,4 @@ from .compiler import *  # noqa: F401,F403
 from .contracts import *  # noqa: F401,F403
 from .registry import *  # noqa: F401,F403
 from .profiles import *  # noqa: F401,F403
+from .preflight import *  # noqa: F401,F403

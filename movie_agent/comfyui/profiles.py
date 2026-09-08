@@ -23,7 +23,7 @@ MINIMAX_H3_FL2VA_PROFILE_ID = "minimax_h3_fl2va"
 MINIMAX_H3_FL2VA_TEMPLATE_ID = "comfy_org_minimax_h3_fl2va"
 MINIMAX_H3_FL2VA_TEMPLATE_VERSION = "1.0.0"
 MINIMAX_H3_FL2VA_BINDING_ID = "comfy_org_minimax_h3_fl2va_bindings"
-MINIMAX_H3_FL2VA_BINDING_VERSION = "1.0.0"
+MINIMAX_H3_FL2VA_BINDING_VERSION = "1.1.0"
 MINIMAX_H3_FL2VA_MODEL_PROFILE = "minimax-h3-fl2va-int8-convrot"
 MINIMAX_H3_OFFICIAL_SOURCE_COMMIT = "f9f1d1014d98d8cad87e5c3aaaf388f7f9240d27"
 
@@ -64,6 +64,7 @@ def minimax_h3_fl2va_components() -> tuple[
             "source_revision": MINIMAX_H3_OFFICIAL_SOURCE_COMMIT,
             "source_path": "templates/video_minimax_h3_i2v.json",
             "adaptation": "Official API export with the documented last_frame input connected to a second LoadImage node.",
+            "dimension_multiple": 32,
         },
     )
     # Node display metadata is derived from the immutable API graph without importing GUI coordinates.
@@ -90,6 +91,7 @@ def minimax_h3_fl2va_components() -> tuple[
         template_id=template.template_id,
         template_version=template.version,
         inline_negative_prompt=True,
+        camera_motion_in_prompt=True,
         bindings=[
             WorkflowBinding(semantic_slot="prompt", node_id="105:104", input_name="prompt", value_type=BindingValueType.STRING, required=True, expected_class_type="MiniMaxH3ImageToVideo"),
             WorkflowBinding(semantic_slot="seed", node_id="105:15", input_name="noise_seed", value_type=BindingValueType.INTEGER, required=True, expected_class_type="RandomNoise"),

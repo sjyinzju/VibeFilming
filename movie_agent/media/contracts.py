@@ -71,6 +71,11 @@ class VideoGenerationMode(StrEnum):
     VIDEO_EXTEND = "video_extend"
 
 
+class VideoPreflightDisposition(StrEnum):
+    ADAPTABLE = "adaptable"
+    HARD_UNSUPPORTED = "hard_unsupported"
+
+
 class ReferenceType(StrEnum):
     CHARACTER = "character"
     LOCATION = "location"
@@ -330,6 +335,28 @@ class VideoGenerationRequest(MediaRequestBase):
     temporal_control: TemporalControl = Field(default_factory=TemporalControl)
     start_state: StartState = Field(default_factory=StartState)
     end_state: EndState = Field(default_factory=EndState)
+
+
+class VideoPreflightIssue(ContractModel):
+    code: str = Field(min_length=1)
+    field_path: str = Field(min_length=1)
+    request_value: JSONValue | None = None
+    requirement: str = Field(min_length=1)
+    disposition: VideoPreflightDisposition
+    adaptation_owner: str = Field(min_length=1)
+    resolved_value: JSONValue | None = None
+
+
+class VideoPreflightResult(ContractModel):
+    original_request: VideoGenerationRequest
+    effective_request: VideoGenerationRequest
+    initial_issues: list[VideoPreflightIssue] = Field(default_factory=list)
+    remaining_issues: list[VideoPreflightIssue] = Field(default_factory=list)
+    compatible: bool
+    requested_delivery_dimensions: MediaDimensions
+    effective_generation_dimensions: MediaDimensions
+    adaptation_reason: list[str] = Field(default_factory=list)
+    input_artifacts: list[dict[str, JSONValue]] = Field(default_factory=list)
 
 
 class AudioRequestBase(MediaRequestBase):

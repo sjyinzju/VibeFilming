@@ -10,7 +10,11 @@ from typing import Any
 from pydantic import ConfigDict, Field, model_validator
 
 from movie_agent.domain.base import ContractModel, JSONValue
-from movie_agent.media.contracts import MediaModality, VideoGenerationMode
+from movie_agent.media.contracts import (
+    MediaModality,
+    VideoGenerationMode,
+    VideoGenerationRequest,
+)
 
 
 def _json_value(value: Any) -> Any:
@@ -138,6 +142,7 @@ class WorkflowBindingManifest(ContractModel):
     template_version: str = Field(min_length=1)
     bindings: list[WorkflowBinding]
     inline_negative_prompt: bool = False
+    camera_motion_in_prompt: bool = False
 
     @model_validator(mode="after")
     def validate_unique_bindings(self) -> "WorkflowBindingManifest":
@@ -147,7 +152,39 @@ class WorkflowBindingManifest(ContractModel):
             raise ValueError("duplicate ComfyUI semantic binding")
         if len(targets) != len(set(targets)):
             raise ValueError("conflicting ComfyUI node input binding")
+        if self.camera_motion_in_prompt and "prompt" not in slots:
+            raise ValueError("camera_motion_in_prompt requires a prompt binding")
         return self
+
+
+def camera_motion_is_prompt_encoded(
+    request: VideoGenerationRequest,
+    manifest: WorkflowBindingManifest,
+) -> bool:
+    """Verify that an unbound camera command is explicitly carried by the bound prompt."""
+
+    if not manifest.camera_motion_in_prompt or request.camera_motion.path:
+        return False
+    camera_section = next(
+        (
+            section
+            for section in request.prompt_package.sections
+            if section.name.strip().casefold() == "camera"
+        ),
+        None,
+    )
+    if camera_section is None or not camera_section.content.strip():
+        return False
+    content = camera_section.content.casefold()
+    if camera_section.content not in request.prompt_package.positive_prompt:
+        return False
+    motion = request.camera_motion
+    expected = [motion.motion_type.value.casefold()]
+    if motion.direction is not None:
+        expected.append(f"direction={motion.direction}".casefold())
+    if motion.speed is not None:
+        expected.append(f"speed={motion.speed}".casefold())
+    return all(token in content for token in expected)
 
 
 class ComfyUIInputAsset(ContractModel):

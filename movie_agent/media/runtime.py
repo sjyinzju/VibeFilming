@@ -151,16 +151,43 @@ class MediaRuntime:
         if not isinstance(provider, VideoProvider):
             raise TypeError("selected provider does not implement VideoProvider")
 
+        strategy = MediaGenerationStrategy(
+            strategy_type=GenerationStrategyType(job.strategy_type or request.mode.value),
+            reason="Persisted GenerationStrategy selected before provider routing.",
+            required_capabilities=list(dict.fromkeys(routing_capabilities)),
+            input_artifact_ids=list(job.input_artifact_ids),
+        )
+        preflight = await provider.preflight(request, strategy=strategy)
+        effective_request = preflight.effective_request
+        preflight_parameters = {
+            "requested_delivery_dimensions": preflight.requested_delivery_dimensions.model_dump(mode="json"),
+            "effective_generation_dimensions": preflight.effective_generation_dimensions.model_dump(mode="json"),
+            "adaptation_reason": list(preflight.adaptation_reason),
+            "video_preflight_initial_issues": [
+                item.model_dump(mode="json") for item in preflight.initial_issues
+            ],
+            "video_preflight_remaining_issues": [
+                item.model_dump(mode="json") for item in preflight.remaining_issues
+            ],
+            "video_preflight_input_artifacts": list(preflight.input_artifacts),
+        }
+        job = job.model_copy(update={
+            "provenance": job.provenance.model_copy(update={
+                "seed": effective_request.seed,
+                "parameters": {**job.provenance.parameters, **preflight_parameters},
+            }, deep=True),
+        }, deep=True)
+
         async def operation(active: GenerationJob) -> ProviderResult:
             try:
-                strategy = MediaGenerationStrategy(
-                    strategy_type=GenerationStrategyType(active.strategy_type or request.mode.value),
-                    reason="Persisted GenerationStrategy selected before provider routing.",
-                    required_capabilities=list(dict.fromkeys([
-                        *routing_capabilities,
-                    ])),
-                    input_artifact_ids=list(active.input_artifact_ids),
-                )
+                if not preflight.compatible:
+                    details = "; ".join(
+                        f"{item.code}:{item.field_path}" for item in preflight.remaining_issues
+                    )
+                    raise ProviderFailure(
+                        f"Video generation preflight failed: {details}",
+                        ProviderErrorType.UNSUPPORTED_CAPABILITY,
+                    )
 
                 async def progress(update: MediaProviderProgress) -> None:
                     self.job_manager.provider_activity(
@@ -174,22 +201,26 @@ class MediaRuntime:
                         provider_execution_update=update.provider_execution_update,
                     )
 
-                response = await provider.generate(request, strategy=strategy, on_progress=progress)
+                response = await provider.generate(
+                    effective_request, strategy=strategy, on_progress=progress
+                )
                 input_ids = list(dict.fromkeys([
-                    *[item.artifact_id for item in request.references],
+                    *[item.artifact_id for item in effective_request.references],
                     *[item.artifact_id for item in (
-                        request.first_frame, request.last_frame, request.previous_shot
+                        effective_request.first_frame,
+                        effective_request.last_frame,
+                        effective_request.previous_shot,
                     ) if item is not None],
                 ]))
                 artifact = self._register_response(
                     job=active, response=response, modality=MediaModality.VIDEO,
                     artifact_type=ArtifactType.VIDEO, purpose="shot_video",
                     input_ids=input_ids,
-                    prompt=request.prompt_package, seed=request.seed,
+                    prompt=effective_request.prompt_package, seed=effective_request.seed,
                     dimensions=response.result.dimensions,
                     duration=response.result.duration_seconds,
                     encoding=response.result.encoding,
-                    extra={"fps": request.fps, "frame_count": response.result.frame_count,
+                    extra={"fps": effective_request.fps, "frame_count": response.result.frame_count,
                            "codec": response.result.codec},
                 )
                 related = [artifact]
@@ -199,8 +230,8 @@ class MediaRuntime:
                         response=response,
                         output=audio,
                         input_ids=input_ids,
-                        prompt=request.prompt_package,
-                        seed=request.seed,
+                        prompt=effective_request.prompt_package,
+                        seed=effective_request.seed,
                     ))
                 registered_ids = {item.artifact_id for item in related}
                 for payload in response.payloads:
@@ -210,8 +241,8 @@ class MediaRuntime:
                             response=response,
                             payload=payload,
                             input_ids=input_ids,
-                            prompt=request.prompt_package,
-                            seed=request.seed,
+                            prompt=effective_request.prompt_package,
+                            seed=effective_request.seed,
                         ))
                         registered_ids.add(payload.artifact_id)
                 return ProviderResult(provider_request_id=request.request_id, success=True,
@@ -220,7 +251,7 @@ class MediaRuntime:
             except BaseException as error:
                 return normalize_media_provider_error(request.request_id, error)
 
-        await self._execute(job, selection.provider_id, request.request_id, operation)
+        await self._execute(job, selection.provider_id, effective_request.request_id, operation)
         return self._required(request.output_artifact_id)
 
     async def inspect(self, job: GenerationJob, request: VisionInspectionRequest) -> VisionInspectionResult:

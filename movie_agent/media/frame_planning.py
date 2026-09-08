@@ -19,6 +19,25 @@ from movie_agent.media.contracts import (
 )
 
 
+def fit_canvas_to_provider_bounds(
+    width: int,
+    height: int,
+    *,
+    max_width: int | None,
+    max_height: int | None,
+    dimension_multiple: int = 1,
+    min_dimension: int = 1,
+) -> tuple[int, int]:
+    """Preserve aspect ratio while fitting a provider canvas and alignment."""
+
+    scale = min(1, (max_width or width) / width, (max_height or height) / height)
+    fitted_width = int(width * scale) // dimension_multiple * dimension_multiple
+    fitted_height = int(height * scale) // dimension_multiple * dimension_multiple
+    if min(fitted_width, fitted_height) < min_dimension:
+        raise ValueError("Canvas aspect ratio cannot fit the provider dimension limits")
+    return fitted_width, fitted_height
+
+
 class MediaFramePlanner:
     def __init__(self, compiler: ImagePromptCompiler | None = None) -> None:
         self.anchor_planner = RuleBasedFramePlanner()
@@ -39,13 +58,13 @@ class MediaFramePlanner:
     ) -> tuple[FramePlan, object]:
         requested_dimensions = MediaDimensions(width=width, height=height, aspect_ratio=aspect_ratio)
         if capabilities:
-            scale = min(1, (capabilities.max_width or width) / width,
-                        (capabilities.max_height or height) / height)
-            multiple = capabilities.dimension_multiple
-            width = int(width * scale) // multiple * multiple
-            height = int(height * scale) // multiple * multiple
-            if min(width, height) < capabilities.min_dimension:
-                raise ValueError("Image canvas aspect ratio cannot fit the provider dimension limits")
+            width, height = fit_canvas_to_provider_bounds(
+                width, height,
+                max_width=capabilities.max_width,
+                max_height=capabilities.max_height,
+                dimension_multiple=capabilities.dimension_multiple,
+                min_dimension=capabilities.min_dimension,
+            )
         previous_state = previous_shot.expected_state_after if previous_shot else None
         if previous_state and previous_last_frame_artifact_id:
             previous_state = previous_state.model_copy(

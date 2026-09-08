@@ -32,6 +32,8 @@ The [ComfyUI video bridge](comfyui_video_integration_plan.md) keeps API-format w
 
 `MediaRouter` filters on modality, task, required capabilities, quality profile, resource class, health, then selects deterministically by provider ID. The selection records the complete capability snapshot and reason.
 
+After routing selects the exact video provider/workflow, preflight negotiates a provider-compatible generation canvas. For first/last-frame video it prefers matching immutable boundary-frame dimensions when their aspect ratio, provider limits, and workflow alignment are valid; otherwise it applies the same aspect-preserving, round-down canvas policy used by frame planning. Missing required seeds are derived deterministically from stable request identity and generation revision. Recognized no-op strings on static camera motion become null. Real camera motion without a structured input is allowed only by a versioned `camera_motion_in_prompt` binding-manifest declaration plus a matching camera section in the bound prompt; otherwise camera and temporal intent remain hard failures. Original delivery dimensions are never mutated.
+
 ## Errors
 
 Adapters normalize errors to timeout, unavailable, model-not-ready, resource-exhausted, invalid-request, unsupported-capability, generation-failed, cancelled, corrupt-media, or internal. Raw CUDA/HTTP/SDK exception text is not forwarded to workflow consumers.

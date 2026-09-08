@@ -11,7 +11,13 @@ from movie_agent.comfyui import (
     ComfyUIWorkflowRegistry,
     validate_template_binding,
 )
-from movie_agent.domain import GenerationStrategyType, PromptPackage, ProviderKind, ResourceClass
+from movie_agent.domain import (
+    GenerationStrategyType,
+    PromptPackage,
+    PromptSection,
+    ProviderKind,
+    ResourceClass,
+)
 from movie_agent.media import (
     CameraMotionSpec,
     MediaGenerationStrategy,
@@ -111,10 +117,29 @@ def test_h3_compiler_binds_only_real_inputs_and_inlines_negative_guidance() -> N
     assert spec.prompt["105:91"]["inputs"]["fps"] == 24
     assert spec.prompt["105:111"]["inputs"]["value"] == 1
 
+    camera_prompt = "[camera] medium; low; 35mm; pan; direction=left; speed=slow"
+    prompt_encoded_motion = request.model_copy(update={
+        "prompt_package": PromptPackage(
+            compiler_id="generic-video",
+            compiler_version="1.0.0",
+            positive_prompt=camera_prompt,
+            sections=[PromptSection(
+                name="camera",
+                content="medium; low; 35mm; pan; direction=left; speed=slow",
+            )],
+        ),
+        "camera_motion": CameraMotionSpec(
+            motion_type="pan", direction="left", speed="slow"
+        ),
+    })
+    encoded_spec = ComfyUIWorkflowCompiler().compile(
+        request=prompt_encoded_motion, strategy=strategy, capabilities=capabilities,
+        input_assets=assets, template=template, binding_manifest=manifest,
+        model_profile=profile.model_profile,
+    )
+    assert encoded_spec.prompt["105:104"]["inputs"]["prompt"] == camera_prompt
+
     for unsupported_request in (
-        request.model_copy(update={
-            "camera_motion": CameraMotionSpec(motion_type="pan", direction="left"),
-        }),
         request.model_copy(update={
             "temporal_control": request.temporal_control.model_copy(update={
                 "preserve_identity": False,

@@ -22,6 +22,7 @@ from .contracts import (
     ComfyUIWorkflowTemplate,
     WorkflowBinding,
     WorkflowBindingManifest,
+    camera_motion_is_prompt_encoded,
 )
 
 
@@ -125,7 +126,7 @@ class ComfyUIWorkflowCompiler:
             or request.camera_motion.direction is not None
             or request.camera_motion.speed is not None
             or request.camera_motion.path
-        ):
+        ) and not camera_motion_is_prompt_encoded(request, binding_manifest):
             raise ProviderFailure(
                 "ComfyUI workflow does not support structured camera motion",
                 ProviderErrorType.UNSUPPORTED_CAPABILITY,
