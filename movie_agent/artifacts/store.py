@@ -32,6 +32,13 @@ class ArtifactStore(ABC):
     @abstractmethod
     def select(self, artifact_id: str, version: int) -> Artifact: ...
 
+    @abstractmethod
+    def create_structured(self, artifact_id: str, content: JSONValue, *, artifact_type=ArtifactType.TEXT,
+                          source_job_id=None, parent_artifact_ids=None, metadata=None, provenance=None) -> Artifact: ...
+
+    @abstractmethod
+    def read_structured(self, artifact: Artifact) -> JSONValue: ...
+
 
 class LocalArtifactStore(ArtifactStore):
     """Local manifest and immutable files suitable for tests and development."""
@@ -120,6 +127,33 @@ class LocalArtifactStore(ArtifactStore):
             selected = next((artifact for artifact in versions if artifact.selected), None)
             return selected or versions[-1]
         return next((artifact for artifact in versions if artifact.version == version), None)
+
+    def create_structured(self, artifact_id: str, content: JSONValue, *, artifact_type=ArtifactType.TEXT,
+                          source_job_id=None, parent_artifact_ids=None, metadata=None, provenance=None) -> Artifact:
+        """Commit structured production evidence using the existing manifest and URI scheme."""
+        from movie_agent.media.storage import artifact_uri
+        with self._lock:
+            versions = self.list_versions(artifact_id)
+            version = versions[-1].version + 1 if versions else 1
+            uri = artifact_uri(artifact_id, version)
+            folder = self.data_dir / artifact_id
+            folder.mkdir(parents=True, exist_ok=True)
+            target = folder / f"v{version}.json"
+            # An unregistered crash orphan is safe to replace; registered versions
+            # always get a different name and are never overwritten.
+            temporary = target.with_suffix(".tmp")
+            temporary.write_text(json.dumps(content, ensure_ascii=False, indent=2), encoding="utf-8")
+            temporary.replace(target)
+            return self.register(Artifact(artifact_id=artifact_id, artifact_type=artifact_type, uri=uri,
+                version=version, source_job_id=source_job_id, parent_artifact_ids=parent_artifact_ids or [],
+                metadata={"mime_type": "application/json", **(metadata or {})}, provenance=provenance or Provenance()))
+
+    def read_structured(self, artifact: Artifact) -> JSONValue:
+        from movie_agent.media.storage import parse_artifact_uri
+        identity, version = parse_artifact_uri(artifact.uri)
+        if identity != artifact.artifact_id or version != artifact.version:
+            raise ValueError("structured evidence URI mismatch")
+        return json.loads((self.data_dir / identity / f"v{version}.json").read_text(encoding="utf-8"))
 
     def list_versions(self, artifact_id: str) -> list[Artifact]:
         return sorted(

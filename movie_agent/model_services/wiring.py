@@ -24,17 +24,23 @@ def build_spark_runtime(llm_config, media_settings, *, settings=None):
         ("comfyui", "comfyui-video", media_settings.comfyui_workflow_profile, MediaModality.VIDEO, ProviderKind.VIDEO,
          media_settings.comfyui_endpoint, "/system_stats", "/queue", 48, 104, 180,
          "P4A isolated 22-frame H3 sampled pressure 103.73 GiB; rounded up to 104 GiB, plus separate safety headroom"),
+        ("vlm", "qwen3_vl", "Qwen3-VL-30B-A3B-Thinking", MediaModality.VISION, ProviderKind.VISION,
+         media_settings.vision_endpoint.removesuffix("/v1"), "/v1/models", "/metrics",
+         media_settings.vision_resident_gib, media_settings.vision_peak_gib, 180,
+         media_settings.vision_estimate_basis),
     ]
     for sid, pid, model, modality, kind, endpoint, health, idle, resident, peak, cost, basis in specs:
         descriptor = ModelServiceDescriptor(service_id=sid, modality=modality, endpoint=endpoint,
-            capabilities=ProviderCapabilities(provider_id=pid, kind=kind, modalities=[modality]),
+            capabilities=ProviderCapabilities(provider_id=pid, kind=kind, modalities=[modality],
+                requires_resource_lease=True),
+            metadata={"served_model": media_settings.vision_model, "container": "movie-agent-vlm"} if sid == "vlm" else {},
             resource_profile=ResourceProfile(resource_class=ResourceClass.HEAVY,
                 expected_memory_gb=peak, supports_concurrency=False,
-                requires_exclusive_runtime=sid == "comfyui"),
+                requires_exclusive_runtime=sid in {"comfyui", "vlm"}),
             runtime_profile=ModelRuntimeProfile(service_id=sid, provider_id=pid,
-                model_profile_id=model, estimated_resident_bytes=resident * GiB,
-                estimated_peak_bytes=peak * GiB, estimate_basis=basis,
-                startup_cost_seconds=cost, requires_exclusive_runtime=sid == "comfyui"))
+                model_profile_id=model, estimated_resident_bytes=int(resident * GiB),
+                estimated_peak_bytes=int(peak * GiB), estimate_basis=basis,
+                startup_cost_seconds=cost, requires_exclusive_runtime=sid in {"comfyui", "vlm"}))
         headers = {"Authorization": f"Bearer {llm_config.api_key.get_secret_value()}"} if sid == "qwen" else {}
         manager.register(SparkDockerModelService(descriptor, controller,
             health_path=health, idle_path=idle, kind=sid, headers=headers))

@@ -199,6 +199,7 @@ class EventType(StrEnum):
     MEDIA_EVALUATION_COMPLETED = "media_evaluation_completed"
     MEDIA_REPAIR_STARTED = "media_repair_started"
     MEDIA_REPAIR_COMPLETED = "media_repair_completed"
+    HUMAN_MEDIA_DIRECTIVE_CREATED = "human_media_directive_created"
     MODEL_SERVICE_STATUS_CHANGED = "model_service_status_changed"
     RESOURCE_SNAPSHOT = "resource_snapshot"
     RESOURCE_LEASE_ACQUIRED = "resource_lease_acquired"

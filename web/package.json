@@ -13,6 +13,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:h3": "playwright test --config playwright.h3.config.ts",
+    "test:e2e:vision": "playwright test --config playwright.vision.config.ts",
+    "test:e2e:media": "playwright test --config playwright.media.config.ts",
     "test:e2e:real": "playwright test --config playwright.real.config.ts"
   },
   "dependencies": {

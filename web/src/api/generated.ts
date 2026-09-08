@@ -346,6 +346,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project_id}/media-feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Media Feedback */
+        post: operations["media_feedback_projects__project_id__media_feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -1268,6 +1285,10 @@ export interface components {
             layer: components["schemas"]["EvaluationLayer"];
             /** Target Artifact Id */
             target_artifact_id?: string | null;
+            /** Target Artifact Version */
+            target_artifact_version?: number | null;
+            /** Inspection Result Id */
+            inspection_result_id?: string | null;
             /** Target Shot Id */
             target_shot_id?: string | null;
             /** Score */
@@ -1358,7 +1379,7 @@ export interface components {
          * EventType
          * @enum {string}
          */
-        EventType: "provider_request_started" | "provider_request_completed" | "role_output_received" | "role_output_validation_failed" | "role_output_validated" | "checkpoint_created" | "project_created" | "node_created" | "node_started" | "node_progress" | "node_completed" | "node_failed" | "edge_created" | "edge_activated" | "job_created" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "job_cancelled" | "artifact_created" | "artifact_selected" | "evaluation_completed" | "repair_started" | "repair_completed" | "human_review_requested" | "human_review_resolved" | "workflow_completed" | "media_job_created" | "media_job_started" | "media_job_progress" | "media_job_completed" | "media_job_failed" | "media_job_cancelled" | "media_job_replay_authorized" | "media_evaluation_started" | "media_evaluation_completed" | "media_repair_started" | "media_repair_completed" | "model_service_status_changed" | "resource_snapshot" | "resource_lease_acquired" | "resource_lease_released" | "scheduler_decision" | "resource_pressure" | "resource_admission_wait" | "reference_bound" | "reference_unbound";
+        EventType: "provider_request_started" | "provider_request_completed" | "role_output_received" | "role_output_validation_failed" | "role_output_validated" | "checkpoint_created" | "project_created" | "node_created" | "node_started" | "node_progress" | "node_completed" | "node_failed" | "edge_created" | "edge_activated" | "job_created" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "job_cancelled" | "artifact_created" | "artifact_selected" | "evaluation_completed" | "repair_started" | "repair_completed" | "human_review_requested" | "human_review_resolved" | "workflow_completed" | "media_job_created" | "media_job_started" | "media_job_progress" | "media_job_completed" | "media_job_failed" | "media_job_cancelled" | "media_job_replay_authorized" | "media_evaluation_started" | "media_evaluation_completed" | "media_repair_started" | "media_repair_completed" | "human_media_directive_created" | "model_service_status_changed" | "resource_snapshot" | "resource_lease_acquired" | "resource_lease_released" | "scheduler_decision" | "resource_pressure" | "resource_admission_wait" | "reference_bound" | "reference_unbound";
         /**
          * FrameAnchor
          * @description A planned or materialized boundary-frame dependency.
@@ -1599,6 +1620,95 @@ export interface components {
          * @enum {string}
          */
         HumanGateType: "story_approval" | "screenplay_approval" | "shot_plan_approval" | "final_cut_approval" | "agent_escalation";
+        /** HumanRepairDirective */
+        HumanRepairDirective: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Command Id */
+            command_id: string;
+            /** Inspection Result Id */
+            inspection_result_id: string;
+            /** Target Artifact Id */
+            target_artifact_id: string;
+            /** Target Artifact Version */
+            target_artifact_version: number;
+            /** Target Sha256 */
+            target_sha256: string;
+            disposition: components["schemas"]["HumanRepairDisposition"];
+            /** Accepted Issue Ids */
+            accepted_issue_ids?: string[];
+            /** Dismissed Issue Ids */
+            dismissed_issue_ids?: string[];
+            /**
+             * Feedback
+             * @default
+             */
+            feedback?: string;
+            /** Preserve Requirements */
+            preserve_requirements?: string[];
+            /** Change Requests */
+            change_requests?: string[];
+            /** Directive Id */
+            directive_id?: string;
+            /** Project Id */
+            project_id: string;
+            /** Review Id */
+            review_id: string;
+            /** Scene Id */
+            scene_id?: string | null;
+            /** Shot Id */
+            shot_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at?: string;
+        };
+        /**
+         * HumanRepairDisposition
+         * @enum {string}
+         */
+        HumanRepairDisposition: "keep_current" | "apply_ai_repair" | "regenerate" | "custom_repair";
+        /**
+         * HumanRepairInput
+         * @description User-owned command fields. Identity/provenance are supplied by Core.
+         */
+        HumanRepairInput: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Command Id */
+            command_id: string;
+            /** Inspection Result Id */
+            inspection_result_id: string;
+            /** Target Artifact Id */
+            target_artifact_id: string;
+            /** Target Artifact Version */
+            target_artifact_version: number;
+            /** Target Sha256 */
+            target_sha256: string;
+            disposition: components["schemas"]["HumanRepairDisposition"];
+            /** Accepted Issue Ids */
+            accepted_issue_ids?: string[];
+            /** Dismissed Issue Ids */
+            dismissed_issue_ids?: string[];
+            /**
+             * Feedback
+             * @default
+             */
+            feedback?: string;
+            /** Preserve Requirements */
+            preserve_requirements?: string[];
+            /** Change Requests */
+            change_requests?: string[];
+        };
         /**
          * HumanReviewRequest
          * @description Persisted pause point that can be resolved and resumed later.
@@ -1632,6 +1742,18 @@ export interface components {
             resolved_at?: string | null;
             /** Resolution Notes */
             resolution_notes?: string | null;
+            /** Inspection Result Id */
+            inspection_result_id?: string | null;
+            /** Target Artifact Id */
+            target_artifact_id?: string | null;
+            /** Target Artifact Version */
+            target_artifact_version?: number | null;
+            /** Target Sha256 */
+            target_sha256?: string | null;
+            /** Directive Id */
+            directive_id?: string | null;
+            /** Superseded At */
+            superseded_at?: string | null;
         };
         /** ImageCapabilities */
         ImageCapabilities: {
@@ -2020,6 +2142,8 @@ export interface components {
             artifact_id: string;
             /** Version */
             version?: number | null;
+            /** Sha256 */
+            sha256?: string | null;
             binding_scope?: components["schemas"]["ReferenceBindingScope"] | null;
             purpose?: components["schemas"]["ReferencePurpose"] | null;
             /** Project Id */
@@ -2063,6 +2187,8 @@ export interface components {
             issue_ids?: string[];
             /** Target Artifact Id */
             target_artifact_id?: string | null;
+            /** Target Artifact Version */
+            target_artifact_version?: number | null;
             /** Target Shot Id */
             target_shot_id?: string | null;
             /** Rationale */
@@ -2109,6 +2235,11 @@ export interface components {
              * @default false
              */
             requires_human?: boolean;
+            /** Directive Id */
+            directive_id?: string | null;
+            repair_context?: components["schemas"]["RepairContext"] | null;
+            /** Unsupported Actions */
+            unsupported_actions?: components["schemas"]["MediaRepairActionType"][];
         };
         /**
          * ModelResidency
@@ -2925,6 +3056,43 @@ export interface components {
          */
         RepairActionType: "strengthen_character_reference" | "strengthen_scene_reference" | "rewrite_prompt" | "regenerate_first_frame" | "regenerate_last_frame" | "change_generation_strategy" | "image_edit" | "regenerate" | "split_shot" | "director_replan" | "request_human_review";
         /**
+         * RepairContext
+         * @description Media-only constraints compiled into generation; never canonical Shot facts.
+         */
+        RepairContext: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Target Artifact Id */
+            target_artifact_id: string;
+            /** Target Artifact Version */
+            target_artifact_version: number;
+            /** Target Sha256 */
+            target_sha256: string;
+            /** Inspection Result Id */
+            inspection_result_id: string;
+            /** Directive Id */
+            directive_id?: string | null;
+            /** Preserve */
+            preserve?: string[];
+            /** Fix */
+            fix?: string[];
+            /** Avoid */
+            avoid?: string[];
+            /** Evidence */
+            evidence?: string[];
+            /** Targeted Time Ranges */
+            targeted_time_ranges?: components["schemas"]["TimeRange"][];
+            /**
+             * Raw Feedback
+             * @default
+             */
+            raw_feedback?: string;
+        };
+        /**
          * RepairPlan
          * @description Finite repair plan with an explicit retry budget and escalation path.
          */
@@ -3198,6 +3366,7 @@ export interface components {
             approved: boolean;
             /** Notes */
             notes?: string | null;
+            media_directive?: components["schemas"]["HumanRepairInput"] | null;
         };
         /** ReviewSource */
         ReviewSource: {
@@ -3763,6 +3932,12 @@ export interface components {
             media_inspections?: components["schemas"]["VisionInspectionResult"][];
             /** Media Repairs */
             media_repairs?: components["schemas"]["MediaRepairPlan"][];
+            /** Human Media Directives */
+            human_media_directives?: components["schemas"]["HumanRepairDirective"][];
+            /** Human Overrides */
+            human_overrides?: {
+                [key: string]: unknown;
+            }[];
             timeline?: components["schemas"]["Timeline"] | null;
             /** Media Provider Ids */
             media_provider_ids?: string[];
@@ -4123,6 +4298,18 @@ export interface components {
             request_id: string;
             /** Target Artifact Id */
             target_artifact_id: string;
+            /** Target Artifact Version */
+            target_artifact_version?: number | null;
+            /** Target Sha256 */
+            target_sha256?: string | null;
+            /** Project Id */
+            project_id?: string | null;
+            /** Scene Id */
+            scene_id?: string | null;
+            /** Shot Id */
+            shot_id?: string | null;
+            /** Inspection Fingerprint */
+            inspection_fingerprint?: string | null;
             /** Scores */
             scores: components["schemas"]["VisionScore"][];
             /** Issues */
@@ -4130,6 +4317,9 @@ export interface components {
             /** Evidence */
             evidence?: string[];
             decision: components["schemas"]["VisionDecision"];
+            proposed_decision?: components["schemas"]["VisionDecision"] | null;
+            /** Decision Reasons */
+            decision_reasons?: string[];
             /**
              * Summary
              * @default
@@ -4141,6 +4331,14 @@ export interface components {
             provider_metadata?: {
                 [key: string]: components["schemas"]["JsonValue"];
             };
+            /** Model Service Id */
+            model_service_id?: string | null;
+            provenance?: components["schemas"]["Provenance"];
+            /**
+             * Completed At
+             * Format: date-time
+             */
+            completed_at?: string;
         };
         /** VisionScore */
         VisionScore: {
@@ -4952,6 +5150,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ReviewResolution"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HumanReviewRequest"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    media_feedback_projects__project_id__media_feedback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HumanRepairInput"];
             };
         };
         responses: {

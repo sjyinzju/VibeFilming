@@ -24,6 +24,7 @@ from movie_agent.media import (
     ReferenceBindingScope,
     media_metadata,
     media_response,
+    HumanRepairInput,
 )
 
 
@@ -32,6 +33,7 @@ class ReviewResolution(BaseModel):
     model_config = ConfigDict(extra="forbid")
     approved: bool
     notes: str | None = None
+    media_directive: HumanRepairInput | None = None
 
 
 class TerminalRevisionCommand(BaseModel):
@@ -261,7 +263,11 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
 
     @app.post("/reviews/{review_id}/resolve", response_model=HumanReviewRequest)
     async def resolve(review_id: str, command: ReviewResolution):
-        return service.resolve_review(review_id, command.approved, command.notes)
+        return service.resolve_review(review_id, command.approved, command.notes, command.media_directive)
+
+    @app.post("/projects/{project_id}/media-feedback", response_model=HumanReviewRequest)
+    async def media_feedback(project_id: str, command: HumanRepairInput):
+        return service.media_feedback(project_id, command)
 
     @app.get("/jobs/{job_id}", response_model=GenerationJob)
     async def job(job_id: str, project_id: str | None = None):

@@ -150,7 +150,9 @@ const StudioCard = memo(function StudioCard({ data, selected }: NodeProps<Studio
         <span>{t(data.kind === 'role' ? 'ROLE' : data.kind.toUpperCase())}</span>
         {data.status === 'succeeded' ? (
           <Check className="node-mark" size={15} />
-        ) : data.status === 'running' ? (
+        ) : ['running', 'evaluating', 'repairing', 'preparing_model', 'waiting_resource'].includes(
+            data.status,
+          ) ? (
           <Loader className="node-mark spin" size={14} />
         ) : (
           <Circle className="node-mark" size={7} />

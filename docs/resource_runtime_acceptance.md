@@ -1,5 +1,41 @@
 # P4A acceptance — 2026-09-08
 
+## P4B incremental status
+
+Real CLI inspection of the existing Scene 01 v1 completed with `qwen3_vl` /
+`movie-agent-vision`; no media was regenerated. The user explicitly authorized
+temporary 8082 downtime. CLI and browser acceptance take the normal OS ownership
+lock in turn, and retain the existing lease journal and checkpoint files.
+
+| P4B measurement / invariant | Evidence |
+| --- | --- |
+| Cold / before startup | 117.4598 / 117.4568 GiB available |
+| Model ready / before inference | 31.8074 / 31.7790 GiB available |
+| Sampled minimum / after inference / after release | 31.0410 / 31.1306 / 31.1333 GiB available |
+| Incremental sampled high-water | Successful CLI 86.4188 GiB; earlier cold-start/decoder-rejected attempt 87.74 GiB |
+| Final configured profile | VLM resident 88 GiB, peak 92 GiB; separate 4 + 8 GiB headroom |
+| Workload / basis | 24 deterministic 640px JPEG video frames plus immutable first/last image references; measured host-pressure delta, not model-file size or exact allocator peak |
+| Actual inference / provider time | 55.4234 / 62.5366 seconds for CLI r1 |
+| Admission | Provisional 108 GiB correctly denied before inference; calibration-only 105 GiB kept headroom; final measured 92 GiB admitted |
+| Lease | Acquired durably before startup; EXECUTING before POST; successful CLI lease released |
+| Lifecycle / TTL | Real automatic stop/start/readiness; restored Studio's 300-second idle TTL drained VLM at 13:25:00 UTC and stopped/unloaded it at 13:25:05, controlled exit 0, no OOM; deterministic tests verify warm reuse |
+| OOM | No observed VLM OOM; deterministic OOM tests retain failure normalization, invalidation and no automatic replay |
+| Uncertainty | One completed browser POST lost to acceptance telemetry error was quarantined; verified idle, controlled stop and normal reconcile released it before retry |
+| Startup interruption | Startup-only uncertain leases retain inference_started=false and use normal P4A reconciliation; inference is never submitted while quarantined |
+| Browser inspection | Real HTTP 32.3003 s, provider 39.4411 s; successful sampled pressure 86.5193 GiB; post-inference telemetry gaps are disclosed |
+| Browser / human proof | Real inspection Artifact v2 reused for final UI/SSE/playback/refresh checks: 1 passed. Existing HumanReview/Directive accepted the real result, zero extra inference jobs |
+| Restored owner | Original 8082 workspace, health HTTP 200, two projects, normal exclusive ownership, zero active leases; acceptance ports closed |
+
+The acceptance telemetry wrapper now persists the returned response before optional
+diagnostics. Resource-preparation retries retain the valid lifecycle state; tests
+cover transient recovery and retry exhaustion without unintended provider calls.
+Missing inference-period telemetry now produces an unknown (`null`) measured peak,
+never a fabricated zero. The earlier zero observation is preserved as historical
+evidence of the corrected bug and is excluded from the stated calibration.
+No Qwen reasoning, FLUX or H3 inference was repeated. Detailed immutable result and
+browser evidence are recorded in [P4B acceptance](p4b_vision_critic.md). FULL/targeted
+resource peaks are not calibrated by this FAST workload.
+
 Implementation and one controlled Spark inference are complete. This is evidence
 for the measured workload, not a claim that arbitrary future workloads cannot OOM.
 

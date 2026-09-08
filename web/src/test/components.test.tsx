@@ -70,6 +70,12 @@ it('brief invokes Start Film and submitted input is read-only', () => {
 });
 it('human review approval and revision pass the actual review identity and notes', () => {
   const review: Review = {
+    inspection_result_id: null,
+    target_artifact_id: null,
+    target_artifact_version: null,
+    target_sha256: null,
+    directive_id: null,
+    superseded_at: null,
     schema_version: '1.0.0',
     review_id: 'review-1',
     project_id: 'project-1',

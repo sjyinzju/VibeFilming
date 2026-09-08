@@ -71,10 +71,20 @@ export const api = {
           'Explicit Web Studio Correct planning / Replan action: one semantic revision + at most two repairs',
       }),
     }),
-  resolve: (rid: string, approved: boolean, notes: string) =>
+  resolve: (
+    rid: string,
+    approved: boolean,
+    notes: string,
+    media_directive?: Schema['HumanRepairInput'],
+  ) =>
     request<Schema['HumanReviewRequest']>(`/reviews/${id(rid)}/resolve`, {
       method: 'POST',
-      body: JSON.stringify({ approved, notes }),
+      body: JSON.stringify({ approved, notes, media_directive }),
+    }),
+  mediaFeedback: (pid: string, directive: Schema['HumanRepairInput']) =>
+    request<Schema['HumanReviewRequest']>(`/projects/${id(pid)}/media-feedback`, {
+      method: 'POST',
+      body: JSON.stringify(directive),
     }),
   providers: () => request<Schema['ProviderView'][]>('/providers'),
   job: (pid: string, jid: string) =>

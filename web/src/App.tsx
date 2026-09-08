@@ -63,7 +63,7 @@ export default function App() {
   }, [draft]);
   useEffect(() => {
     const pending = snapshot?.reviews.find(
-      (r) => r.status === 'pending' && !openedReviews.current.has(r.review_id),
+      (r) => r.status === 'pending' && !r.superseded_at && !openedReviews.current.has(r.review_id),
     );
     if (pending) {
       openedReviews.current.add(pending.review_id);
@@ -130,9 +130,14 @@ export default function App() {
           'Local production cancelled and checkpoint retained. Remote requests may finish independently.',
         );
     });
-  const resolve = async (review: Review, approved: boolean, notes: string) => {
+  const resolve = async (
+    review: Review,
+    approved: boolean,
+    notes: string,
+    directive?: import('./api/types').Schema['HumanRepairInput'],
+  ) => {
     await perform(async () => {
-      await api.resolve(review.review_id, approved, notes);
+      await api.resolve(review.review_id, approved, notes, directive);
       setNotice(
         approved
           ? 'Review approved.'
@@ -141,7 +146,7 @@ export default function App() {
       if (approved && pid) await api.command(pid, 'resume');
     });
   };
-  const unresolved = snapshot?.reviews.some((r) => r.status !== 'approved');
+  const unresolved = snapshot?.reviews.some((r) => r.status !== 'approved' && !r.superseded_at);
   const resumeEnabled =
     snapshot &&
     ['paused', 'failed', 'waiting_human'].includes(snapshot.status) &&

@@ -1400,3 +1400,85 @@ html[lang='zh-CN'] .eyebrow {
     transition: none !important;
   }
 }
+/* Exact-version AI reviews share the existing Inspector and media player. */
+.ai-review {
+  border: 1px solid var(--border, #ccd2d1);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 16px 0;
+}
+.ai-review .media-preview {
+  width: 100%;
+  margin: 12px 0;
+}
+.review-provider {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.vision-scores > div {
+  display: grid;
+  grid-template-columns: 1fr 80px 40px;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0;
+  font-size: 12px;
+}
+.vision-scores meter {
+  width: 100%;
+}
+.vision-issues {
+  list-style: none;
+  padding: 0;
+}
+.vision-issues li {
+  padding: 12px 0;
+  border-top: 1px solid var(--border, #ccd2d1);
+}
+.vision-issues blockquote {
+  margin: 8px 0;
+  padding-left: 10px;
+  border-left: 2px solid #8da1ad;
+  font-size: 12px;
+}
+.vision-issues label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.vision-issues input[type='checkbox'] {
+  width: auto;
+}
+.severity-critical,
+.severity-major {
+  background: #f7dfd9;
+  color: #9a3922;
+}
+.decision-pass {
+  background: #dfeede;
+  color: #285734;
+}
+.decision-human_review,
+.decision-repair,
+.decision-regenerate {
+  background: #f2e5be;
+  color: #73560c;
+}
+.ai-review form label {
+  display: block;
+  margin-top: 12px;
+}
+.ai-review textarea {
+  min-height: 65px;
+  width: 100%;
+}
+.timestamp {
+  font-family: monospace;
+  margin: 3px 4px 3px 0;
+}
+.human-override {
+  border-left: 3px solid #bc8d32;
+  padding-left: 9px;
+}

@@ -20,6 +20,7 @@ CONTAINERS = {
     "qwen": "movie-agent-llm",
     "flux": "movie-agent-flux-direct",
     "comfyui": "movie-agent-comfyui",
+    "vlm": "movie-agent-vlm",
 }
 
 
@@ -142,7 +143,7 @@ class SparkDockerModelService(ModelService):
                 return response.json().get("ready") is True
             if self.kind == "comfyui":
                 return isinstance(response.json().get("system"), dict)
-            model_id = self.descriptor.runtime_profile.model_profile_id
+            model_id = self.descriptor.metadata.get("served_model", self.descriptor.runtime_profile.model_profile_id)
             return any(item.get("id") == model_id for item in response.json().get("data", []))
         except (httpx.HTTPError, ValueError, KeyError, TypeError):
             return False

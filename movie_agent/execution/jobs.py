@@ -291,6 +291,13 @@ class LocalJobExecutor:
             job = self.manager.get(job_id)
             if job.cancellation_requested:
                 return job if job.status == JobStatus.CANCELLED else self.manager.transition(job_id, JobStatus.CANCELLED)
+            if result.metadata.get("attempts"):
+                current = self.manager.get(job_id)
+                parameters = dict(current.provenance.parameters)
+                parameters["provider_attempts"] = [*parameters.get("provider_attempts", []),
+                    *[{"execution_attempt": current.retry_count + 1, **attempt} for attempt in result.metadata["attempts"]]]
+                self.manager._jobs[job_id] = current.model_copy(update={
+                    "provenance": current.provenance.model_copy(update={"parameters": parameters})})
             if result.success:
                 updated = job.model_copy(
                     update={"related_artifact_ids": list(result.artifact_ids)}
@@ -299,8 +306,11 @@ class LocalJobExecutor:
                 return self.manager.transition(job_id, JobStatus.SUCCEEDED)
             if result.retryable and job.retry_count < job.retry_budget:
                 job = self.manager.increment_retry(job_id)
-                self.manager.transition(job_id, JobStatus.PREPARING)
-                job = self.manager.transition(job_id, JobStatus.PREPARING_MODEL if managed else JobStatus.RUNNING)
+                # Admission/telemetry can fail before on_ready moves us to RUNNING.
+                # Retry preparation in place; no provider operation has begun.
+                if job.status != JobStatus.PREPARING_MODEL:
+                    self.manager.transition(job_id, JobStatus.PREPARING)
+                    job = self.manager.transition(job_id, JobStatus.PREPARING_MODEL if managed else JobStatus.RUNNING)
                 continue
             reason = result.error_message or "provider operation failed"
             return self.manager.transition(job_id, JobStatus.FAILED, failure_reason=reason)

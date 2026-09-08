@@ -80,6 +80,7 @@ class MockCinematicCritic:
         return Evaluation(
             layer=EvaluationLayer.CINEMATIC,
             target_artifact_id=artifact.artifact_id,
+            target_artifact_version=artifact.version,
             target_shot_id=shot.shot_id,
             score=0.91,
             passed=True,

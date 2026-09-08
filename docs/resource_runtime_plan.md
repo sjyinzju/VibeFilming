@@ -1,5 +1,26 @@
 # P4A — Resource-aware production runtime
 
+## P4B increment
+
+The fourth allow-listed service is `vlm` → `movie-agent-vlm`, provider `qwen3_vl`,
+profile `Qwen3-VL-30B-A3B-Thinking`, served model `movie-agent-vision`, VISION kind
+and modality. Existing P4A admission, eviction, TTL, warm affinity, observation and
+checkpoint mechanisms apply. Initial concurrency is one with an exclusive lease.
+Health uses `/v1/models`; `/metrics` running/waiting counters were verified on 8001.
+Staging remains entirely in the provider data plane.
+
+Known pre-dispatch failures are distinct from disconnected in-flight requests;
+uncertain VLM requests quarantine their lease. A committed inspection Artifact can
+prove completion of the same job after a crash. No blind remote replay is added.
+Real Scene 01 FAST calibration sets 88 GiB resident / 92 GiB peak: successful
+inspection sampled 86.42 GiB (CLI) / 86.52 GiB (browser) incremental pressure,
+the larger startup sample 87.74
+GiB. Keep the independent 4 GiB reserve + 8 GiB safety margin. The estimate basis
+explicitly limits this evidence to 24 JPEG video frames plus two references;
+FULL/targeted workloads are unbenchmarked and samples are not an allocator guarantee.
+Runtime resident credit is still earned from isolated telemetry, not granted from
+the configured estimate. Evidence and recovery details are in `p4b_vision_critic.md`.
+
 ## Incremental audit and plan
 
 WorkflowGraph / ProductionGraph remain the flow source of truth. Their ready nodes,

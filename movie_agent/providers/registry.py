@@ -121,6 +121,20 @@ class MediaProviderSettings(BaseModel):
     image_provider: str = "mock"
     video_provider: str = "mock"
     vision_provider: str = "mock"
+    vision_endpoint: str = "http://127.0.0.1:8001/v1"
+    vision_model: str = "movie-agent-vision"
+    vision_timeout: float = Field(default=600, gt=0, le=1800, allow_inf_nan=False)
+    vision_media_remote_root: str = "/home/Developer/runtime/vlm-media"
+    vision_max_tokens: int = Field(default=6000, ge=256, le=16000)
+    vision_minimum_score: float = Field(default=0.80, ge=0, le=1)
+    vision_profile_thresholds: dict[str, float] = Field(default_factory=dict)
+    vision_structured_output: str = Field(default="json_schema", pattern=r"^(json_schema|json_object)$")
+    vision_fast_frames: int = Field(default=24, ge=8, le=24)
+    vision_full_frames: int = Field(default=40, ge=32, le=48)
+    vision_video_transport: str = Field(default="jpeg_sequence", pattern=r"^(native|jpeg_sequence)$")
+    vision_resident_gib: float = Field(default=88, ge=0, allow_inf_nan=False)
+    vision_peak_gib: float = Field(default=92, gt=0, allow_inf_nan=False)
+    vision_estimate_basis: str = "P4B GB10 2026-09-08: isolated Scene01 24-frame JPEG video plus two references, successful sampled pressure 86.42 GiB (CLI) / 86.52 GiB (browser); worst observed cold-start pressure 87.74 GiB. Resident rounded to 88 GiB; peak rounded up plus 4 GiB to 92 GiB. Separate P4A 12 GiB headroom remains. Sampled unified-memory pressure, not an allocator guarantee; FULL/targeted workloads unbenchmarked."
     audio_provider: str = "mock"
     post_provider: str = "mock"
     flux_endpoint: str = "http://127.0.0.1:9001"
@@ -135,6 +149,18 @@ class MediaProviderSettings(BaseModel):
     def validate_flux_endpoint(cls, value):
         from movie_agent.providers.flux_direct import validate_endpoint
         return validate_endpoint(value)
+
+    @field_validator("vision_endpoint")
+    @classmethod
+    def validate_vision_endpoint(cls, value):
+        from movie_agent.providers.flux_direct import validate_endpoint
+        return validate_endpoint(value).rstrip("/")
+
+    @field_validator("vision_profile_thresholds", mode="before")
+    @classmethod
+    def parse_thresholds(cls, value):
+        import json
+        return json.loads(value) if isinstance(value, str) else value
 
     @field_validator("comfyui_endpoint")
     @classmethod
@@ -162,7 +188,7 @@ class MediaProviderSettings(BaseModel):
     ) -> "MediaProviderSettings":
         values = {**dotenv_values(path), **(os.environ if environ is None else environ)}
         return cls(**{
-            field: values.get(f"MOVIE_AGENT_{field.upper()}") or definition.default
+            field: values.get(f"MOVIE_AGENT_{field.upper()}") or definition.get_default(call_default_factory=True)
             for field, definition in cls.model_fields.items()
         })
 
@@ -229,6 +255,9 @@ class ProviderFactory:
             ),
         ))
         factory.register(MediaModality.VISION, "mock", MockVisionProvider)
+        from movie_agent.providers.qwen3_vl import Qwen3VLVisionProvider
+        factory.register(MediaModality.VISION, "qwen3_vl", lambda: Qwen3VLVisionProvider(
+            settings=factory._settings, resolver=resolver))
         factory.register(MediaModality.AUDIO, "mock", MockAudioProvider)
         factory.register(MediaModality.POST, "mock", MockPostProcessor)
         return factory

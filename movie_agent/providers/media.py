@@ -61,6 +61,9 @@ def normalize_media_provider_error(request_id: str, error: BaseException) -> Pro
     return ProviderResult(
         provider_request_id=request_id, success=False, retryable=retryable,
         error_type=kind, error_message=f"media_provider_{kind.value}",
+        metadata=({"request_dispatched": error.request_dispatched,
+                   "attempts": getattr(error, "attempts", [])}
+                  if hasattr(error, "request_dispatched") else {}),
     )
 
 
@@ -148,6 +151,10 @@ class VideoProvider(MediaProvider):
 
 
 class VisionProvider(MediaProvider):
+    async def prepare_request(self, request: VisionInspectionRequest) -> VisionInspectionRequest:
+        """Resolve decoder facts at the boundary before Core fingerprints evidence."""
+        return request
+
     @abstractmethod
     async def inspect(self, request: VisionInspectionRequest) -> VisionInspectionResult: ...
 

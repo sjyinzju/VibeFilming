@@ -37,6 +37,24 @@ export function projectCanvas(snapshot: Snapshot) {
     ]);
   }
   const nodes: StudioNode[] = (snapshot.graph.nodes || []).map((n) => {
+    const job = [...snapshot.jobs].reverse().find((j) => j.node_id === n.node_id);
+    const vision = n.node_id === 'visual_semantic_critic';
+    const visionProvider = snapshot.media_provider_bindings?.vision;
+    const phase =
+      (vision || n.node_id === 'repair_accept') &&
+      job &&
+      ['waiting_resource', 'preparing_model', 'running', 'evaluating'].includes(job.status)
+        ? (
+            {
+              waiting_resource: 'waiting_resource',
+              preparing_model: 'preparing_model',
+              running: job.task === 'vision' ? 'evaluating' : 'repairing',
+              evaluating: 'evaluating',
+            } as Record<string, string>
+          )[job.status]
+        : n.node_id === 'repair_accept' && n.status === 'running'
+          ? 'repairing'
+          : undefined;
     const executionGraph = executionByParent.get(n.node_id);
     const kind: CanvasKind =
       n.node_type === 'human_gate'
@@ -54,8 +72,9 @@ export function projectCanvas(snapshot: Snapshot) {
       position: { x: 0, y: 0 },
       data: {
         title: n.label,
-        subtitle: n.role,
-        status: n.status || 'pending',
+        subtitle:
+          vision && visionProvider === 'qwen3_vl' ? 'Qwen3-VL · movie-agent-vision' : n.role,
+        status: phase || n.status || 'pending',
         kind,
         identity: n.node_id,
         metadata: n.group,
@@ -107,7 +126,24 @@ export function projectCanvas(snapshot: Snapshot) {
       const shotArtifacts = artifactsByShot.get(shot.shot_id) || [];
       const frames = shotArtifacts.filter((artifact) => artifact.artifact_type === 'frame');
       const videos = shotArtifacts.filter((artifact) => artifact.artifact_type === 'video');
-      const qc = evaluationsByShot.get(shot.shot_id) || [];
+      const latestVideo = videos.reduce<(typeof videos)[number] | undefined>(
+        (latest, artifact) => (!latest || artifact.version > latest.version ? artifact : latest),
+        undefined,
+      );
+      const currentEvaluations = (evaluationsByShot.get(shot.shot_id) || []).filter(
+        (item) =>
+          latestVideo &&
+          item.target_artifact_id === latestVideo.artifact_id &&
+          (item.target_artifact_version === latestVideo.version ||
+            (item.target_artifact_version == null && latestVideo.version === 1)),
+      );
+      const qc = [...new Map(currentEvaluations.map((item) => [item.layer, item])).values()];
+      const humanAccepted = snapshot.human_overrides?.some(
+        (override) =>
+          latestVideo &&
+          override.target_artifact_id === latestVideo.artifact_id &&
+          override.target_artifact_version === latestVideo.version,
+      );
       nodes.push({
         id: sid,
         type: 'shot',
@@ -122,7 +158,13 @@ export function projectCanvas(snapshot: Snapshot) {
           media: {
             frames: frames.length >= 2 ? '✓' : frames.length ? `${frames.length}/2` : 'Waiting',
             video: videos.length ? '✓' : 'Waiting',
-            qc: qc.length ? (qc.every((item) => item.passed) ? '✓' : 'Repair') : '—',
+            qc: humanAccepted
+              ? 'Human accepted'
+              : qc.length
+                ? qc.every((item) => item.passed)
+                  ? '✓'
+                  : 'Repair'
+                : '—',
           },
         },
       });

@@ -849,6 +849,55 @@
         }
       }
     },
+    "/projects/{project_id}/media-feedback": {
+      "post": {
+        "summary": "Media Feedback",
+        "operationId": "media_feedback_projects__project_id__media_feedback_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HumanRepairInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanReviewRequest"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/jobs/{job_id}": {
       "get": {
         "summary": "Job",
@@ -2996,6 +3045,29 @@
             ],
             "title": "Target Artifact Id"
           },
+          "target_artifact_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Artifact Version"
+          },
+          "inspection_result_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inspection Result Id"
+          },
           "target_shot_id": {
             "anyOf": [
               {
@@ -3258,6 +3330,7 @@
           "media_evaluation_completed",
           "media_repair_started",
           "media_repair_completed",
+          "human_media_directive_created",
           "model_service_status_changed",
           "resource_snapshot",
           "resource_lease_acquired",
@@ -3873,6 +3946,224 @@
         ],
         "title": "HumanGateType"
       },
+      "HumanRepairDirective": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "command_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-]+$",
+            "title": "Command Id"
+          },
+          "inspection_result_id": {
+            "type": "string",
+            "title": "Inspection Result Id"
+          },
+          "target_artifact_id": {
+            "type": "string",
+            "title": "Target Artifact Id"
+          },
+          "target_artifact_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Target Artifact Version"
+          },
+          "target_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Target Sha256"
+          },
+          "disposition": {
+            "$ref": "#/components/schemas/HumanRepairDisposition"
+          },
+          "accepted_issue_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Accepted Issue Ids"
+          },
+          "dismissed_issue_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dismissed Issue Ids"
+          },
+          "feedback": {
+            "type": "string",
+            "maxLength": 16000,
+            "title": "Feedback",
+            "default": ""
+          },
+          "preserve_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "title": "Preserve Requirements"
+          },
+          "change_requests": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "title": "Change Requests"
+          },
+          "directive_id": {
+            "type": "string",
+            "title": "Directive Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "review_id": {
+            "type": "string",
+            "title": "Review Id"
+          },
+          "scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
+          "shot_id": {
+            "type": "string",
+            "title": "Shot Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "inspection_result_id",
+          "target_artifact_id",
+          "target_artifact_version",
+          "target_sha256",
+          "disposition",
+          "project_id",
+          "review_id",
+          "shot_id"
+        ],
+        "title": "HumanRepairDirective"
+      },
+      "HumanRepairDisposition": {
+        "type": "string",
+        "enum": [
+          "keep_current",
+          "apply_ai_repair",
+          "regenerate",
+          "custom_repair"
+        ],
+        "title": "HumanRepairDisposition"
+      },
+      "HumanRepairInput": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "command_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-]+$",
+            "title": "Command Id"
+          },
+          "inspection_result_id": {
+            "type": "string",
+            "title": "Inspection Result Id"
+          },
+          "target_artifact_id": {
+            "type": "string",
+            "title": "Target Artifact Id"
+          },
+          "target_artifact_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Target Artifact Version"
+          },
+          "target_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Target Sha256"
+          },
+          "disposition": {
+            "$ref": "#/components/schemas/HumanRepairDisposition"
+          },
+          "accepted_issue_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Accepted Issue Ids"
+          },
+          "dismissed_issue_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dismissed Issue Ids"
+          },
+          "feedback": {
+            "type": "string",
+            "maxLength": 16000,
+            "title": "Feedback",
+            "default": ""
+          },
+          "preserve_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "title": "Preserve Requirements"
+          },
+          "change_requests": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "title": "Change Requests"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "inspection_result_id",
+          "target_artifact_id",
+          "target_artifact_version",
+          "target_sha256",
+          "disposition"
+        ],
+        "title": "HumanRepairInput",
+        "description": "User-owned command fields. Identity/provenance are supplied by Core."
+      },
       "HumanReviewRequest": {
         "properties": {
           "schema_version": {
@@ -3939,6 +4230,75 @@
               }
             ],
             "title": "Resolution Notes"
+          },
+          "inspection_result_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inspection Result Id"
+          },
+          "target_artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Artifact Id"
+          },
+          "target_artifact_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Artifact Version"
+          },
+          "target_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Sha256"
+          },
+          "directive_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directive Id"
+          },
+          "superseded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded At"
           }
         },
         "additionalProperties": false,
@@ -4889,6 +5249,18 @@
             ],
             "title": "Version"
           },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
           "binding_scope": {
             "anyOf": [
               {
@@ -5071,6 +5443,18 @@
             ],
             "title": "Target Artifact Id"
           },
+          "target_artifact_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Artifact Version"
+          },
           "target_shot_id": {
             "anyOf": [
               {
@@ -5169,6 +5553,34 @@
             "type": "boolean",
             "title": "Requires Human",
             "default": false
+          },
+          "directive_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directive Id"
+          },
+          "repair_context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RepairContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unsupported_actions": {
+            "items": {
+              "$ref": "#/components/schemas/MediaRepairActionType"
+            },
+            "type": "array",
+            "title": "Unsupported Actions"
           }
         },
         "additionalProperties": false,
@@ -7091,6 +7503,96 @@
         ],
         "title": "RepairActionType"
       },
+      "RepairContext": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "target_artifact_id": {
+            "type": "string",
+            "title": "Target Artifact Id"
+          },
+          "target_artifact_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Target Artifact Version"
+          },
+          "target_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Target Sha256"
+          },
+          "inspection_result_id": {
+            "type": "string",
+            "title": "Inspection Result Id"
+          },
+          "directive_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directive Id"
+          },
+          "preserve": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preserve"
+          },
+          "fix": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fix"
+          },
+          "avoid": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Avoid"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "targeted_time_ranges": {
+            "items": {
+              "$ref": "#/components/schemas/TimeRange"
+            },
+            "type": "array",
+            "title": "Targeted Time Ranges"
+          },
+          "raw_feedback": {
+            "type": "string",
+            "title": "Raw Feedback",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target_artifact_id",
+          "target_artifact_version",
+          "target_sha256",
+          "inspection_result_id"
+        ],
+        "title": "RepairContext",
+        "description": "Media-only constraints compiled into generation; never canonical Shot facts."
+      },
       "RepairPlan": {
         "properties": {
           "schema_version": {
@@ -7606,6 +8108,16 @@
               }
             ],
             "title": "Notes"
+          },
+          "media_directive": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HumanRepairInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -8965,6 +9477,21 @@
             "type": "array",
             "title": "Media Repairs"
           },
+          "human_media_directives": {
+            "items": {
+              "$ref": "#/components/schemas/HumanRepairDirective"
+            },
+            "type": "array",
+            "title": "Human Media Directives"
+          },
+          "human_overrides": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Human Overrides"
+          },
           "timeline": {
             "anyOf": [
               {
@@ -9713,6 +10240,74 @@
             "type": "string",
             "title": "Target Artifact Id"
           },
+          "target_artifact_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Artifact Version"
+          },
+          "target_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Sha256"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
+          "shot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Id"
+          },
+          "inspection_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inspection Fingerprint"
+          },
           "scores": {
             "items": {
               "$ref": "#/components/schemas/VisionScore"
@@ -9737,6 +10332,23 @@
           "decision": {
             "$ref": "#/components/schemas/VisionDecision"
           },
+          "proposed_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VisionDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decision_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Decision Reasons"
+          },
           "summary": {
             "type": "string",
             "title": "Summary",
@@ -9752,6 +10364,25 @@
             },
             "type": "object",
             "title": "Provider Metadata"
+          },
+          "model_service_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Service Id"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Completed At"
           }
         },
         "additionalProperties": false,

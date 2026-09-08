@@ -6,7 +6,7 @@ VibeFilming 是一套面向持续创作的 AI 电影生产系统。它把故事�
 
 ## 当前进度
 
-截至 2026 年 9 月 7 日，项目已完成核心工作流、真实推理、Web Studio 和首条真实媒体链路。默认配置仍使用 Mock，真实模型必须显式启用，系统不会在真实 Provider 失败时静默回退。
+截至 2026 年 9 月 8 日，项目已完成核心工作流、真实推理、Web Studio、真实媒体链路、P4A 资源运行时及 P4B 真实视觉审核与人工指导修复。真实 VLM、内存校准、浏览器和人工反馈 contract 验收通过，详见 [P4B 记录](docs/p4b_vision_critic.md)。默认配置仍使用 Mock，真实模型必须显式启用，系统不会在真实 Provider 失败时静默回退。
 
 | 模块 | 当前状态 | 已验证结果 |
 | --- | --- | --- |
@@ -16,7 +16,9 @@ VibeFilming 是一套面向持续创作的 AI 电影生产系统。它把故事�
 | 图像生成 | 真实接入 | FLUX.1-dev 已生成并保存 1024 x 576 首帧和尾帧 |
 | ComfyUI 桥接 | 已完成 | 版本化 API Workflow、语义 Binding Manifest、编译器、HTTP WebSocket 客户端 |
 | 视频与原生音频 | 定向真实验收通过 | MiniMax H3 FL2VA 生成 608 x 352、22 帧、24 fps 的 0.92 秒视频及原生音频，18 个执行节点全部成功 |
-| 视觉审核与独立音频 | 尚未真实接入 | Vision VLM、TTS、音乐、音效、拟音仍使用 Mock |
+| Qwen3-VL 视觉审核 | 真实验收通过 | 现有 Scene 01 视频经安全 staging、真实 VLM 和 Core 裁决生成不可变审核 Artifact；Studio、SSE、刷新及人工反馈 contract 通过 |
+| Resource runtime | 真实接入 | P4A 启停、统一内存和租约管理；`vlm` 实测校准为 88 GiB 常驻 / 92 GiB 峰值预算，另保留 12 GiB 余量 |
+| 独立音频 | Mock | TTS、音乐、音效、拟音尚未真实接入 |
 | 后期与完整成片 | 尚未真实验收 | 当前真实链路证明单镜头媒体生产，完整多场景电影仍待联调 |
 
 真实 H3 验收耗时 28.63 秒，视频和音频都写入不可变 Artifact，并进入 Timeline。检查点恢复保留既有输出，没有再次调用 Provider。对应证据保存在 `workspace/flux-agent-acceptance-20260907` 和 `workspace/h3-fl2va-acceptance-20260907`。
@@ -155,7 +157,7 @@ $env:MOVIE_AGENT_COMFYUI_ENDPOINT='http://127.0.0.1:8188'
 $env:MOVIE_AGENT_COMFYUI_WORKFLOW_PROFILE='minimax_h3_fl2va'
 ```
 
-真实 Provider 依赖外部已启动的 Qwen、FLUX 和 ComfyUI 服务。仓库不会下载模型，也不会替用户启动 GPU 服务。普通测试不会调用真实模型；真实验收必须通过专用环境变量显式授权。
+真实 Provider 复用已部署的 Qwen、FLUX、ComfyUI 和 Qwen3-VL。P4A 按 ready jobs 对 allow-list 中的容器执行启动、停止和租约准入；仓库不会下载模型。普通测试不会调用真实模型；真实验收必须显式启用。VLM 使用 `MOVIE_AGENT_VISION_PROVIDER=qwen3_vl`，浏览器只访问 FastAPI。
 
 ## 验证
 
@@ -184,9 +186,9 @@ npm run test:e2e
 
 - 完成当前 Scene 规划中的 canonical fact ownership 修复，避免下游模型重复生成不可变事实。
 - 用真实多场景项目完成从剧本到最终成片的一次完整验收；当前 H3 结论属于单镜头定向验收。
-- 接入真实 Vision VLM Critic、TTS、音乐、音效、拟音和 Post Provider。
+- P4B 验收已完成；独立 TTS、音乐、音效、拟音和 Post 仍未真实接入，本轮未开始 P4C。
 - 增加角色一致性、风格持续性和 LoRA 能力；当前 FLUX Provider 会明确拒绝 LoRA，而不是忽略参数。
-- 完善 GPU 服务生命周期与资源调度，减少 Qwen、FLUX 和 H3 同时驻留的内存压力。
+- 继续按实测遥测校准模型内存预算；复用 P4A 调度，避免多个大模型无控制地同时驻留。
 - 补齐认证、多用户隔离、公共部署和生产级持久队列。
 
 ## 进一步阅读

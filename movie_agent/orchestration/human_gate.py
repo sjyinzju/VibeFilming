@@ -28,6 +28,7 @@ class HumanGateManager:
         gate_type: HumanGateType,
         question: str,
         context_artifact_ids: list[str] | None = None,
+        *, inspection=None,
     ) -> HumanReviewRequest:
         review = HumanReviewRequest(
             project_id=project_id,
@@ -35,6 +36,10 @@ class HumanGateManager:
             gate_type=gate_type,
             question=question,
             context_artifact_ids=context_artifact_ids or [],
+            inspection_result_id=inspection.result_id if inspection else None,
+            target_artifact_id=inspection.target_artifact_id if inspection else None,
+            target_artifact_version=inspection.target_artifact_version if inspection else None,
+            target_sha256=inspection.target_sha256 if inspection else None,
         )
         self._reviews[review.review_id] = review
         self._emit(review, EventType.HUMAN_REVIEW_REQUESTED)
@@ -75,7 +80,7 @@ class HumanGateManager:
             (
                 review
                 for review in self._reviews.values()
-                if review.node_id == node_id and review.status == ReviewStatus.PENDING
+                if review.node_id == node_id and review.status == ReviewStatus.PENDING and review.superseded_at is None
             ),
             None,
         )

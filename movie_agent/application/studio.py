@@ -8,6 +8,7 @@ from movie_agent.domain import (
 )
 from movie_agent.orchestration.runtime.contracts import RoleResult
 from movie_agent.media import MediaPreview, MediaReference, MediaRepairPlan, Timeline, VisionInspectionResult
+from movie_agent.media import HumanRepairDirective
 from .views import ProjectSnapshot
 from .creative_inputs import CreativeHints
 from .review_subjects import ReviewSubject, project_review_subject
@@ -44,6 +45,8 @@ class StudioSnapshot(ProjectSnapshot):
     media_previews: list[MediaPreview] = Field(default_factory=list)
     media_inspections: list[VisionInspectionResult] = Field(default_factory=list)
     media_repairs: list[MediaRepairPlan] = Field(default_factory=list)
+    human_media_directives: list[HumanRepairDirective] = Field(default_factory=list)
+    human_overrides: list[dict] = Field(default_factory=list)
     timeline: Timeline | None = None
     media_provider_ids: list[str] = Field(default_factory=list)
     media_provider_bindings: dict[str, str] = Field(default_factory=dict)
@@ -76,6 +79,8 @@ def studio_snapshot(service, project_id):
                         if (preview := engine.preview_service.describe(project_id, artifact))],
         media_inspections=engine.media_runtime.inspections,
         media_repairs=engine.media_repair_plans,
+        human_media_directives=engine.human_media_directives,
+        human_overrides=engine.human_overrides,
         timeline=engine.timeline,
         media_provider_ids=providers,
         media_provider_bindings={name: provider.provider_id

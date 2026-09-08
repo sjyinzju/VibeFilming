@@ -348,7 +348,7 @@ class RuntimeCoordinator:
                 ModelServiceStatus.FAILED, ModelServiceStatus.STOPPED}:
             service.descriptor.status = ModelServiceStatus.READY
             service.descriptor.residency = (ModelResidency.RESIDENT if getattr(service, "kind", None)
-                                            in {"qwen", "flux"} else ModelResidency.UNKNOWN)
+                                            in {"qwen", "flux", "vlm"} else ModelResidency.UNKNOWN)
             self._idle_since[lease.service_id] = utc_now()
         self._save()
         self._service_event(service, lease.project_id)
@@ -416,7 +416,7 @@ class RuntimeCoordinator:
         with suppress(Exception):
             oom = await service.oom_killed()
         oom = oom or result.error_type == ProviderErrorType.RESOURCE_EXHAUSTED_OOM
-        uncertain = (not result.success and (result.error_type in {
+        uncertain = (not result.success and result.metadata.get("request_dispatched") is not False and (result.error_type in {
             ProviderErrorType.REMOTE_COMPLETION_UNCERTAIN, ProviderErrorType.UNAVAILABLE,
             ProviderErrorType.TIMEOUT, ProviderErrorType.INTERNAL, ProviderErrorType.CANCELLED}
             or (active.remote_prompt_id is not None and active.remote_status not in {
@@ -434,6 +434,7 @@ class RuntimeCoordinator:
                 "error_message": "media_provider_remote_completion_uncertain"})
         release_start = perf_counter()
         await self.release(lease, uncertain=uncertain, invalidated=oom)
+        has_execution_sample = bool(samples) or after is not None
         samples = [before, *samples, *([after] if after else [])]
         peak = min(samples, key=lambda x: x.available_unified_memory_bytes)
         if peak.available_unified_memory_bytes < peak.system_reserve_bytes + peak.safety_margin_bytes:
@@ -441,17 +442,20 @@ class RuntimeCoordinator:
                 {"reason": "sampled memory crossed configured headroom; inspect observed profile before next admission",
                  "snapshot": peak.model_dump(mode="json")}, job.job_id)
         measured = None
-        if self._isolated.pop(lease.lease_id, False) and not self.active_leases() and not uncertain:
+        base_credit = self._base_credit.pop(lease.lease_id, 0)
+        if (self._isolated.pop(lease.lease_id, False) and not self.active_leases()
+                and not uncertain and has_execution_sample):
             measured = max(0, before.available_unified_memory_bytes - peak.available_unified_memory_bytes)
             # This is a sampled *increment*, not a fabricated exact allocator peak.
-            measured += self._base_credit.pop(lease.lease_id, 0)
+            measured += base_credit
             if after and result.success:
                 retained = max(0, before.available_unified_memory_bytes - after.available_unified_memory_bytes)
                 self._resident_credit[lease.service_id] = min(
                     max(self.reservation(lease.service_id), measured or 0),
                     max(self._resident_credit.get(lease.service_id, 0), retained))
         self.observations.append(ResourceObservation(job_id=job.job_id, service_id=lease.service_id,
-            resource_before=before, resource_peak=peak, resource_after=after, observed_peak_bytes=measured,
+            resource_before=before, resource_peak=peak if has_execution_sample else None,
+            resource_after=after, observed_peak_bytes=measured,
             startup_seconds=self._startup.pop(lease.lease_id, 0), execution_seconds=execution_seconds,
             warmup_seconds=self._warmup.pop(lease.lease_id, 0),
             release_seconds=perf_counter() - release_start,

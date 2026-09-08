@@ -6,6 +6,7 @@ import { API_BASE, api } from '../api/client';
 import type { Snapshot, Artifact, Review, Schema } from '../api/types';
 import { ReviewSubjectRenderer } from './ReviewSubjectRenderer';
 import { ImageReferenceInput } from './ImageReferenceInput';
+import { MediaReviewPanel, type MediaResolve } from './MediaReviewPanel';
 
 export function RawJson({ value }: { value: unknown }) {
   return (
@@ -30,14 +31,29 @@ export function ReviewPanel({
   onSource,
   onResolve,
   busy,
+  snapshot,
 }: {
   review: Review;
   subject?: Schema['ReviewSubject'];
   onSource?: (id: string) => void;
-  onResolve: (r: Review, approved: boolean, notes: string) => Promise<void>;
+  onResolve: MediaResolve;
   busy: boolean;
+  snapshot?: Snapshot;
 }) {
   const [notes, setNotes] = useState('');
+  const inspection = snapshot?.media_inspections.find(
+    (i) => i.result_id === review.inspection_result_id,
+  );
+  if (inspection && snapshot)
+    return (
+      <MediaReviewPanel
+        inspection={inspection}
+        snapshot={snapshot}
+        review={review}
+        onResolve={onResolve}
+        busy={busy}
+      />
+    );
   return (
     <section className="review-card" data-review-id={review.review_id}>
       <div className="eyebrow">
@@ -46,6 +62,19 @@ export function ReviewPanel({
       </div>
       <ReviewSubjectRenderer subject={subject} onSource={onSource} />
       <h3>{t(review.question)}</h3>
+      {review.gate_type === 'final_cut_approval' && snapshot?.human_overrides?.length ? (
+        <section>
+          <strong>{t('Human accepted versions')}</strong>
+          {snapshot.human_overrides.map((override, index) => (
+            <p key={index}>
+              {String(override.target_artifact_id)} · v{String(override.target_artifact_version)} ·{' '}
+              {String(override.ai_decision)}
+              <br />
+              {String(override.feedback || '')}
+            </p>
+          ))}
+        </section>
+      ) : null}
       {review.status === 'pending' ? (
         <>
           <label htmlFor={`review-${review.review_id}`}>{t('Your notes')}</label>
@@ -128,9 +157,11 @@ function ArtifactMedia({
 export function ArtifactCard({
   artifact,
   preview,
+  snapshot,
 }: {
   artifact: Artifact;
   preview?: Schema['MediaPreview'];
+  snapshot?: Snapshot;
 }) {
   return (
     <details className="artifact-card">
@@ -147,6 +178,15 @@ export function ArtifactCard({
       <p className="mono">{artifact.artifact_id}</p>
       <p>{artifact.provenance?.tool || artifact.provenance?.provider_id || 'Core artifact'}</p>
       <ArtifactMedia artifact={artifact} preview={preview} />
+      {snapshot?.media_inspections
+        .filter(
+          (i) =>
+            i.target_artifact_id === artifact.artifact_id &&
+            i.target_artifact_version === artifact.version,
+        )
+        .map((i) => (
+          <MediaReviewPanel key={i.result_id} inspection={i} snapshot={snapshot} />
+        ))}
       {isMock(artifact) && !preview && (
         <p className="help">{t('Placeholder artifact. No playable media has been generated.')}</p>
       )}
@@ -174,7 +214,7 @@ export function Inspector({
   setTab: (s: string) => void;
   close: () => void;
   onSource?: (id: string) => void;
-  onResolve: (r: Review, approved: boolean, notes: string) => Promise<void>;
+  onResolve: MediaResolve;
   busy: boolean;
   onReferencesChanged?: () => void | Promise<void>;
 }) {
@@ -211,7 +251,15 @@ export function Inspector({
     snapshot?.media_previews.find(
       (item) => item.artifact_id === artifact.artifact_id && item.version === artifact.version,
     );
-  const reviews = snapshot?.reviews.filter((r) => r.node_id === node?.node_id) || [];
+  const reviews =
+    snapshot?.reviews.filter((r) => r.node_id === node?.node_id && !r.superseded_at) || [];
+  const inspections =
+    snapshot?.media_inspections.filter(
+      (i) =>
+        (['visual_semantic_critic', 'repair_accept'].includes(node?.node_id || '') ||
+          i.shot_id === shot?.shot_id) &&
+        !reviews.some((r) => r.inspection_result_id === i.result_id),
+    ) || [];
   const referenceWritable = Boolean(
     snapshot && !['running', 'pausing', 'cancelled'].includes(snapshot.status),
   );
@@ -259,8 +307,19 @@ export function Inspector({
                         onSource={onSource}
                         onResolve={onResolve}
                         busy={busy}
+                        snapshot={snapshot}
                       />
                     ))}
+                    {snapshot &&
+                      inspections.map((i) => (
+                        <MediaReviewPanel
+                          key={i.result_id}
+                          inspection={i}
+                          snapshot={snapshot}
+                          busy={busy}
+                          onChanged={onReferencesChanged}
+                        />
+                      ))}
                     {node && (
                       <dl>
                         <dt>{t('Role')}</dt>
@@ -429,6 +488,7 @@ export function Inspector({
                                       key={`${artifact.artifact_id}:${artifact.version}`}
                                       artifact={artifact}
                                       preview={previewFor(artifact)}
+                                      snapshot={snapshot}
                                     />
                                   ))
                                 ) : (
@@ -506,6 +566,7 @@ export function Inspector({
                         key={`${a.artifact_id}:${a.version}`}
                         artifact={a}
                         preview={previewFor(a)}
+                        snapshot={snapshot}
                       />
                     ))}
                     {node?.node_type === 'repair' && <RawJson value={snapshot?.repairs} />}
@@ -517,7 +578,7 @@ export function Inspector({
               <div className="empty-inspector">
                 <p>{t('Select a node to explore its inputs, outputs and production history.')}</p>
                 {snapshot?.reviews
-                  .filter((r) => r.status === 'pending')
+                  .filter((r) => r.status === 'pending' && !r.superseded_at)
                   .map((r) => (
                     <ReviewPanel
                       key={r.review_id}
@@ -526,6 +587,7 @@ export function Inspector({
                       onSource={onSource}
                       onResolve={onResolve}
                       busy={busy}
+                      snapshot={snapshot}
                     />
                   ))}
               </div>
@@ -539,7 +601,9 @@ export function Inspector({
                 <div className="eyebrow">{t('Resource runtime')}</div>
                 {snapshot.resource_runtime.services?.map((service) => (
                   <div className="model-row" key={service.service_id}>
-                    <span>{service.service_id}</span>
+                    <span>
+                      {service.service_id === 'vlm' ? 'movie-agent-vlm' : service.service_id}
+                    </span>
                     <span className="badge">{service.status.toUpperCase()}</span>
                     <small>
                       {t('Weights')}: {service.residency?.toUpperCase()}
@@ -677,6 +741,7 @@ export function Inspector({
                   key={`${a.artifact_id}:${a.version}`}
                   artifact={a}
                   preview={previewFor(a)}
+                  snapshot={snapshot}
                 />
               ))
             ) : (

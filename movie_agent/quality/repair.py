@@ -71,6 +71,58 @@ class RepairPlanner:
         self.policy = policy or RepairPolicy()
         self.classifier = classifier or IssueClassifier()
 
+    def plan_media(self, inspection, *, retry_budget, retry_count, supported_actions, directive=None):
+        from movie_agent.media import (MediaRepairPlan, MediaRepairAction, MediaRepairActionType as A,
+                                      RepairContext, HumanRepairDisposition as D)
+        from movie_agent.quality.vision import BLOCKING
+        dismissed = set(directive.dismissed_issue_ids) if directive else set()
+        accepted = set(directive.accepted_issue_ids) if directive else set()
+        issues = [i for i in inspection.issues if i.issue_id not in dismissed
+                  and (i.issue_id in accepted if accepted else i.severity in BLOCKING)]
+        actions = [MediaRepairAction(action_type=i.suggested_action or A.REQUEST_HUMAN_REVIEW,
+            issue_ids=[i.issue_id], target_artifact_id=inspection.target_artifact_id,
+            target_artifact_version=inspection.target_artifact_version, target_shot_id=inspection.shot_id,
+            rationale=i.message) for i in issues]
+        if directive and directive.disposition == D.REGENERATE:
+            actions = [MediaRepairAction(action_type=A.REGENERATE_VIDEO,
+                target_artifact_id=inspection.target_artifact_id,
+                target_artifact_version=inspection.target_artifact_version, target_shot_id=inspection.shot_id,
+                rationale="Human requested a new generation of the same canonical Shot")]
+            issues = []
+        elif directive and directive.disposition == D.CUSTOM_REPAIR:
+            actions.append(MediaRepairAction(action_type=A.REWRITE_PROMPT,
+                target_artifact_id=inspection.target_artifact_id,
+                target_artifact_version=inspection.target_artifact_version, target_shot_id=inspection.shot_id,
+                rationale="Apply human media feedback while preserving canonical Shot intent"))
+        unsupported = list(dict.fromkeys(a.action_type for a in actions if a.action_type not in supported_actions))
+        # A human directive authorizes one explicit additional media attempt. The
+        # subsequent automatic loop still uses the original Shot retry budget.
+        effective_budget = max(retry_budget, retry_count + 1) if directive else retry_budget
+        exhausted = retry_count >= effective_budget
+        fixes = []
+        evidence = []
+        for issue in issues:
+            ranges = ", ".join(f"{t.start_seconds:g}–{t.end_seconds:g}s" for t in issue.time_ranges)
+            fixes.append(f"{issue.issue_type.value} {ranges}: {issue.message}")
+            evidence.extend(issue.evidence)
+        if directive:
+            fixes.extend(directive.change_requests)
+        if not fixes:
+            fixes = ["Regenerate the media to faithfully execute the unchanged canonical Shot."]
+        context = RepairContext(target_artifact_id=inspection.target_artifact_id,
+            target_artifact_version=inspection.target_artifact_version, target_sha256=inspection.target_sha256,
+            inspection_result_id=inspection.result_id, directive_id=directive.directive_id if directive else None,
+            preserve=["Canonical story, Shot action, character identities, clothing, scene and composition",
+                      *(directive.preserve_requirements if directive else [])],
+            fix=fixes, avoid=["Do not add characters, props, story events or change canonical Shot intent"],
+            evidence=evidence, targeted_time_ranges=[t for issue in issues for t in issue.time_ranges],
+            raw_feedback=directive.feedback if directive else "")
+        return MediaRepairPlan(inspection_result_id=inspection.result_id, actions=actions,
+            retry_budget=effective_budget, retry_count=retry_count, exhausted=exhausted,
+            requires_human=exhausted or bool(unsupported) or not actions,
+            directive_id=directive.directive_id if directive else None, repair_context=context,
+            unsupported_actions=unsupported)
+
     def plan(
         self,
         evaluation: Evaluation,
@@ -132,4 +184,3 @@ class RepairPlanner:
             exhausted=False,
             requires_human=False,
         )
-

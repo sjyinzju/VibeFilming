@@ -55,6 +55,7 @@ class TechnicalQC:
         return Evaluation(
             layer=EvaluationLayer.TECHNICAL_QC,
             target_artifact_id=artifact.artifact_id,
+            target_artifact_version=artifact.version,
             target_shot_id=shot.shot_id,
             score=1.0 if passed else max(0.0, 1.0 - 0.2 * len(issues)),
             passed=passed,
@@ -73,4 +74,3 @@ class TechnicalQC:
             shot_id=shot.shot_id,
             artifact_id=artifact.artifact_id,
         )
-

@@ -27,6 +27,22 @@ Speech, music, sound effects, and video-driven Foley have separate request types
 
 ## Vision and repair
 
+P4B pins `target_artifact_version` and `target_sha256` before dispatch. References
+also carry exact versions/hashes. The provider-internal `VisionInspectionDraft`
+uses canonical field definitions and proposes only scores/issues/evidence/decision/
+summary. Core validates and adjudicates it, then commits a structured Artifact in
+the existing store with exact parent URIs and provenance. Decoder facts determine
+legal timestamps without rewriting historical metadata. Critic configuration is
+part of inspection identity, so Mock evidence never satisfies a real-provider run.
+
+`HumanRepairDirective` preserves raw feedback, accepted/dismissed issue IDs,
+preserve/change requirements, exact target identity and the existing Human Gate ID.
+KEEP_CURRENT records a human override; the other dispositions feed `RepairContext`
+into actual generation prompts. A checkpointed state machine inside repair_accept
+allocates each new frame/video version before execution and reuses committed work
+after restart. Unsupported actions and exhausted budgets pause through AGENT_ESCALATION.
+Proactive feedback uses the same commands; completed-project reopening is unsupported.
+
 `VisionInspectionRequest` accepts exactly one image or video plus references, an optional expected Shot, requirements, and inspection profiles. The result contains typed scores, `MediaIssue` records with severity/time/frame evidence, and one of `PASS`, `REPAIR`, `REGENERATE`, or `HUMAN_REVIEW`.
 
 `MediaRepairPlan` has explicit actions and a finite retry budget. It distinguishes prompt/reference/frame/camera changes, image edits, video regeneration/extension/splitting, restoration, audio regeneration/remix, and human escalation.

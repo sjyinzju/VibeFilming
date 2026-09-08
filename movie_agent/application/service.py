@@ -133,7 +133,7 @@ class ProductionService:
         if not resume and record.status != Status.CREATED:
             raise CommandConflict("Use resume for an existing production")
         reviews = engine.human_gates.all()
-        if any(r.status != ReviewStatus.APPROVED for r in reviews):
+        if any(r.status != ReviewStatus.APPROVED and r.superseded_at is None for r in reviews):
             raise CommandConflict("Resolve outstanding human review before resume")
         for result in engine.role_results.values():
             if result.failure_code == 'ROLE_OUTPUT_INVALID' and not result.committed:
@@ -269,14 +269,23 @@ class ProductionService:
         self.repository.save(record)
         return {"project_id": project_id, "status": record.status}
 
-    def resolve_review(self, review_id, approved, notes):
+    def resolve_review(self, review_id, approved, notes, media_directive=None):
         engine, review = self.locate("review", review_id)
+        if media_directive is not None:
+            from .media_commands import resolve_media_directive
+            return resolve_media_directive(self, engine, review, media_directive)
+        if review.inspection_result_id:
+            raise CommandConflict("Media escalation requires an explicit media disposition")
         try:
             result = engine.human_gates.resolve(review_id, approved, notes)
         except ValueError as error:
             raise CommandConflict(str(error)) from error
         engine._save_checkpoint(engine.current_project, engine.current_production)
         return result
+
+    def media_feedback(self, project_id, command):
+        from .media_commands import submit_media_feedback
+        return submit_media_feedback(self, project_id, command)
 
     def cancel_job(self, job_id, project_id=None):
         engine, job = self.locate("job", job_id, project_id)

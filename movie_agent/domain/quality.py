@@ -34,6 +34,8 @@ class Evaluation(ContractModel):
     evaluation_id: str = Field(default_factory=lambda: new_id("evaluation"))
     layer: EvaluationLayer
     target_artifact_id: str | None = None
+    target_artifact_version: int | None = Field(default=None, ge=1)
+    inspection_result_id: str | None = None
     target_shot_id: str | None = None
     score: float = Field(ge=0.0, le=1.0)
     passed: bool
@@ -64,4 +66,3 @@ class RepairPlan(ContractModel):
     retry_count: int = Field(default=0, ge=0)
     exhausted: bool = False
     requires_human: bool = False
-

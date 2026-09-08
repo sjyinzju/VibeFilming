@@ -185,6 +185,11 @@ class MockMovieProduction:
         self.evaluations: list[Evaluation] = []
         self.repair_plans: list[RepairPlan] = []
         self.media_repair_plans: list[MediaRepairPlan] = []
+        self.human_media_directives = []
+        self._repair_runs = {}
+        self._applied_directives = set()
+        self.human_overrides = []
+        self.media_runtime.checkpoint_callback = self._durable_media_checkpoint
         self.timeline: Timeline | None = None
         self._restored_jobs: dict[str, GenerationJob] = {}
         self._video_replay_authorizations: dict[str, dict[str, str]] = {}
@@ -310,7 +315,7 @@ class MockMovieProduction:
             "final_gate": HumanGateType.FINAL_CUT_APPROVAL,
         }
         if node_id in gate_types:
-            resolved = [r for r in self.human_gates.all() if r.node_id == node_id]
+            resolved = [r for r in self.human_gates.all() if r.node_id == node_id and r.superseded_at is None]
             if resolved and resolved[-1].status == ReviewStatus.APPROVED:
                 return True
             if resolved and resolved[-1].status == ReviewStatus.REJECTED:
@@ -331,7 +336,8 @@ class MockMovieProduction:
             self.human_gates.resolve(review.review_id, approved=True, notes="Mock auto-approval")
             return True
         handler = handlers[node_id]
-        await handler(project)
+        if await handler(project) is False:
+            return False
         production.set_status(node_id, WorkflowNodeStatus.RUNNING, progress=0.95)
         return True
 
@@ -831,12 +837,16 @@ class MockMovieProduction:
         shots: list[Shot],
         *,
         repair_plan_ids: dict[str, str] | None = None,
+        repair_contexts: dict | None = None,
+        target_versions: dict[str, int] | None = None,
     ) -> list[Artifact]:
         """Plan, compile, route, execute, and register one immutable video version."""
 
         if self.job_manager is None:
             raise RuntimeError("job manager has not been initialized")
         repair_plan_ids = repair_plan_ids or {}
+        repair_contexts = repair_contexts or {}
+        target_versions = target_versions or {}
         capabilities = await self.media_runtime.capabilities()
         width, height = self._resolution(project.brief.resolution)
         shot_ids = {shot.shot_id for shot in shots}
@@ -867,14 +877,34 @@ class MockMovieProduction:
             planned_shot = shot.model_copy(update={"generation_strategy": strategy}, deep=True)
             updated_shots[shot.shot_id] = planned_shot
             plan_id = repair_plan_ids.get(shot.shot_id)
+            if plan_id and shot.shot_id in target_versions:
+                existing = self.artifact_store.get(f"video_{shot.shot_id}", target_versions[shot.shot_id])
+                if existing:
+                    if plan_id not in existing.provenance.repair_plan_ids:
+                        raise ValueError("repair output version belongs to a different plan")
+                    # Committed binary + manifest prove completion even when the
+                    # process died before the job/checkpoint was marked succeeded.
+                    known = {j.job_id: j for j in self._all_jobs()}
+                    recovered = known.get(existing.source_job_id)
+                    if recovered is None:
+                        recovered = GenerationJob(job_id=existing.source_job_id, project_id=project.project_id,
+                            task="video", node_id="repair_accept", shot_id=shot.shot_id,
+                            idempotency_key=existing.source_job_id, resource_class=ResourceClass.MEDIUM)
+                    recovered = recovered.model_copy(update={"status": JobStatus.SUCCEEDED})
+                    self.job_manager._jobs[recovered.job_id] = recovered
+                    created.append((recovered, planned_shot, existing))
+                    continue
             reusable = None if plan_id else self._reusable_video_generation(shot.shot_id)
             if reusable is not None:
                 completed_job, artifact = reusable
                 created.append((completed_job, planned_shot, artifact))
                 continue
 
-            prompt = self.video_prompt_compiler.compile(shot, media_strategy, references)
+            context = repair_contexts.get(shot.shot_id)
+            prompt = self.video_prompt_compiler.compile(shot, media_strategy, references, repair_context=context)
             next_version = len(self.artifact_store.list_versions(f"video_{shot.shot_id}")) + 1
+            if shot.shot_id in target_versions and next_version != target_versions[shot.shot_id]:
+                raise ValueError("repair generation version changed after planning")
             job_id, adaptation_history = self._video_job_identity(
                 shot.shot_id, next_version
             )
@@ -901,6 +931,9 @@ class MockMovieProduction:
                     generation_strategy=strategy.strategy_type.value,
                     retry_history=adaptation_history,
                     repair_plan_ids=[plan_id] if plan_id else [],
+                    parameters={"input_artifact_versions": [
+                        {"artifact_id": r.artifact_id, "version": r.version, "sha256": r.sha256}
+                        for r in references], "repair_context": context.model_dump(mode="json") if context else None},
                 ),
             )
             prompt_artifact = self._artifact(
@@ -929,11 +962,13 @@ class MockMovieProduction:
                 ),
                 start_state={"description": "Canonical shot start", "frame_reference": first},
                 end_state={"description": "Expected shot end", "frame_reference": last},
+                repair_context=context,
             )
             # Prompt package is an immutable input artifact alongside frame/reference assets.
             job.input_artifact_ids = list(dict.fromkeys([prompt_artifact.artifact_id,
                                                         *job.input_artifact_ids]))
             artifact = await self.media_runtime.generate_video(job, request)
+            self._durable_media_checkpoint()
             created.append((self.job_manager.get(job_id), planned_shot, artifact))
 
         project.shots = [updated_shots[shot.shot_id] for shot in project.shots]
@@ -1077,12 +1112,40 @@ class MockMovieProduction:
             )
 
     async def _vision_evaluation(
-        self, project: Project, shot: Shot, video: Artifact
+        self, project: Project, shot: Shot, video: Artifact, *, inspection_revision: int = 1
     ) -> Evaluation:
-        job_id = f"inspect:{shot.shot_id}:v{video.version}"
+        from movie_agent.media.inspection import pin_inspection
+        from movie_agent.quality.vision import inspection_fingerprint, critic_configuration_fingerprint
+        from movie_agent.providers.media import VisionProvider
+        from movie_agent.services.media_review import inspection_references
+        profiles = [VisionInspectionProfile.VIDEO_QUALITY, VisionInspectionProfile.PROMPT_ALIGNMENT,
+            VisionInspectionProfile.ACTION_COMPLETION, VisionInspectionProfile.CAMERA_MOTION,
+            VisionInspectionProfile.CONTINUITY, VisionInspectionProfile.ARTIFACT_DETECTION]
+        references = inspection_references(self, project, shot, video)
+        if any(r.reference_type == ReferenceType.CHARACTER for r in references):
+            profiles.append(VisionInspectionProfile.CHARACTER_IDENTITY)
+        if any(r.reference_type == ReferenceType.LOCATION for r in references):
+            profiles.append(VisionInspectionProfile.SCENE_CONSISTENCY)
+        target_ranges = (video.provenance.parameters.get("repair_context") or {}).get("targeted_time_ranges", [])
+        request = pin_inspection(VisionInspectionRequest(
+            job_id="pending", project_id=project.project_id, scene_id=shot.scene_id,
+            shot_id=shot.shot_id, video_artifact_id=video.artifact_id, target_artifact_version=video.version,
+            reference_assets=references, expected_shot=shot, output_language=project.brief.output_language,
+            expected_requirements=shot.visual_requirements, profiles=profiles,
+            inspection_revision=inspection_revision,
+            sampling_policy="targeted" if target_ranges else "fast", targeted_time_ranges=target_ranges,
+            retry_budget=shot.retry_budget, retry_count=video.version - 1,
+            output_artifact_id=f"inspection_{shot.shot_id}_v{video.version}"), self.artifact_store, self.binary_store)
+        provider = next(p for p in self.media_runtime.providers.all() if isinstance(p, VisionProvider))
+        request = request.model_copy(update={"critic_configuration_fingerprint": critic_configuration_fingerprint(provider)})
+        fingerprint = inspection_fingerprint(request)
+        job_id = f"inspect:{shot.shot_id}:v{video.version}:{fingerprint[:16]}"
+        request = request.model_copy(update={"job_id": job_id})
         job = GenerationJob(
             job_id=job_id, project_id=project.project_id,
-            node_id="visual_semantic_critic", scene_id=shot.scene_id,
+            node_id=("repair_accept" if self.current_production and
+                     self.current_production.node("repair_accept").status == WorkflowNodeStatus.RUNNING
+                     else "visual_semantic_critic"), scene_id=shot.scene_id,
             shot_id=shot.shot_id, task="vision", resource_class=ResourceClass.LIGHT,
             retry_budget=shot.retry_budget, idempotency_key=job_id,
             input_artifact_ids=[video.artifact_id],
@@ -1091,18 +1154,6 @@ class MockMovieProduction:
                 scene_id=shot.scene_id, shot_id=shot.shot_id,
                 input_artifact_ids=[video.artifact_id],
             ),
-        )
-        request = VisionInspectionRequest(
-            job_id=job_id, project_id=project.project_id, scene_id=shot.scene_id,
-            shot_id=shot.shot_id, video_artifact_id=video.artifact_id,
-            reference_assets=self._media_references(project, shot), expected_shot=shot,
-            expected_requirements=shot.visual_requirements,
-            profiles=[VisionInspectionProfile.VIDEO_QUALITY,
-                      VisionInspectionProfile.PROMPT_ALIGNMENT,
-                      VisionInspectionProfile.ACTION_COMPLETION,
-                      VisionInspectionProfile.CAMERA_MOTION,
-                      VisionInspectionProfile.CONTINUITY],
-            output_artifact_id=f"inspection_{shot.shot_id}_v{video.version}",
         )
         result = await self.media_runtime.inspect(job, request)
         issues = [
@@ -1120,7 +1171,9 @@ class MockMovieProduction:
         ]
         score = sum(item.score for item in result.scores) / max(1, len(result.scores))
         return Evaluation(
+            evaluation_id=f"evaluation_{result.result_id}",
             layer=EvaluationLayer.VISUAL_SEMANTIC,
+            target_artifact_version=video.version, inspection_result_id=result.result_id,
             target_artifact_id=video.artifact_id, target_shot_id=shot.shot_id,
             score=score, passed=result.decision == VisionDecision.PASS,
             issues=issues, summary=result.summary,
@@ -1133,79 +1186,8 @@ class MockMovieProduction:
             )
 
     async def _repair_accept(self, project: Project) -> None:
-        failed = [evaluation for evaluation in self.evaluations if not evaluation.passed]
-        failed_by_shot: dict[str, Evaluation] = {
-            evaluation.target_shot_id: evaluation
-            for evaluation in failed
-            if evaluation.target_shot_id is not None
-        }
-        shots = {shot.shot_id: shot for shot in project.shots}
-        for shot_id, evaluation in failed_by_shot.items():
-            shot = shots[shot_id]
-            retry_count = len(self.artifact_store.list_versions(f"video_{shot_id}")) - 1
-            plan = self.repair_planner.plan(
-                evaluation,
-                retry_budget=shot.retry_budget,
-                retry_count=retry_count,
-            )
-            self.repair_plans.append(plan)
-            inspection = next((item for item in reversed(self.media_runtime.inspections)
-                               if item.target_artifact_id == evaluation.target_artifact_id), None)
-            if inspection:
-                media_plan = MediaRepairPlan(
-                    inspection_result_id=inspection.result_id,
-                    actions=[MediaRepairAction(
-                        action_type=(issue.suggested_action or MediaRepairActionType.REGENERATE_VIDEO),
-                        issue_ids=[issue.issue_id], target_shot_id=shot_id,
-                        target_artifact_id=evaluation.target_artifact_id,
-                        rationale=f"Route {issue.issue_type.value} through finite media repair.",
-                    ) for issue in inspection.issues],
-                    retry_budget=shot.retry_budget, retry_count=retry_count,
-                )
-                self.media_repair_plans.append(media_plan)
-            self._emit(
-                EventType.REPAIR_STARTED,
-                project.project_id,
-                {"repair_plan_id": plan.repair_plan_id, "shot_id": shot_id},
-            )
-            self._emit(
-                EventType.MEDIA_REPAIR_STARTED,
-                project.project_id,
-                {"repair_plan_id": plan.repair_plan_id, "shot_id": shot_id},
-            )
-            if plan.exhausted or plan.requires_human:
-                raise RuntimeError(f"repair for {shot_id} requires escalation")
-            repaired = (await self._generate_versions(
-                project,
-                [shot],
-                repair_plan_ids={shot_id: plan.repair_plan_id},
-            ))[0]
-            repaired_shot = next(item for item in project.shots if item.shot_id == shot_id)
-            new_evaluations = [
-                self.technical_qc.evaluate(repaired_shot, repaired),
-                await self._vision_evaluation(project, repaired_shot, repaired),
-                self.cinematic_critic.evaluate(repaired_shot, repaired),
-            ]
-            for item in new_evaluations:
-                self._record_evaluation(project, item)
-            if not all(item.passed for item in new_evaluations):
-                raise RuntimeError(f"repair for {shot_id} did not pass all critics")
-            self._select(project, repaired.artifact_id, repaired.version)
-            self._emit(
-                EventType.REPAIR_COMPLETED,
-                project.project_id,
-                {"repair_plan_id": plan.repair_plan_id, "shot_id": shot_id},
-            )
-            self._emit(
-                EventType.MEDIA_REPAIR_COMPLETED,
-                project.project_id,
-                {"repair_plan_id": plan.repair_plan_id, "shot_id": shot_id},
-            )
-
-        for shot in project.shots:
-            latest = self._latest_video(shot.shot_id)
-            if not latest.selected:
-                self._select(project, latest.artifact_id, latest.version)
+        from movie_agent.services.media_review import run_repair_loop
+        return await run_repair_loop(self, project)
 
     async def _audio_post(self, project: Project) -> None:
         duration = sum(shot.duration_seconds for shot in project.shots)
@@ -1463,6 +1445,11 @@ class MockMovieProduction:
         return artifact
 
     def _record_evaluation(self, project: Project, evaluation: Evaluation) -> None:
+        if any(e.evaluation_id == evaluation.evaluation_id or (
+            evaluation.target_artifact_version is not None and e.target_artifact_id == evaluation.target_artifact_id
+            and e.target_artifact_version == evaluation.target_artifact_version and e.layer == evaluation.layer
+            and e.inspection_result_id == evaluation.inspection_result_id) for e in self.evaluations):
+            return
         self.evaluations.append(evaluation)
         self._emit(
             EventType.EVALUATION_COMPLETED,
@@ -1498,7 +1485,10 @@ class MockMovieProduction:
         )
 
     def _latest_video(self, shot_id: str) -> Artifact:
-        return self._required_artifact(f"video_{shot_id}")
+        versions = self.artifact_store.list_versions(f"video_{shot_id}")
+        if not versions:
+            raise LookupError(f"video_{shot_id}")
+        return versions[-1]
 
     def _required_artifact(self, artifact_id: str) -> Artifact:
         artifact = self.artifact_store.get(artifact_id)
@@ -1535,7 +1525,18 @@ class MockMovieProduction:
                 artifact_id=shot.frame_anchors.last_frame.source_artifact_id,
                 shot_id=shot.shot_id,
             ))
-        return references
+        from movie_agent.media.inspection import media_hash
+        pinned = []
+        for reference in references:
+            versions = self.artifact_store.list_versions(reference.artifact_id)
+            artifact = (versions[-1] if versions and reference.reference_type in {
+                ReferenceType.FIRST_FRAME, ReferenceType.LAST_FRAME
+            } else self.artifact_store.get(reference.artifact_id, reference.version))
+            if artifact is None:
+                raise ValueError(f"media reference unavailable: {reference.artifact_id}")
+            pinned.append(reference.model_copy(update={"version": artifact.version,
+                "sha256": media_hash(self.binary_store, artifact)}))
+        return pinned
 
     def _resolved_uploaded_references(
         self, project: Project, shot: Shot, scene: Scene | None = None
@@ -1601,9 +1602,17 @@ class MockMovieProduction:
         self.checkpoint_store.save(snapshot)
         self._latest_checkpoint_id = snapshot.checkpoint_id
 
+    def _durable_media_checkpoint(self):
+        if self.current_project is not None and self.current_production is not None:
+            self._save_checkpoint(self.current_project, self.current_production)
+
     def _checkpoint_extra(self) -> dict[str, JSONValue]:
         """Persist typed media runtime state outside the frozen Project aggregate."""
         return {
+            "human_media_directives": [d.model_dump(mode="json") for d in self.human_media_directives],
+            "repair_runs": self._repair_runs,
+            "applied_directives": sorted(self._applied_directives),
+            "human_overrides": self.human_overrides,
             "media_inspections": [item.model_dump(mode="json")
                                   for item in self.media_runtime.inspections],
             "media_repair_plans": [item.model_dump(mode="json")
@@ -1646,6 +1655,14 @@ class MockMovieProduction:
             VisionInspectionResult.model_validate(item)
             for item in state.get("media_inspections", [])
         ]
+        self.media_runtime.recover_inspections()
+        from movie_agent.media import HumanRepairDirective
+        self.human_media_directives = [HumanRepairDirective.model_validate(d) for d in state.get("human_media_directives", [])]
+        self._repair_runs = state.get("repair_runs", {})
+        self._applied_directives = set(state.get("applied_directives", []))
+        self.human_overrides = state.get("human_overrides", [])
+        from movie_agent.application.media_commands import recover_directives
+        recover_directives(self)
         self.media_repair_plans = [
             MediaRepairPlan.model_validate(item)
             for item in state.get("media_repair_plans", [])

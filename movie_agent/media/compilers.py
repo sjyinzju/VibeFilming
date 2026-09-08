@@ -75,13 +75,14 @@ class GenericImagePromptCompiler:
 
 class GenericVideoPromptCompiler:
     compiler_id = "generic-video"
-    compiler_version = "1.0.0"
+    compiler_version = "1.1.0"
 
     def compile(
         self,
         shot: Shot,
         strategy: MediaGenerationStrategy,
         references: list[MediaReference],
+        repair_context=None,
     ) -> PromptPackage:
         performances = "; ".join(
             f"{item.character_id}: {item.action}" for item in shot.performances
@@ -104,6 +105,8 @@ class GenericVideoPromptCompiler:
             PromptSection(name="continuity", content="; ".join(shot.visual_requirements)),
             _reference_section(references),
         ]
+        if repair_context:
+            sections.extend(repair_prompt_sections(repair_context))
         return PromptPackage(
             compiler_id=self.compiler_id,
             compiler_version=self.compiler_version,
@@ -112,6 +115,14 @@ class GenericVideoPromptCompiler:
             sections=sections,
             source_shot_id=shot.shot_id,
         )
+
+
+def repair_prompt_sections(context):
+    sections = [PromptSection(name=name, content="\n".join(getattr(context, name)))
+                for name in ("preserve", "fix", "avoid", "evidence") if getattr(context, name)]
+    if context.raw_feedback:
+        sections.append(PromptSection(name="human_feedback", content=context.raw_feedback))
+    return sections
 
 
 class GenericAudioPromptCompiler:
@@ -143,4 +154,3 @@ class GenericAudioPromptCompiler:
             sections=sections,
             source_shot_id=shot.shot_id if shot else None,
         )
-

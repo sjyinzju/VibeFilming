@@ -228,6 +228,7 @@ class MediaReference(ContractModel):
     reference_type: ReferenceType
     artifact_id: str = Field(min_length=1)
     version: int | None = Field(default=None, ge=1)
+    sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     binding_scope: ReferenceBindingScope | None = None
     purpose: ReferencePurpose | None = None
     project_id: str | None = None
@@ -338,6 +339,7 @@ class VideoGenerationRequest(MediaRequestBase):
     temporal_control: TemporalControl = Field(default_factory=TemporalControl)
     start_state: StartState = Field(default_factory=StartState)
     end_state: EndState = Field(default_factory=EndState)
+    repair_context: RepairContext | None = None
 
 
 class VideoPreflightIssue(ContractModel):
@@ -511,6 +513,18 @@ class VisionInspectionRequest(ContractModel):
     shot_id: str | None = None
     image_artifact_id: str | None = None
     video_artifact_id: str | None = None
+    target_artifact_version: int | None = Field(default=None, ge=1)
+    target_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    source_duration_seconds: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    source_frame_count: int | None = Field(default=None, gt=0)
+    output_language: str = "en"
+    inspection_revision: int = Field(default=1, ge=1)
+    critic_schema_version: str = "p4b.1"
+    critic_configuration_fingerprint: str | None = None
+    sampling_policy: str = Field(default="fast", pattern=r"^(fast|full|targeted)$")
+    targeted_time_ranges: list[TimeRange] = Field(default_factory=list)
+    retry_budget: int = Field(default=2, ge=0)
+    retry_count: int = Field(default=0, ge=0)
     reference_assets: list[MediaReference] = Field(default_factory=list)
     expected_shot: Shot | None = None
     expected_requirements: list[str] = Field(default_factory=list)
@@ -521,6 +535,8 @@ class VisionInspectionRequest(ContractModel):
     def validate_target(self) -> "VisionInspectionRequest":
         if bool(self.image_artifact_id) == bool(self.video_artifact_id):
             raise ValueError("inspection requires exactly one image or video artifact")
+        if not self.profiles or len(self.profiles) != len(set(self.profiles)):
+            raise ValueError("inspection profiles must be nonempty and unique")
         return self
 
 
@@ -528,13 +544,34 @@ class VisionInspectionResult(ContractModel):
     result_id: str = Field(default_factory=lambda: new_id("visionresult"))
     request_id: str
     target_artifact_id: str
+    target_artifact_version: int | None = Field(default=None, ge=1)
+    target_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    project_id: str | None = None
+    scene_id: str | None = None
+    shot_id: str | None = None
+    inspection_fingerprint: str | None = None
     scores: list[VisionScore]
     issues: list[MediaIssue] = Field(default_factory=list)
     evidence: list[str] = Field(default_factory=list)
     decision: VisionDecision
+    proposed_decision: VisionDecision | None = None
+    decision_reasons: list[str] = Field(default_factory=list)
     summary: str = ""
     provider_id: str
     provider_metadata: dict[str, JSONValue] = Field(default_factory=dict)
+    model_service_id: str | None = None
+    provenance: Provenance = Field(default_factory=Provenance)
+    completed_at: datetime = Field(default_factory=utc_now)
+
+    @model_validator(mode="after")
+    def validate_decision(self) -> "VisionInspectionResult":
+        if len(self.scores) != len({s.profile for s in self.scores}):
+            raise ValueError("duplicate vision score profile")
+        if self.decision == VisionDecision.PASS and any(
+            i.severity in {IssueSeverity.MAJOR, IssueSeverity.CRITICAL} for i in self.issues
+        ):
+            raise ValueError("PASS cannot contain unresolved major/critical issues")
+        return self
 
 
 class MediaRepairAction(ContractModel):
@@ -542,6 +579,7 @@ class MediaRepairAction(ContractModel):
     action_type: MediaRepairActionType
     issue_ids: list[str] = Field(default_factory=list)
     target_artifact_id: str | None = None
+    target_artifact_version: int | None = Field(default=None, ge=1)
     target_shot_id: str | None = None
     rationale: str
     consumes_retry: bool = True
@@ -555,12 +593,77 @@ class MediaRepairPlan(ContractModel):
     retry_count: int = Field(default=0, ge=0)
     exhausted: bool = False
     requires_human: bool = False
+    directive_id: str | None = None
+    repair_context: RepairContext | None = None
+    unsupported_actions: list[MediaRepairActionType] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_budget(self) -> "MediaRepairPlan":
         if self.retry_count > self.retry_budget:
             raise ValueError("media repair retry_count cannot exceed retry_budget")
         return self
+
+
+class HumanRepairDisposition(StrEnum):
+    KEEP_CURRENT = "keep_current"
+    APPLY_AI_REPAIR = "apply_ai_repair"
+    REGENERATE = "regenerate"
+    CUSTOM_REPAIR = "custom_repair"
+
+
+class HumanRepairInput(ContractModel):
+    """User-owned command fields. Identity/provenance are supplied by Core."""
+
+    command_id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.-]+$")
+    inspection_result_id: str
+    target_artifact_id: str
+    target_artifact_version: int = Field(ge=1)
+    target_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    disposition: HumanRepairDisposition
+    accepted_issue_ids: list[str] = Field(default_factory=list)
+    dismissed_issue_ids: list[str] = Field(default_factory=list)
+    feedback: str = Field(default="", max_length=16000)
+    preserve_requirements: list[str] = Field(default_factory=list, max_length=40)
+    change_requests: list[str] = Field(default_factory=list, max_length=40)
+
+    @model_validator(mode="after")
+    def validate_issues(self) -> "HumanRepairInput":
+        if set(self.accepted_issue_ids) & set(self.dismissed_issue_ids):
+            raise ValueError("an issue cannot be both accepted and dismissed")
+        if self.disposition == HumanRepairDisposition.CUSTOM_REPAIR and not (
+            self.feedback.strip() or any(x.strip() for x in self.change_requests)
+        ):
+            raise ValueError("custom repair requires feedback or change requests")
+        return self
+
+
+class HumanRepairDirective(HumanRepairInput):
+    directive_id: str = Field(default_factory=lambda: new_id("directive"))
+    project_id: str
+    review_id: str
+    scene_id: str | None = None
+    shot_id: str
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class RepairContext(ContractModel):
+    """Media-only constraints compiled into generation; never canonical Shot facts."""
+
+    target_artifact_id: str
+    target_artifact_version: int = Field(ge=1)
+    target_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    inspection_result_id: str
+    directive_id: str | None = None
+    preserve: list[str] = Field(default_factory=list)
+    fix: list[str] = Field(default_factory=list)
+    avoid: list[str] = Field(default_factory=list)
+    evidence: list[str] = Field(default_factory=list)
+    targeted_time_ranges: list[TimeRange] = Field(default_factory=list)
+    raw_feedback: str = ""
+
+
+VideoGenerationRequest.model_rebuild()
+MediaRepairPlan.model_rebuild()
 
 
 class FramePlan(ContractModel):

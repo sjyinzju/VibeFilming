@@ -128,4 +128,9 @@ class HumanReviewRequest(ContractModel):
     requested_at: datetime = Field(default_factory=utc_now)
     resolved_at: datetime | None = None
     resolution_notes: str | None = None
-
+    inspection_result_id: str | None = None
+    target_artifact_id: str | None = None
+    target_artifact_version: int | None = Field(default=None, ge=1)
+    target_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    directive_id: str | None = None
+    superseded_at: datetime | None = None

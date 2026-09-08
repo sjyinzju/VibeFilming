@@ -77,6 +77,17 @@ class MediaRuntime:
         self.job_manager: JobManager | None = None
         self.inspections: list[VisionInspectionResult] = []
         self._request_routes: dict[str, tuple[str, str]] = {}
+        self.checkpoint_callback = None
+        self.recover_inspections()
+
+    def recover_inspections(self):
+        """Production evidence wins over an older checkpoint after a crash."""
+        known = {i.result_id: i for i in self.inspections}
+        for artifact in self.artifact_store.list_all():
+            if artifact.metadata.get("purpose") == "vision_inspection":
+                result = VisionInspectionResult.model_validate(self.artifact_store.read_structured(artifact))
+                known[result.result_id] = result
+        self.inspections = list(known.values())
 
     def bind_jobs(self, manager: JobManager) -> None:
         self.job_manager = manager
@@ -269,6 +280,10 @@ class MediaRuntime:
         return self._required(request.output_artifact_id)
 
     async def inspect(self, job: GenerationJob, request: VisionInspectionRequest) -> VisionInspectionResult:
+        from movie_agent.media.inspection import pin_inspection
+        from movie_agent.quality.vision import (inspection_fingerprint, draft_from_result,
+            VisionDecisionPolicy, critic_configuration_fingerprint, supported_repair_actions)
+        request = pin_inspection(request, self.artifact_store, self.binary_store)
         selection = await self.router.select(MediaRoutingRequest(
             modality=MediaModality.VISION, task="inspect",
             required_capabilities=["video" if request.video_artifact_id else "image"],
@@ -277,26 +292,73 @@ class MediaRuntime:
         provider = self.providers.get(selection.provider_id)
         if not isinstance(provider, VisionProvider):
             raise TypeError("selected provider does not implement VisionProvider")
+        supported_actions = supported_repair_actions(self.router.capabilities.all())
+        request = request.model_copy(update={"critic_configuration_fingerprint": critic_configuration_fingerprint(provider, supported_actions)})
+        request = await provider.prepare_request(request)
+        fingerprint = inspection_fingerprint(request)
+        identity = request.shot_id or request.video_artifact_id or request.image_artifact_id
+        core_job_id = f"inspect:{identity}:v{request.target_artifact_version}:{fingerprint[:16]}"
+        job = job.model_copy(update={"job_id": core_job_id, "idempotency_key": core_job_id})
+        request = request.model_copy(update={"job_id": core_job_id})
+        self.recover_inspections()
+        cached = next((i for i in self.inspections if i.inspection_fingerprint == fingerprint
+                       and i.provider_id == selection.provider_id), None)
+        if cached:
+            # The immutable, validated result proves this read-only request ended.
+            if self.runtime_coordinator:
+                for lease in list(self.runtime_coordinator.active_leases()):
+                    if lease.job_id == job.job_id and lease.project_id == job.project_id:
+                        await self.runtime_coordinator.release(lease)
+            if self.job_manager:
+                original = self.job_manager._jobs.get(job.job_id, job)
+                recovered = original.model_copy(update={"status": JobStatus.SUCCEEDED,
+                    "provider_id": cached.provider_id, "activity": "reused committed inspection"})
+                self.job_manager._jobs[job.job_id] = recovered
+                self.job_manager._idempotency[job.idempotency_key] = job.job_id
+            return cached
         result: VisionInspectionResult | None = None
-        self._emit(EventType.MEDIA_EVALUATION_STARTED, job.project_id,
-                   {"request_id": request.request_id, "target_artifact_id":
-                    request.video_artifact_id or request.image_artifact_id}, job=job)
-
-        async def operation(_: GenerationJob) -> ProviderResult:
+        async def operation(active: GenerationJob) -> ProviderResult:
             nonlocal result
             try:
-                result = await provider.inspect(request)
-                return ProviderResult(provider_request_id=request.request_id, success=True)
+                self._emit(EventType.MEDIA_EVALUATION_STARTED, job.project_id,
+                    {"request_id": request.request_id, "target_artifact_id": request.video_artifact_id or request.image_artifact_id,
+                     "target_artifact_version": request.target_artifact_version, "provider_id": provider.provider_id,
+                     "status": "evaluating"}, job=job)
+                proposal = await provider.inspect(request)
+                target = request.video_artifact_id or request.image_artifact_id
+                if (proposal.request_id != request.request_id or proposal.target_artifact_id != target
+                    or proposal.target_artifact_version not in {None, request.target_artifact_version}
+                    or proposal.target_sha256 not in {None, request.target_sha256}):
+                    raise ValueError("provider returned an inspection for a different immutable target")
+                policy = getattr(provider, "policy", VisionDecisionPolicy())
+                result = policy.commit(request, draft_from_result(proposal), provider_id=selection.provider_id,
+                    model=proposal.provider_metadata.get("model"), metadata=proposal.provider_metadata,
+                    supported_actions=supported_actions)
+                artifact = self.artifact_store.create_structured(request.output_artifact_id,
+                    result.model_dump(mode="json"), source_job_id=active.job_id,
+                    parent_artifact_ids=result.provenance.input_artifact_ids,
+                    provenance=result.provenance, metadata={"purpose": "vision_inspection",
+                        "inspection_fingerprint": fingerprint, "target_artifact_version": request.target_artifact_version,
+                        "target_sha256": request.target_sha256})
+                self.inspections.append(result)
+                self._artifact_event(artifact, job)
+                if self.checkpoint_callback:
+                    self.checkpoint_callback()
+                return ProviderResult(provider_request_id=request.request_id, success=True,
+                    artifact_ids=[artifact.artifact_id], metadata={"inspection_result_id": result.result_id,
+                        "attempts": result.provider_metadata.get("attempts", [])})
             except BaseException as error:
                 return normalize_media_provider_error(request.request_id, error)
 
         await self._execute(job, selection.provider_id, request.request_id, operation)
         if result is None:
             raise RuntimeError("vision provider completed without a result")
-        self.inspections.append(result)
         self._emit(EventType.MEDIA_EVALUATION_COMPLETED, job.project_id,
                    {"result_id": result.result_id, "target_artifact_id": result.target_artifact_id,
-                    "decision": result.decision.value}, job=job)
+                    "target_artifact_version": result.target_artifact_version,
+                    "decision": result.decision.value, "provider_id": result.provider_id}, job=job)
+        if self.checkpoint_callback:
+            self.checkpoint_callback()
         return result
 
     async def generate_audio(self, job: GenerationJob, request: AudioRequestBase) -> Artifact:
@@ -383,7 +445,7 @@ class MediaRuntime:
                     raise preflight_error
                 capabilities = await self.providers.get(provider_id).capabilities()
                 coordinator = self.runtime_coordinator
-                if capabilities.requires_resource_lease and not (coordinator and not coordinator.settings.enabled):
+                if capabilities.requires_resource_lease and (provider_id == "qwen3_vl" or not (coordinator and not coordinator.settings.enabled)):
                     valid = coordinator and any(
                         lease.job_id == active.job_id and lease.project_id == active.project_id
                         and lease.service_id == coordinator.service_for(provider_id)
