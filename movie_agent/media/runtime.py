@@ -64,11 +64,14 @@ class MediaRuntime:
         providers: ProviderRegistry,
         event_bus: EventBus,
         trace_id: str,
+        runtime_coordinator=None,
     ) -> None:
         self.artifact_store = artifact_store
         self.binary_store = binary_store
         self.providers = providers
         self.router = MediaRouter(providers)
+        self.runtime_coordinator = runtime_coordinator
+        self.router.runtime_coordinator = runtime_coordinator
         self.event_bus = event_bus
         self.trace_id = trace_id
         self.job_manager: JobManager | None = None
@@ -77,6 +80,7 @@ class MediaRuntime:
 
     def bind_jobs(self, manager: JobManager) -> None:
         self.job_manager = manager
+        manager.runtime_coordinator = self.runtime_coordinator
 
     async def capabilities(self):
         await self.router.refresh()
@@ -92,15 +96,23 @@ class MediaRuntime:
         configured = next((item for item in self.providers.all() if isinstance(item, ImageProvider)), None)
         initial_provider_id = configured.provider_id if configured else "unrouted-image"
         response: ProviderMediaResponse[ImageGenerationResult] | None = None
+        selection = None
+        routing_error = None
+        try:
+            selection = await self.router.select(MediaRoutingRequest(
+                modality=MediaModality.IMAGE, task="frame" if artifact_type == ArtifactType.FRAME else "image",
+                required_capabilities=[item.capability for item in request.required_capabilities if item.required],
+                quality_profile=request.quality_profile, resource_class=request.resource_class,
+            ))
+            initial_provider_id = selection.provider_id
+        except Exception as error:
+            routing_error = error
 
         async def operation(active: GenerationJob) -> ProviderResult:
             nonlocal response
             try:
-                selection = await self.router.select(MediaRoutingRequest(
-                    modality=MediaModality.IMAGE, task="frame" if artifact_type == ArtifactType.FRAME else "image",
-                    required_capabilities=[item.capability for item in request.required_capabilities if item.required],
-                    quality_profile=request.quality_profile, resource_class=request.resource_class,
-                ))
+                if routing_error:
+                    raise routing_error
                 provider = self.providers.get(selection.provider_id)
                 if not isinstance(provider, ImageProvider):
                     raise TypeError("selected provider does not implement ImageProvider")
@@ -126,7 +138,7 @@ class MediaRuntime:
             except BaseException as error:
                 return normalize_media_provider_error(request.request_id, error)
 
-        await self._execute(job, initial_provider_id, request.request_id, operation)
+        await self._execute(job, initial_provider_id, request.request_id, operation, preflight_error=routing_error)
         return self._required(request.output_artifact_id)
 
     async def generate_video(self, job: GenerationJob, request: VideoGenerationRequest) -> Artifact:
@@ -251,7 +263,9 @@ class MediaRuntime:
             except BaseException as error:
                 return normalize_media_provider_error(request.request_id, error)
 
-        await self._execute(job, selection.provider_id, effective_request.request_id, operation)
+        await self._execute(job, selection.provider_id, effective_request.request_id, operation,
+            preflight_error=None if preflight.compatible else ProviderFailure(
+                "Video generation preflight failed", ProviderErrorType.UNSUPPORTED_CAPABILITY))
         return self._required(request.output_artifact_id)
 
     async def inspect(self, job: GenerationJob, request: VisionInspectionRequest) -> VisionInspectionResult:
@@ -352,19 +366,42 @@ class MediaRuntime:
         provider_id: str,
         request_id: str,
         operation: Callable,
+        preflight_error: Exception | None = None,
     ) -> GenerationJob:
         if self.job_manager is None:
             raise RuntimeError("media runtime has no bound JobManager")
+        if self.runtime_coordinator:
+            self.runtime_coordinator.bind(job.project_id, self.event_bus, self.trace_id)
         self._request_routes[job.job_id] = (provider_id, request_id)
         job = job.model_copy(update={"provider_id": provider_id, "activity": "provider activity"})
         known = {item.job_id for item in self.job_manager.all()}
         if job.job_id not in known:
             self.job_manager.add(job)
-        completed = await LocalJobExecutor(self.job_manager).execute(job.job_id, operation)
+        async def leased_operation(active):
+            try:
+                if preflight_error:
+                    raise preflight_error
+                capabilities = await self.providers.get(provider_id).capabilities()
+                coordinator = self.runtime_coordinator
+                if capabilities.requires_resource_lease and not (coordinator and not coordinator.settings.enabled):
+                    valid = coordinator and any(
+                        lease.job_id == active.job_id and lease.project_id == active.project_id
+                        and lease.service_id == coordinator.service_for(provider_id)
+                        and lease.status.value == "executing" for lease in coordinator.active_leases())
+                    if not valid:
+                        raise ProviderFailure("heavy provider requires an executing ResourceLease",
+                                              ProviderErrorType.MODEL_NOT_READY)
+                return await operation(active)
+            except BaseException as error:
+                return normalize_media_provider_error(request_id, error)
+        completed = await LocalJobExecutor(self.job_manager).execute(job.job_id, leased_operation,
+                                                                    manage_resources=preflight_error is None)
         if completed.status != JobStatus.SUCCEEDED:
             # Do not expose raw SDK/remote details through the workflow surface.
             if completed.status == JobStatus.CANCELLED:
                 error_type = ProviderErrorType.CANCELLED
+            elif completed.status == JobStatus.WAITING_RESOURCE:
+                error_type = ProviderErrorType.RESOURCE_EXHAUSTED
             else:
                 prefix = "media_provider_"
                 normalized = completed.failure_reason or ""

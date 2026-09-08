@@ -50,6 +50,7 @@ class RemoteVideoReplayCommand(BaseModel):
 def create_app(service: ProductionService | None = None) -> FastAPI:
     """Compose local adapters by default; tests and future storage inject a service."""
     owned_provider = None
+    resource_runtime = None
     if service is None:
         from movie_agent.config import LLMConfig
         from movie_agent.providers.openai_compatible import OpenAICompatibleLLMProvider
@@ -58,21 +59,53 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
         from movie_agent.services.reasoning_production import ReasoningMovieProduction
         root = Path(os.environ.get("MOVIE_AGENT_WORKSPACE", "workspace/studio")).resolve()
         owned_provider = OpenAICompatibleLLMProvider(LLMConfig.from_env())
+        from movie_agent.model_services.wiring import build_spark_runtime
+        from movie_agent.providers.registry import MediaProviderSettings
+        media_settings = MediaProviderSettings.from_env()
+        resource_runtime = build_spark_runtime(owned_provider.config, media_settings)
         def factory(project_id):
             workspace = root / project_id
             return ReasoningMovieProduction(workspace, owned_provider,
-                event_bus=DurableLocalEventBus(workspace / "events"))
+                event_bus=DurableLocalEventBus(workspace / "events"),
+                media_settings=media_settings, runtime_coordinator=resource_runtime)
         service = ProductionService(LocalProjectRepository(root), factory)
 
     @asynccontextmanager
     async def lifespan(app):
-        yield
+        async def observe_resources():
+            while True:
+                try:
+                    for model in resource_runtime.manager.all():
+                        await model.status()
+                    await resource_runtime.snapshot()
+                    await resource_runtime.maintain()
+                except Exception:
+                    # A later admission independently fails closed on unavailable telemetry.
+                    pass
+                await asyncio.sleep(resource_runtime.settings.telemetry_interval)
+        monitor = (asyncio.create_task(observe_resources())
+                   if resource_runtime and resource_runtime.settings.enabled else None)
+        try:
+            yield
+        finally:
+            if monitor:
+                from contextlib import suppress
+                monitor.cancel()
+                with suppress(asyncio.CancelledError):
+                    await monitor
         await service.shutdown()
         if owned_provider:
             await owned_provider.aclose()
+        if resource_runtime:
+            resource_runtime.close()
 
     app = FastAPI(title="Movie Agent", version="0.3.0", lifespan=lifespan)
     app.state.production_service = service
+    app.state.resource_runtime = resource_runtime
+
+    @app.get("/runtime/resources")
+    async def resources():
+        return resource_runtime.view() if resource_runtime else {"enabled": False}
 
     @app.exception_handler(KeyError)
     async def not_found(request, error):

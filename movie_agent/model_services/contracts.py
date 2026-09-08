@@ -8,6 +8,7 @@ from pydantic import Field
 
 from movie_agent.domain import ContractModel, EventEnvelope, EventType, JSONValue, new_id
 from movie_agent.execution.events import EventBus
+from .resources import ModelRuntimeProfile, ModelResidency
 from movie_agent.media import (
     MediaModality,
     ModelServiceStatus,
@@ -24,6 +25,8 @@ class ModelServiceDescriptor(ContractModel):
     capabilities: ProviderCapabilities
     resource_profile: ResourceProfile
     metadata: dict[str, JSONValue] = Field(default_factory=dict)
+    runtime_profile: ModelRuntimeProfile | None = None
+    residency: ModelResidency = ModelResidency.UNKNOWN
 
 
 class ModelService(ABC):
@@ -40,6 +43,13 @@ class ModelService(ABC):
 
     @abstractmethod
     async def status(self) -> ModelServiceStatus: ...
+
+    async def idle(self) -> bool:
+        """Unknown external activity cannot authorize eviction."""
+        return False
+
+    async def oom_killed(self) -> bool:
+        return False
 
 
 class MockModelService(ModelService):
@@ -60,6 +70,9 @@ class MockModelService(ModelService):
 
     async def health(self) -> bool:
         return self.descriptor.status in {ModelServiceStatus.READY, ModelServiceStatus.BUSY}
+
+    async def idle(self) -> bool:
+        return self.descriptor.status in {ModelServiceStatus.READY, ModelServiceStatus.STOPPED}
 
     async def start(self) -> ModelServiceStatus:
         if self.descriptor.status in {ModelServiceStatus.READY, ModelServiceStatus.BUSY}:

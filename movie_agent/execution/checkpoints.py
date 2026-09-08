@@ -74,7 +74,9 @@ class LocalCheckpointStore(CheckpointStore):
                     "failure_reason": None,
                 }
             )
-            if job.status in interrupted
+            if job.status in interrupted and not job.remote_completion_uncertain
+               and not (job.remote_prompt_id and job.remote_status not in {
+                   JobStatus.SUCCEEDED, JobStatus.FAILED, JobStatus.CANCELLED})
             else job.model_copy(deep=True)
             for job in snapshot.active_jobs
         ]

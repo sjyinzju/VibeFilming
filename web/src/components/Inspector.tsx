@@ -534,6 +534,56 @@ export function Inspector({
         )}
         {tab === 'Models' && (
           <>
+            {snapshot?.resource_runtime?.enabled && (
+              <section aria-label={t('Resource runtime')}>
+                <div className="eyebrow">{t('Resource runtime')}</div>
+                {snapshot.resource_runtime.services?.map((service) => (
+                  <div className="model-row" key={service.service_id}>
+                    <span>{service.service_id}</span>
+                    <span className="badge">{service.status.toUpperCase()}</span>
+                    <small>
+                      {t('Weights')}: {service.residency?.toUpperCase()}
+                    </small>
+                  </div>
+                ))}
+                {snapshot.resource_runtime.snapshot &&
+                  (() => {
+                    const memory = snapshot.resource_runtime.snapshot;
+                    const gib = (bytes: number) => (bytes / 1024 ** 3).toFixed(1);
+                    const reserved =
+                      snapshot.resource_runtime.leases?.reduce(
+                        (sum, lease) => sum + lease.reserved_memory_bytes,
+                        0,
+                      ) || 0;
+                    return (
+                      <p className="help">
+                        {t('Unified memory')} · {t('Used')}{' '}
+                        {gib(
+                          memory.total_unified_memory_bytes - memory.available_unified_memory_bytes,
+                        )}{' '}
+                        /{gib(memory.total_unified_memory_bytes)} GiB · {t('Available')}{' '}
+                        {gib(memory.available_unified_memory_bytes)} GiB ·{t('Reserved')}{' '}
+                        {gib(reserved)} GiB
+                        <br />
+                        {t('Safety headroom')}{' '}
+                        {gib(
+                          (memory.system_reserve_bytes || 0) + (memory.safety_margin_bytes || 0),
+                        )}{' '}
+                        GiB ·{new Date(memory.timestamp || '').toLocaleTimeString()}
+                      </p>
+                    );
+                  })()}
+                {snapshot.resource_runtime.leases?.map((lease) => (
+                  <p className="help" key={lease.lease_id}>
+                    {lease.job_id} · {lease.status} · {lease.lease_id}
+                  </p>
+                ))}
+                <details>
+                  <summary>{t('Recent scheduler decisions')}</summary>
+                  <RawJson value={snapshot.resource_runtime.decisions} />
+                </details>
+              </section>
+            )}
             <div className="eyebrow">{t('REASONING')}</div>
             <h2>
               {snapshot?.roles.find((r) => r.served_model)?.served_model ||

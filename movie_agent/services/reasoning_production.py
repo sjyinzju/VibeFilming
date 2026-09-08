@@ -17,6 +17,7 @@ from movie_agent.orchestration.runtime.cinematographer_drafts import (
 from movie_agent.orchestration.runtime.runner import RoleRunner, RoleOutputInvalid
 from movie_agent.orchestration.runtime.terminal import TerminalRepairDraft, is_terminal_only
 from movie_agent.providers.base import LLMProvider
+from movie_agent.model_services.coordinator import ResourceAdmissionWait
 from .mock_production import MockMovieProduction
 
 
@@ -24,9 +25,9 @@ class ReasoningMovieProduction(MockMovieProduction):
     """Showrunner with selectable real reasoning roles and the Phase 1 media pipeline."""
 
     def __init__(self, workspace, llm_provider: LLMProvider, *, real_roles=None, event_bus=None,
-                 media_settings=None, media_provider_factory=None):
+                 media_settings=None, media_provider_factory=None, runtime_coordinator=None):
         super().__init__(workspace, event_bus=event_bus, media_settings=media_settings,
-                         media_provider_factory=media_provider_factory)
+                         media_provider_factory=media_provider_factory, runtime_coordinator=runtime_coordinator)
         self.llm_provider = llm_provider
         self.real_roles = set(RoleId(r) for r in real_roles) if real_roles is not None else set(RoleId)
         self.role_results: dict[str, RoleResult] = {}
@@ -49,6 +50,7 @@ class ReasoningMovieProduction(MockMovieProduction):
         if restored_job and restored_job.status == JobStatus.CANCELLED:
             raise RuntimeError("Cancelled role job requires explicit revision before resume")
         job = GenerationJob(job_id=invocation.invocation_id, project_id=project.project_id,
+            provider_id=self.llm_provider.provider_id,
             node_id=node, task="structured_text", idempotency_key=invocation.invocation_id,
             resource_class=ResourceClass.LIGHT, retry_budget=definition.output_policy.repair_budget,
             retry_count=max(0, len(saved.attempts) - 1) if saved else 0,
@@ -63,11 +65,43 @@ class ReasoningMovieProduction(MockMovieProduction):
             if self.current_production:
                 self._save_checkpoint(project, self.current_production)
         try:
-            result = await self.runner.run(invocation, project, scene=scene, previous=saved,
-                                           on_attempt=persist_attempt)
+            coordinator = self.media_runtime.runtime_coordinator
+            result = None
+            async def invoke(active):
+                nonlocal result
+                from movie_agent.domain import ProviderResult, ProviderErrorType
+                try:
+                    result = await self.runner.run(invocation, project, scene=scene, previous=saved,
+                                                   on_attempt=persist_attempt)
+                except RoleOutputInvalid as invalid:
+                    self.role_results[key] = invalid.result
+                    try:
+                        kind = ProviderErrorType(invalid.result.failure_code)
+                    except ValueError:
+                        kind = ProviderErrorType.GENERATION_FAILED
+                    return ProviderResult(provider_request_id=job.job_id, success=False,
+                                          error_type=kind, error_message=invalid.result.failure_code)
+                return ProviderResult(provider_request_id=job.job_id, success=True)
+            if coordinator:
+                from movie_agent.providers.base import ProviderFailure
+                coordinator.bind(project.project_id, self.event_bus, self.trace_id)
+                response = await coordinator.execute(self.job_manager.get(job.job_id), invoke,
+                    current_job=lambda: self.job_manager.get(job.job_id))
+                if not response.success:
+                    # RoleOutputInvalid already persists its exact semantic/uncertain outcome.
+                    recorded = self.role_results.get(key)
+                    if recorded and not recorded.committed:
+                        raise RoleOutputInvalid(recorded)
+                    raise ProviderFailure(response.error_message, response.error_type)
+            else:
+                result = await self.runner.run(invocation, project, scene=scene, previous=saved,
+                                               on_attempt=persist_attempt)
         except RoleOutputInvalid as exc:
             self.role_results[key] = exc.result
             self.job_manager.transition(job.job_id, JobStatus.FAILED, failure_reason=exc.result.failure_code or "ROLE_OUTPUT_INVALID")
+            raise
+        except ResourceAdmissionWait as exc:
+            self.job_manager.transition(job.job_id, JobStatus.WAITING_RESOURCE, failure_reason=str(exc))
             raise
         except Exception as exc:
             failure = getattr(getattr(exc, "error_type", None), "value", "ROLE_PROVIDER_FAILED")

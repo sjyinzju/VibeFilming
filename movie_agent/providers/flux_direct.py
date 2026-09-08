@@ -90,7 +90,7 @@ class FluxDirectImageProvider(ImageProvider):
             resource_profiles=[ResourceProfile(resource_class=item, expected_memory_gb=40,
                 supports_concurrency=False) for item in ResourceClass],
             quality_profiles=list(QualityProfile), supports_cancellation=False,
-            model_service_id=self.model_service_id)
+            model_service_id=self.model_service_id, requires_resource_lease=True)
 
     async def status(self, request_id):
         return self._results.get(request_id)

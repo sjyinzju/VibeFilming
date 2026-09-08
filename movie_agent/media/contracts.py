@@ -21,6 +21,7 @@ from movie_agent.domain.enums import (
 
 
 class MediaModality(StrEnum):
+    TEXT = "text"
     IMAGE = "image"
     VIDEO = "video"
     AUDIO = "audio"
@@ -190,8 +191,10 @@ class MediaRepairActionType(StrEnum):
 class ModelServiceStatus(StrEnum):
     STOPPED = "stopped"
     STARTING = "starting"
+    WARMING = "warming"
     READY = "ready"
     BUSY = "busy"
+    DRAINING = "draining"
     STOPPING = "stopping"
     FAILED = "failed"
 
@@ -706,6 +709,7 @@ class ProviderCapabilities(ContractModel):
     quality_profiles: list[QualityProfile] = Field(default_factory=list)
     supports_cancellation: bool = True
     model_service_id: str | None = None
+    requires_resource_lease: bool = False
 
 
 class MediaRoutingRequest(ContractModel):

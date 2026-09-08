@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from movie_agent.domain import ResourceClass
 from movie_agent.media import MediaModality, ModelServiceStatus
 from movie_agent.model_services.contracts import ModelService
+from movie_agent.domain import ProviderErrorType
+from movie_agent.providers.base import ProviderFailure
 
 
 class ModelManager:
@@ -63,3 +67,22 @@ class ModelManager:
     async def stop(self, service_id: str) -> ModelServiceStatus:
         return await self.get(service_id).stop()
 
+    async def ensure_ready(self, service_id: str, *, timeout: float = 600) -> ModelService:
+        service = self.get(service_id)
+        try:
+            async with asyncio.timeout(timeout):
+                state = await service.status()
+                if state in {ModelServiceStatus.DRAINING, ModelServiceStatus.STOPPING}:
+                    raise ProviderFailure("service is draining", ProviderErrorType.MODEL_NOT_READY)
+                if state != ModelServiceStatus.READY or not await service.health():
+                    await service.start()
+                if not await service.health():
+                    raise ProviderFailure("service health verification failed", ProviderErrorType.MODEL_NOT_READY)
+                service.descriptor.status = ModelServiceStatus.READY
+                return service
+        except TimeoutError as error:
+            service.descriptor.status = ModelServiceStatus.FAILED
+            raise ProviderFailure("service start timeout", ProviderErrorType.TIMEOUT) from error
+        except BaseException:
+            service.descriptor.status = ModelServiceStatus.FAILED
+            raise

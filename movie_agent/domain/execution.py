@@ -73,6 +73,10 @@ class GenerationJob(ContractModel):
     cancellation_requested: bool = False
     remote_cancellation_dispatched: bool = False
     remote_status: JobStatus | None = None
+    resource_lease_id: str | None = None
+    model_service_id: str | None = None
+    remote_prompt_id: str | None = None
+    remote_completion_uncertain: bool = False
     created_at: datetime = Field(default_factory=utc_now)
     queued_at: datetime | None = None
     started_at: datetime | None = None

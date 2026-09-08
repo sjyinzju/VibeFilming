@@ -243,7 +243,9 @@ def test_video_provider_fake_http_e2e_preserves_frames_and_registers_video_audio
             providers = ProviderRegistry()
             providers.register(provider)
             events = LocalEventBus()
-            runtime = MediaRuntime(artifacts, binaries, providers, events, "trace_e2e")
+            from tests.resource_fakes import fake_resource_runtime
+            runtime = MediaRuntime(artifacts, binaries, providers, events, "trace_e2e",
+                                   runtime_coordinator=fake_resource_runtime(provider.provider_id))
             jobs = JobManager(events, "trace_e2e")
             runtime.bind_jobs(jobs)
             request = VideoGenerationRequest(

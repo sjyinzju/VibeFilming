@@ -1,4 +1,4 @@
-"""Real reasoning demo with mock downstream media; no serving infrastructure operations."""
+"""Real reasoning demo with resource-coordinated model lifecycle and mock downstream media."""
 
 import argparse
 import asyncio
@@ -16,15 +16,15 @@ from movie_agent.execution.durable_events import DurableLocalEventBus
 
 async def run(args):
     provider = OpenAICompatibleLLMProvider(LLMConfig.from_env())
+    from movie_agent.model_services.wiring import build_spark_runtime
+    from movie_agent.providers.registry import MediaProviderSettings
+    runtime = build_spark_runtime(provider.config, MediaProviderSettings.from_env())
     try:
-        if not await provider.health():
-            print("Configured LLM endpoint/model unavailable; check the existing tunnel.")
-            return 2
         roles = list(RoleId)
         if args.through_role:
             roles = roles[:roles.index(RoleId(args.through_role)) + 1]
         production = ReasoningMovieProduction(args.workspace, provider, real_roles=roles,
-            event_bus=DurableLocalEventBus(Path(args.workspace) / "events"))
+            event_bus=DurableLocalEventBus(Path(args.workspace) / "events"), runtime_coordinator=runtime)
         if args.revise_role:
             if not args.resume:
                 raise ValueError("--revise-role requires --resume")
@@ -51,6 +51,7 @@ async def run(args):
             "checkpoint": result.latest_checkpoint_id}, indent=2))
         return 0
     finally:
+        runtime.close()
         await provider.aclose()
 
 

@@ -80,6 +80,8 @@ class LocalJobScheduler:
         self._chain_locks: dict[str, asyncio.Lock] = {}
 
     async def run(self, jobs: list[GenerationJob], operation: JobOperation) -> list[GenerationJob]:
+        if self.manager.runtime_coordinator:
+            return await self._run_resource_aware(jobs, operation)
         ordered = sorted(jobs, key=lambda job: (-job.priority, job.created_at))
         for job in ordered:
             if job.job_id not in {existing.job_id for existing in self.manager.all()}:
@@ -121,3 +123,29 @@ class LocalJobScheduler:
         await asyncio.gather(*(run_one(job) for job in ordered))
         return [self.manager.get(job.job_id) for job in ordered]
 
+    async def _run_resource_aware(self, jobs, operation):
+        coordinator = self.manager.runtime_coordinator
+        for job in jobs:
+            if job.job_id not in self.manager._jobs:
+                self.manager.add(job)
+        pending = {j.job_id for j in jobs if self.manager.get(j.job_id).status in {
+            JobStatus.PENDING, JobStatus.QUEUED, JobStatus.WAITING_RESOURCE}}
+        waiting = set()
+        while pending:
+            ready = [self.manager.get(jid) for jid in pending if jid not in waiting and all(
+                dependency in self.manager._jobs and self.manager.get(dependency).status == JobStatus.SUCCEEDED
+                for dependency in self.manager.get(jid).dependencies)]
+            # WAITING_HUMAN / BLOCKED jobs are never candidates. No dependency gets relaxed.
+            if not ready:
+                break
+            selected = coordinator.order_ready(ready)[0]
+            chain = selected.continuity_chain_id or selected.job_id
+            async with self._chain_locks.setdefault(chain, asyncio.Lock()):
+                result = await self.executor.execute(selected.job_id, operation)
+            if result.status == JobStatus.WAITING_RESOURCE:
+                waiting.add(selected.job_id)
+            else:
+                pending.remove(selected.job_id)
+                waiting.clear()
+        coordinator.set_ready_jobs([])
+        return [self.manager.get(job.job_id) for job in jobs]

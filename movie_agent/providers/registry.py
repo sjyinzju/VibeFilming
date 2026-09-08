@@ -83,7 +83,8 @@ class MediaRouter:
                 continue
             if request.resource_class not in [item.resource_class for item in capability.resource_profiles]:
                 continue
-            if not await provider.health():
+            managed = getattr(self, "runtime_coordinator", None)
+            if not (managed and managed.settings.enabled and managed.service_for(provider.provider_id)) and not await provider.health():
                 matching_unhealthy = True
                 continue
             if not self._supports(capability, request.required_capabilities):
@@ -94,7 +95,12 @@ class MediaRouter:
                 "PROVIDER_UNAVAILABLE: selected media service is unavailable" if matching_unhealthy
                 else "No media provider supports the requested capabilities",
                 ProviderErrorType.UNAVAILABLE if matching_unhealthy else ProviderErrorType.UNSUPPORTED_CAPABILITY)
-        provider, capability = sorted(candidates, key=lambda item: item[0].provider_id)[0]
+        coordinator = getattr(self, "runtime_coordinator", None)
+        def preference(item):
+            sid = coordinator.service_for(item[0].provider_id) if coordinator else None
+            warm = sid and coordinator.manager.get(sid).descriptor.status.value == "ready"
+            return (-int(bool(warm)), item[0].provider_id)
+        provider, capability = sorted(candidates, key=preference)[0]
         return MediaProviderSelection(
             provider_id=provider.provider_id, capabilities=capability,
             reason="Selected deterministically from healthy providers matching modality, capability, quality, and resource class.",

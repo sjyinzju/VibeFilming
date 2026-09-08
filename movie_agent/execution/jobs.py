@@ -21,8 +21,9 @@ ALLOWED_TRANSITIONS: dict[JobStatus, set[JobStatus]] = {
     JobStatus.BLOCKED: {JobStatus.QUEUED, JobStatus.FAILED, JobStatus.CANCELLED},
     JobStatus.WAITING_RESOURCE: {JobStatus.QUEUED, JobStatus.PREPARING, JobStatus.CANCELLED},
     JobStatus.PREPARING: {JobStatus.PREPARING_MODEL, JobStatus.RUNNING, JobStatus.FAILED, JobStatus.CANCELLED},
-    JobStatus.PREPARING_MODEL: {JobStatus.RUNNING, JobStatus.FAILED, JobStatus.CANCELLED},
+    JobStatus.PREPARING_MODEL: {JobStatus.RUNNING, JobStatus.WAITING_RESOURCE, JobStatus.FAILED, JobStatus.CANCELLED},
     JobStatus.RUNNING: {
+        JobStatus.WAITING_RESOURCE,
         JobStatus.PREPARING,
         JobStatus.EVALUATING,
         JobStatus.UPLOADING,
@@ -69,6 +70,7 @@ class JobManager:
         self.trace_id = trace_id
         self._jobs: dict[str, GenerationJob] = {}
         self._idempotency: dict[str, str] = {}
+        self.runtime_coordinator = None
 
     def add(self, job: GenerationJob) -> GenerationJob:
         if job.job_id in self._jobs:
@@ -159,8 +161,12 @@ class JobManager:
         }
         if progress is not None:
             changes["progress"] = progress
+        if provider_execution_graph and provider_execution_graph.get("remote_prompt_id"):
+            changes["remote_prompt_id"] = provider_execution_graph["remote_prompt_id"]
         updated = job.model_copy(update=changes)
         self._jobs[job_id] = updated
+        if changes.get("remote_prompt_id") and self.runtime_coordinator:
+            self.runtime_coordinator.mark_submitted(updated, changes["remote_prompt_id"])
         self._emit_media(updated, EventType.MEDIA_JOB_PROGRESS, {
             "remote_status": remote_status.value,
             "activity": activity,
@@ -243,8 +249,12 @@ class LocalJobExecutor:
     def __init__(self, manager: JobManager) -> None:
         self.manager = manager
 
-    async def execute(self, job_id: str, operation: JobOperation) -> GenerationJob:
+    async def execute(self, job_id: str, operation: JobOperation, *, manage_resources: bool = True) -> GenerationJob:
         job = self.manager.get(job_id)
+        if job.status == JobStatus.SUCCEEDED:
+            return job
+        if job.status == JobStatus.WAITING_RESOURCE:
+            job = self.manager.transition(job_id, JobStatus.QUEUED)
         if job.status == JobStatus.PENDING:
             job = self.manager.transition(job_id, JobStatus.QUEUED)
         if job.cancellation_requested or job.status == JobStatus.CANCELLED:
@@ -254,13 +264,33 @@ class LocalJobExecutor:
         if job.status != JobStatus.QUEUED:
             raise ValueError("executor requires a pending or queued job")
 
+        if self.manager.runtime_coordinator and any(
+            dependency not in self.manager._jobs or self.manager.get(dependency).status != JobStatus.SUCCEEDED
+            for dependency in job.dependencies
+        ):
+            return self.manager.transition(job_id, JobStatus.BLOCKED,
+                                           failure_reason="DAG dependencies are not satisfied")
+
         self.manager.transition(job_id, JobStatus.PREPARING)
-        job = self.manager.transition(job_id, JobStatus.RUNNING)
+        coordinator = self.manager.runtime_coordinator if manage_resources else None
+        managed = coordinator and coordinator.settings.enabled and coordinator.service_for(job.provider_id)
+        job = self.manager.transition(job_id, JobStatus.PREPARING_MODEL if managed else JobStatus.RUNNING)
         while True:
-            result = await operation(job)
+            try:
+                result = (await coordinator.execute(job, operation,
+                    current_job=lambda: self.manager.get(job_id),
+                    on_ready=(lambda: self.manager.transition(job_id, JobStatus.RUNNING))
+                        if managed else None) if coordinator else await operation(job))
+            except Exception as error:
+                from movie_agent.model_services.coordinator import ResourceAdmissionWait
+                from movie_agent.providers.media import normalize_media_provider_error
+                if isinstance(error, ResourceAdmissionWait):
+                    return self.manager.transition(job_id, JobStatus.WAITING_RESOURCE,
+                                                   failure_reason=str(error))
+                result = normalize_media_provider_error(job_id, error)
             job = self.manager.get(job_id)
             if job.cancellation_requested:
-                return self.manager.transition(job_id, JobStatus.CANCELLED)
+                return job if job.status == JobStatus.CANCELLED else self.manager.transition(job_id, JobStatus.CANCELLED)
             if result.success:
                 updated = job.model_copy(
                     update={"related_artifact_ids": list(result.artifact_ids)}
@@ -270,7 +300,7 @@ class LocalJobExecutor:
             if result.retryable and job.retry_count < job.retry_budget:
                 job = self.manager.increment_retry(job_id)
                 self.manager.transition(job_id, JobStatus.PREPARING)
-                job = self.manager.transition(job_id, JobStatus.RUNNING)
+                job = self.manager.transition(job_id, JobStatus.PREPARING_MODEL if managed else JobStatus.RUNNING)
                 continue
             reason = result.error_message or "provider operation failed"
             return self.manager.transition(job_id, JobStatus.FAILED, failure_reason=reason)

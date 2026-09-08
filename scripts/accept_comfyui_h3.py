@@ -84,7 +84,12 @@ async def accept(project_root: Path, endpoint: str) -> dict[str, object]:
     providers = ProviderRegistry()
     providers.register(provider)
     events = DurableLocalEventBus(project_root / "events")
-    runtime = MediaRuntime(artifacts, binaries, providers, events, "trace_h3_real_acceptance")
+    from movie_agent.config import LLMConfig
+    from movie_agent.model_services.wiring import build_spark_runtime
+    from movie_agent.providers.registry import MediaProviderSettings
+    coordinator = build_spark_runtime(LLMConfig.from_env(), MediaProviderSettings(comfyui_endpoint=endpoint))
+    runtime = MediaRuntime(artifacts, binaries, providers, events, "trace_h3_real_acceptance",
+                           runtime_coordinator=coordinator)
     jobs = JobManager(events, "trace_h3_real_acceptance")
     runtime.bind_jobs(jobs)
     output_id = "video_h3_scene_01-SHOT-01"

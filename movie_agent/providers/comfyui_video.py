@@ -125,6 +125,8 @@ class ComfyUIVideoProvider(VideoProvider):
             resource_profiles=resources,
             quality_profiles=list(QualityProfile),
             supports_cancellation=True,
+            model_service_id="comfyui",
+            requires_resource_lease=True,
         )
 
     async def status(self, request_id: str):

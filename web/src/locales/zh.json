@@ -1,4 +1,11 @@
 {
+  "Resource runtime": "资源运行时",
+  "Unified memory": "统一内存",
+  "Weights": "模型驻留",
+  "Used": "已使用",
+  "Reserved": "已预留",
+  "Safety headroom": "系统与安全余量",
+  "Recent scheduler decisions": "最近调度决策",
   "Planning validation needs correction": "规划未通过校验，需要修正",
   "Structured repair budget exhausted. An explicit planning revision is required.": "结构化修复次数已用尽，需要显式修正规划，普通继续不会重置预算。",
   "Authorize one scene-local semantic revision, with at most two structured repairs. Previous attempts are retained.": "点击将授权本场一次显式语义修订，最多两次结构化修复。此前所有尝试均保留。",

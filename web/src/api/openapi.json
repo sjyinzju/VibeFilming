@@ -5,6 +5,22 @@
     "version": "0.3.0"
   },
   "paths": {
+    "/runtime/resources": {
+      "get": {
+        "summary": "Resources",
+        "operationId": "resources_runtime_resources_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -577,6 +593,55 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TerminalRevisionCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/recover-video": {
+      "post": {
+        "summary": "Recover Video",
+        "operationId": "recover_video_projects__project_id__recover_video_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoteVideoReplayCommand"
               }
             }
           }
@@ -3188,11 +3253,18 @@
           "media_job_completed",
           "media_job_failed",
           "media_job_cancelled",
+          "media_job_replay_authorized",
           "media_evaluation_started",
           "media_evaluation_completed",
           "media_repair_started",
           "media_repair_completed",
           "model_service_status_changed",
+          "resource_snapshot",
+          "resource_lease_acquired",
+          "resource_lease_released",
+          "scheduler_decision",
+          "resource_pressure",
+          "resource_admission_wait",
           "reference_bound",
           "reference_unbound"
         ],
@@ -3564,6 +3636,44 @@
                 "type": "null"
               }
             ]
+          },
+          "resource_lease_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Lease Id"
+          },
+          "model_service_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Service Id"
+          },
+          "remote_prompt_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Prompt Id"
+          },
+          "remote_completion_uncertain": {
+            "type": "boolean",
+            "title": "Remote Completion Uncertain",
+            "default": false
           },
           "created_at": {
             "type": "string",
@@ -4380,6 +4490,17 @@
         ],
         "title": "KeyVisualHint"
       },
+      "LeaseStatus": {
+        "type": "string",
+        "enum": [
+          "acquired",
+          "executing",
+          "uncertain",
+          "released",
+          "invalidated"
+        ],
+        "title": "LeaseStatus"
+      },
       "LightingSpec": {
         "properties": {
           "schema_version": {
@@ -4662,6 +4783,7 @@
       "MediaModality": {
         "type": "string",
         "enum": [
+          "text",
           "image",
           "video",
           "audio",
@@ -5056,6 +5178,199 @@
           "retry_budget"
         ],
         "title": "MediaRepairPlan"
+      },
+      "ModelResidency": {
+        "type": "string",
+        "enum": [
+          "unknown",
+          "unloaded",
+          "loading",
+          "resident",
+          "busy",
+          "evicting",
+          "failed"
+        ],
+        "title": "ModelResidency"
+      },
+      "ModelRuntimeProfile": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "service_id": {
+            "type": "string",
+            "title": "Service Id"
+          },
+          "provider_id": {
+            "type": "string",
+            "title": "Provider Id"
+          },
+          "model_profile_id": {
+            "type": "string",
+            "title": "Model Profile Id"
+          },
+          "runtime_kind": {
+            "type": "string",
+            "title": "Runtime Kind",
+            "default": "docker"
+          },
+          "estimated_resident_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Estimated Resident Bytes",
+            "default": 0
+          },
+          "estimated_peak_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Estimated Peak Bytes"
+          },
+          "observed_peak_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Peak Bytes"
+          },
+          "estimate_basis": {
+            "type": "string",
+            "title": "Estimate Basis"
+          },
+          "startup_cost_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Startup Cost Seconds",
+            "default": 0
+          },
+          "warmup_cost_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Warmup Cost Seconds",
+            "default": 0
+          },
+          "concurrency_limit": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Concurrency Limit",
+            "default": 1
+          },
+          "supports_hot_unload": {
+            "type": "boolean",
+            "title": "Supports Hot Unload",
+            "default": false
+          },
+          "supports_model_unload": {
+            "type": "boolean",
+            "title": "Supports Model Unload",
+            "default": false
+          },
+          "requires_exclusive_runtime": {
+            "type": "boolean",
+            "title": "Requires Exclusive Runtime",
+            "default": false
+          },
+          "lifecycle_policy": {
+            "type": "string",
+            "title": "Lifecycle Policy",
+            "default": "warm_ttl"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "service_id",
+          "provider_id",
+          "model_profile_id",
+          "estimated_peak_bytes",
+          "estimate_basis"
+        ],
+        "title": "ModelRuntimeProfile"
+      },
+      "ModelServiceDescriptor": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "service_id": {
+            "type": "string",
+            "title": "Service Id"
+          },
+          "modality": {
+            "$ref": "#/components/schemas/MediaModality"
+          },
+          "endpoint": {
+            "type": "string",
+            "title": "Endpoint"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ModelServiceStatus",
+            "default": "stopped"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/ProviderCapabilities"
+          },
+          "resource_profile": {
+            "$ref": "#/components/schemas/ResourceProfile"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          },
+          "runtime_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelRuntimeProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "residency": {
+            "$ref": "#/components/schemas/ModelResidency",
+            "default": "unknown"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "service_id",
+          "modality",
+          "endpoint",
+          "capabilities",
+          "resource_profile"
+        ],
+        "title": "ModelServiceDescriptor"
+      },
+      "ModelServiceStatus": {
+        "type": "string",
+        "enum": [
+          "stopped",
+          "starting",
+          "warming",
+          "ready",
+          "busy",
+          "draining",
+          "stopping",
+          "failed"
+        ],
+        "title": "ModelServiceStatus"
       },
       "Orientation": {
         "type": "string",
@@ -6127,6 +6442,11 @@
               }
             ],
             "title": "Model Service Id"
+          },
+          "requires_resource_lease": {
+            "type": "boolean",
+            "title": "Requires Resource Lease",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -6666,6 +6986,30 @@
         ],
         "title": "ReferenceType"
       },
+      "RemoteVideoReplayCommand": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "remote_prompt_id": {
+            "type": "string",
+            "title": "Remote Prompt Id"
+          },
+          "authorization_reference": {
+            "type": "string",
+            "title": "Authorization Reference"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "job_id",
+          "remote_prompt_id",
+          "authorization_reference"
+        ],
+        "title": "RemoteVideoReplayCommand"
+      },
       "RepairAction": {
         "properties": {
           "schema_version": {
@@ -6887,6 +7231,195 @@
         ],
         "title": "ResourceClass"
       },
+      "ResourceLease": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "lease_id": {
+            "type": "string",
+            "title": "Lease Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "service_id": {
+            "type": "string",
+            "title": "Service Id"
+          },
+          "continuity_chain_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Continuity Chain Id"
+          },
+          "reserved_memory_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Reserved Memory Bytes"
+          },
+          "resource_class": {
+            "$ref": "#/components/schemas/ResourceClass"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LeaseStatus",
+            "default": "acquired"
+          },
+          "remote_prompt_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remote Prompt Id"
+          },
+          "inference_started": {
+            "type": "boolean",
+            "title": "Inference Started",
+            "default": false
+          },
+          "acquired_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Acquired At"
+          },
+          "released_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "job_id",
+          "service_id",
+          "reserved_memory_bytes",
+          "resource_class"
+        ],
+        "title": "ResourceLease"
+      },
+      "ResourceObservation": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "service_id": {
+            "type": "string",
+            "title": "Service Id"
+          },
+          "resource_before": {
+            "$ref": "#/components/schemas/ResourceSnapshot"
+          },
+          "resource_peak": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResourceSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resource_after": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResourceSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observed_peak_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Peak Bytes"
+          },
+          "peak_is_sampled": {
+            "type": "boolean",
+            "title": "Peak Is Sampled",
+            "default": true
+          },
+          "startup_seconds": {
+            "type": "number",
+            "title": "Startup Seconds",
+            "default": 0
+          },
+          "warmup_seconds": {
+            "type": "number",
+            "title": "Warmup Seconds",
+            "default": 0
+          },
+          "execution_seconds": {
+            "type": "number",
+            "title": "Execution Seconds",
+            "default": 0
+          },
+          "release_seconds": {
+            "type": "number",
+            "title": "Release Seconds",
+            "default": 0
+          },
+          "outcome": {
+            "type": "string",
+            "title": "Outcome",
+            "default": "success"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "job_id",
+          "service_id",
+          "resource_before"
+        ],
+        "title": "ResourceObservation"
+      },
       "ResourceProfile": {
         "properties": {
           "schema_version": {
@@ -6928,6 +7461,134 @@
           "resource_class"
         ],
         "title": "ResourceProfile"
+      },
+      "ResourceRuntimeView": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResourceSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/ModelServiceDescriptor"
+            },
+            "type": "array",
+            "title": "Services"
+          },
+          "leases": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceLease"
+            },
+            "type": "array",
+            "title": "Leases"
+          },
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/SchedulerDecision"
+            },
+            "type": "array",
+            "title": "Decisions"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceObservation"
+            },
+            "type": "array",
+            "title": "Observations"
+          },
+          "oom_headroom_bytes": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Oom Headroom Bytes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ResourceRuntimeView"
+      },
+      "ResourceSnapshot": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "total_unified_memory_bytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Total Unified Memory Bytes"
+          },
+          "available_unified_memory_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Available Unified Memory Bytes"
+          },
+          "system_reserve_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "System Reserve Bytes",
+            "default": 0
+          },
+          "safety_margin_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Safety Margin Bytes",
+            "default": 0
+          },
+          "active_services": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Active Services"
+          },
+          "active_resource_leases": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceLease"
+            },
+            "type": "array",
+            "title": "Active Resource Leases"
+          },
+          "diagnostics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Diagnostics"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "total_unified_memory_bytes",
+          "available_unified_memory_bytes"
+        ],
+        "title": "ResourceSnapshot"
       },
       "ReviewResolution": {
         "properties": {
@@ -7526,6 +8187,79 @@
           "description"
         ],
         "title": "SceneSeed"
+      },
+      "SchedulerDecision": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "decision_id": {
+            "type": "string",
+            "title": "Decision Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "selected_service_id": {
+            "type": "string",
+            "title": "Selected Service Id"
+          },
+          "resource_snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResourceSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "required_reservation_bytes": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Required Reservation Bytes"
+          },
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Actions"
+          },
+          "admitted": {
+            "type": "boolean",
+            "title": "Admitted",
+            "default": false
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "job_id",
+          "selected_service_id",
+          "required_reservation_bytes",
+          "reason"
+        ],
+        "title": "SchedulerDecision"
       },
       "Screenplay": {
         "properties": {
@@ -8290,6 +9024,16 @@
             },
             "type": "array",
             "title": "Provider Execution Graphs"
+          },
+          "resource_runtime": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResourceRuntimeView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,

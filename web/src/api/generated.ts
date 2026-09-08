@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/runtime/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resources */
+        get: operations["resources_runtime_resources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -238,6 +255,23 @@ export interface paths {
         put?: never;
         /** Revise Terminal */
         post: operations["revise_terminal_projects__project_id__revise_terminal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project_id}/recover-video": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recover Video */
+        post: operations["recover_video_projects__project_id__recover_video_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1324,7 +1358,7 @@ export interface components {
          * EventType
          * @enum {string}
          */
-        EventType: "provider_request_started" | "provider_request_completed" | "role_output_received" | "role_output_validation_failed" | "role_output_validated" | "checkpoint_created" | "project_created" | "node_created" | "node_started" | "node_progress" | "node_completed" | "node_failed" | "edge_created" | "edge_activated" | "job_created" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "job_cancelled" | "artifact_created" | "artifact_selected" | "evaluation_completed" | "repair_started" | "repair_completed" | "human_review_requested" | "human_review_resolved" | "workflow_completed" | "media_job_created" | "media_job_started" | "media_job_progress" | "media_job_completed" | "media_job_failed" | "media_job_cancelled" | "media_evaluation_started" | "media_evaluation_completed" | "media_repair_started" | "media_repair_completed" | "model_service_status_changed" | "reference_bound" | "reference_unbound";
+        EventType: "provider_request_started" | "provider_request_completed" | "role_output_received" | "role_output_validation_failed" | "role_output_validated" | "checkpoint_created" | "project_created" | "node_created" | "node_started" | "node_progress" | "node_completed" | "node_failed" | "edge_created" | "edge_activated" | "job_created" | "job_started" | "job_progress" | "job_completed" | "job_failed" | "job_cancelled" | "artifact_created" | "artifact_selected" | "evaluation_completed" | "repair_started" | "repair_completed" | "human_review_requested" | "human_review_resolved" | "workflow_completed" | "media_job_created" | "media_job_started" | "media_job_progress" | "media_job_completed" | "media_job_failed" | "media_job_cancelled" | "media_job_replay_authorized" | "media_evaluation_started" | "media_evaluation_completed" | "media_repair_started" | "media_repair_completed" | "model_service_status_changed" | "resource_snapshot" | "resource_lease_acquired" | "resource_lease_released" | "scheduler_decision" | "resource_pressure" | "resource_admission_wait" | "reference_bound" | "reference_unbound";
         /**
          * FrameAnchor
          * @description A planned or materialized boundary-frame dependency.
@@ -1485,6 +1519,17 @@ export interface components {
              */
             remote_cancellation_dispatched?: boolean;
             remote_status?: components["schemas"]["JobStatus"] | null;
+            /** Resource Lease Id */
+            resource_lease_id?: string | null;
+            /** Model Service Id */
+            model_service_id?: string | null;
+            /** Remote Prompt Id */
+            remote_prompt_id?: string | null;
+            /**
+             * Remote Completion Uncertain
+             * @default false
+             */
+            remote_completion_uncertain?: boolean;
             /**
              * Created At
              * Format: date-time
@@ -1820,6 +1865,11 @@ export interface components {
             reference?: string | null;
         };
         /**
+         * LeaseStatus
+         * @enum {string}
+         */
+        LeaseStatus: "acquired" | "executing" | "uncertain" | "released" | "invalidated";
+        /**
          * LightingSpec
          * @description Lighting intent for the shot, without renderer parameters.
          */
@@ -1926,7 +1976,7 @@ export interface components {
          * MediaModality
          * @enum {string}
          */
-        MediaModality: "image" | "video" | "audio" | "vision" | "post";
+        MediaModality: "text" | "image" | "video" | "audio" | "vision" | "post";
         /** MediaPreview */
         MediaPreview: {
             /**
@@ -2060,6 +2110,107 @@ export interface components {
              */
             requires_human?: boolean;
         };
+        /**
+         * ModelResidency
+         * @enum {string}
+         */
+        ModelResidency: "unknown" | "unloaded" | "loading" | "resident" | "busy" | "evicting" | "failed";
+        /** ModelRuntimeProfile */
+        ModelRuntimeProfile: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Service Id */
+            service_id: string;
+            /** Provider Id */
+            provider_id: string;
+            /** Model Profile Id */
+            model_profile_id: string;
+            /**
+             * Runtime Kind
+             * @default docker
+             */
+            runtime_kind?: string;
+            /**
+             * Estimated Resident Bytes
+             * @default 0
+             */
+            estimated_resident_bytes?: number;
+            /** Estimated Peak Bytes */
+            estimated_peak_bytes: number;
+            /** Observed Peak Bytes */
+            observed_peak_bytes?: number | null;
+            /** Estimate Basis */
+            estimate_basis: string;
+            /**
+             * Startup Cost Seconds
+             * @default 0
+             */
+            startup_cost_seconds?: number;
+            /**
+             * Warmup Cost Seconds
+             * @default 0
+             */
+            warmup_cost_seconds?: number;
+            /**
+             * Concurrency Limit
+             * @default 1
+             */
+            concurrency_limit?: number;
+            /**
+             * Supports Hot Unload
+             * @default false
+             */
+            supports_hot_unload?: boolean;
+            /**
+             * Supports Model Unload
+             * @default false
+             */
+            supports_model_unload?: boolean;
+            /**
+             * Requires Exclusive Runtime
+             * @default false
+             */
+            requires_exclusive_runtime?: boolean;
+            /**
+             * Lifecycle Policy
+             * @default warm_ttl
+             */
+            lifecycle_policy?: string;
+        };
+        /** ModelServiceDescriptor */
+        ModelServiceDescriptor: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Service Id */
+            service_id: string;
+            modality: components["schemas"]["MediaModality"];
+            /** Endpoint */
+            endpoint: string;
+            /** @default stopped */
+            status?: components["schemas"]["ModelServiceStatus"];
+            capabilities: components["schemas"]["ProviderCapabilities"];
+            resource_profile: components["schemas"]["ResourceProfile"];
+            /** Metadata */
+            metadata?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            runtime_profile?: components["schemas"]["ModelRuntimeProfile"] | null;
+            /** @default unknown */
+            residency?: components["schemas"]["ModelResidency"];
+        };
+        /**
+         * ModelServiceStatus
+         * @enum {string}
+         */
+        ModelServiceStatus: "stopped" | "starting" | "warming" | "ready" | "busy" | "draining" | "stopping" | "failed";
         /**
          * Orientation
          * @enum {string}
@@ -2526,6 +2677,11 @@ export interface components {
             supports_cancellation?: boolean;
             /** Model Service Id */
             model_service_id?: string | null;
+            /**
+             * Requires Resource Lease
+             * @default false
+             */
+            requires_resource_lease?: boolean;
         };
         /**
          * ProviderCapability
@@ -2726,6 +2882,15 @@ export interface components {
          * @enum {string}
          */
         ReferenceType: "character" | "location" | "prop" | "style" | "first_frame" | "last_frame" | "previous_frame" | "source_image" | "previous_shot" | "voice" | "audio_reference";
+        /** RemoteVideoReplayCommand */
+        RemoteVideoReplayCommand: {
+            /** Job Id */
+            job_id: string;
+            /** Remote Prompt Id */
+            remote_prompt_id: string;
+            /** Authorization Reference */
+            authorization_reference: string;
+        };
         /**
          * RepairAction
          * @description One bounded, executable response to a classified issue.
@@ -2848,6 +3013,97 @@ export interface components {
          * @enum {string}
          */
         ResourceClass: "light" | "medium" | "heavy" | "exclusive";
+        /** ResourceLease */
+        ResourceLease: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Lease Id */
+            lease_id?: string;
+            /** Project Id */
+            project_id: string;
+            /** Job Id */
+            job_id: string;
+            /** Service Id */
+            service_id: string;
+            /** Continuity Chain Id */
+            continuity_chain_id?: string | null;
+            /** Reserved Memory Bytes */
+            reserved_memory_bytes: number;
+            resource_class: components["schemas"]["ResourceClass"];
+            /** @default acquired */
+            status?: components["schemas"]["LeaseStatus"];
+            /** Remote Prompt Id */
+            remote_prompt_id?: string | null;
+            /**
+             * Inference Started
+             * @default false
+             */
+            inference_started?: boolean;
+            /**
+             * Acquired At
+             * Format: date-time
+             */
+            acquired_at?: string;
+            /** Released At */
+            released_at?: string | null;
+        };
+        /** ResourceObservation */
+        ResourceObservation: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Job Id */
+            job_id: string;
+            /** Service Id */
+            service_id: string;
+            resource_before: components["schemas"]["ResourceSnapshot"];
+            resource_peak?: components["schemas"]["ResourceSnapshot"] | null;
+            resource_after?: components["schemas"]["ResourceSnapshot"] | null;
+            /** Observed Peak Bytes */
+            observed_peak_bytes?: number | null;
+            /**
+             * Peak Is Sampled
+             * @default true
+             */
+            peak_is_sampled?: boolean;
+            /**
+             * Startup Seconds
+             * @default 0
+             */
+            startup_seconds?: number;
+            /**
+             * Warmup Seconds
+             * @default 0
+             */
+            warmup_seconds?: number;
+            /**
+             * Execution Seconds
+             * @default 0
+             */
+            execution_seconds?: number;
+            /**
+             * Release Seconds
+             * @default 0
+             */
+            release_seconds?: number;
+            /**
+             * Outcome
+             * @default success
+             */
+            outcome?: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp?: string;
+        };
         /** ResourceProfile */
         ResourceProfile: {
             /**
@@ -2869,6 +3125,69 @@ export interface components {
              * @default false
              */
             requires_exclusive_runtime?: boolean;
+        };
+        /** ResourceRuntimeView */
+        ResourceRuntimeView: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled?: boolean;
+            snapshot?: components["schemas"]["ResourceSnapshot"] | null;
+            /** Services */
+            services?: components["schemas"]["ModelServiceDescriptor"][];
+            /** Leases */
+            leases?: components["schemas"]["ResourceLease"][];
+            /** Decisions */
+            decisions?: components["schemas"]["SchedulerDecision"][];
+            /** Observations */
+            observations?: components["schemas"]["ResourceObservation"][];
+            /** Oom Headroom Bytes */
+            oom_headroom_bytes?: {
+                [key: string]: number;
+            };
+        };
+        /** ResourceSnapshot */
+        ResourceSnapshot: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Total Unified Memory Bytes */
+            total_unified_memory_bytes: number;
+            /** Available Unified Memory Bytes */
+            available_unified_memory_bytes: number;
+            /**
+             * System Reserve Bytes
+             * @default 0
+             */
+            system_reserve_bytes?: number;
+            /**
+             * Safety Margin Bytes
+             * @default 0
+             */
+            safety_margin_bytes?: number;
+            /** Active Services */
+            active_services?: string[];
+            /** Active Resource Leases */
+            active_resource_leases?: components["schemas"]["ResourceLease"][];
+            /** Diagnostics */
+            diagnostics?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp?: string;
         };
         /**
          * ReviewResolution
@@ -3103,6 +3422,40 @@ export interface components {
             title: string;
             /** Description */
             description: string;
+        };
+        /** SchedulerDecision */
+        SchedulerDecision: {
+            /**
+             * Schema Version
+             * @description Version of this serialized contract for future migrations.
+             * @default 1.0.0
+             */
+            schema_version?: string;
+            /** Decision Id */
+            decision_id?: string;
+            /** Project Id */
+            project_id: string;
+            /** Job Id */
+            job_id: string;
+            /** Selected Service Id */
+            selected_service_id: string;
+            resource_snapshot?: components["schemas"]["ResourceSnapshot"] | null;
+            /** Required Reservation Bytes */
+            required_reservation_bytes: number;
+            /** Actions */
+            actions?: string[];
+            /**
+             * Admitted
+             * @default false
+             */
+            admitted?: boolean;
+            /** Reason */
+            reason: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp?: string;
         };
         /**
          * Screenplay
@@ -3427,6 +3780,7 @@ export interface components {
             terminal_revision_scene_id?: string | null;
             /** Provider Execution Graphs */
             provider_execution_graphs?: components["schemas"]["ProviderExecutionGraphView"][];
+            resource_runtime?: components["schemas"]["ResourceRuntimeView"] | null;
         };
         /** StyleReference */
         StyleReference: {
@@ -3962,6 +4316,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    resources_runtime_resources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     health_health_get: {
         parameters: {
             query?: never;
@@ -4414,6 +4788,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["TerminalRevisionCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recover_video_projects__project_id__recover_video_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemoteVideoReplayCommand"];
             };
         };
         responses: {

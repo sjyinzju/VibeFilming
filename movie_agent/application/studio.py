@@ -14,6 +14,20 @@ from .review_subjects import ReviewSubject, project_review_subject
 from movie_agent.providers.media import ImageProvider, VideoProvider, VisionProvider, AudioProvider, PostProcessor
 from movie_agent.media.execution_graph import ProviderExecutionGraphView
 from .provider_execution import project_provider_execution_graphs
+from movie_agent.model_services.contracts import ModelServiceDescriptor
+from movie_agent.model_services.resources import (
+    ResourceSnapshot, ResourceLease, SchedulerDecision, ResourceObservation,
+)
+
+
+class ResourceRuntimeView(ContractModel):
+    enabled: bool = False
+    snapshot: ResourceSnapshot | None = None
+    services: list[ModelServiceDescriptor] = Field(default_factory=list)
+    leases: list[ResourceLease] = Field(default_factory=list)
+    decisions: list[SchedulerDecision] = Field(default_factory=list)
+    observations: list[ResourceObservation] = Field(default_factory=list)
+    oom_headroom_bytes: dict[str, int] = Field(default_factory=dict)
 
 
 class StudioSnapshot(ProjectSnapshot):
@@ -38,6 +52,7 @@ class StudioSnapshot(ProjectSnapshot):
     review_subjects: list[ReviewSubject] = Field(default_factory=list)
     terminal_revision_scene_id: str | None = None
     provider_execution_graphs: list[ProviderExecutionGraphView] = Field(default_factory=list)
+    resource_runtime: ResourceRuntimeView | None = None
 
 
 def studio_snapshot(service, project_id):
@@ -70,5 +85,7 @@ def studio_snapshot(service, project_id):
         media_mode="mock" if mock_count == len(providers) else "mixed" if mock_count else "real",
         media_references=engine.reference_bank.all(),
         reasoning_provider=engine.llm_provider.provider_id,
+        resource_runtime=(engine.media_runtime.runtime_coordinator.view()
+                          if engine.media_runtime.runtime_coordinator else {}),
         terminal_revision_scene_id=service.terminal_revision_scene(project_id),
         provider_execution_graphs=project_provider_execution_graphs(artifacts, events))

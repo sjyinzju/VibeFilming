@@ -147,6 +147,7 @@ class MockMovieProduction:
         event_bus: LocalEventBus | None = None,
         media_settings: MediaProviderSettings | None = None,
         media_provider_factory: ProviderFactory | None = None,
+        runtime_coordinator=None,
     ) -> None:
         self.workspace = Path(workspace).resolve()
         self.workspace.mkdir(parents=True, exist_ok=True)
@@ -166,7 +167,8 @@ class MockMovieProduction:
         except LookupError:
             pass
         self.media_runtime = MediaRuntime(
-            self.artifact_store, self.binary_store, providers, self.event_bus, self.trace_id
+            self.artifact_store, self.binary_store, providers, self.event_bus, self.trace_id,
+            runtime_coordinator=runtime_coordinator,
         )
         self.preview_service = PreviewService()
         self.reference_bank = ReferenceBank()
@@ -221,6 +223,11 @@ class MockMovieProduction:
 
         self.job_manager = JobManager(self.event_bus, self.trace_id)
         self.media_runtime.bind_jobs(self.job_manager)
+        # Completed jobs supply dependency evidence after resume without being re-executed.
+        for restored in self._restored_jobs.values():
+            if restored.status == JobStatus.SUCCEEDED:
+                self.job_manager._jobs[restored.job_id] = restored.model_copy(deep=True)
+                self.job_manager._idempotency[restored.idempotency_key] = restored.job_id
 
         for node in sorted(
             production.graph.nodes,
@@ -871,7 +878,10 @@ class MockMovieProduction:
             job_id, adaptation_history = self._video_job_identity(
                 shot.shot_id, next_version
             )
-            dependencies = ([f"generate:{shot.previous_shot_id}:v{next_version}"]
+            predecessor = next((completed for completed, previous_shot, _ in reversed(created)
+                                if previous_shot.shot_id == shot.previous_shot_id), None)
+            dependencies = ([predecessor.job_id] if predecessor is not None else
+                            [f"generate:{shot.previous_shot_id}:v{next_version}"]
                             if shot.previous_shot_id in shot_ids else [])
             job = GenerationJob(
                 job_id=job_id, project_id=project.project_id,
@@ -986,6 +996,13 @@ class MockMovieProduction:
             index += 1
             candidate = f"{base}:adaptation{index}"
         previous = known[history[-1]]
+        if previous.status == JobStatus.WAITING_RESOURCE and not previous.remote_prompt_id:
+            return previous.job_id, history[:-1]
+        if (previous.status == JobStatus.FAILED and previous.resource_lease_id is None
+            and previous.remote_status is None and not previous.output_artifact_ids
+            and previous.failure_reason in {"media_provider_model_not_ready", "media_provider_timeout",
+                                            "media_provider_resource_exhausted"}):
+            return previous.job_id, history[:-1]
         local_preflight_failure = (
             previous.status == JobStatus.FAILED
             and previous.remote_status is None
@@ -1618,6 +1635,9 @@ class MockMovieProduction:
                 self.human_gates.restore(HumanReviewRequest.model_validate(payload))
         self._latest_checkpoint_id = snapshot.checkpoint_id
         self._restore_extra(snapshot.project_state)
+        if self.media_runtime.runtime_coordinator:
+            self.media_runtime.runtime_coordinator.bind(project.project_id, self.event_bus, self.trace_id)
+            self.media_runtime.runtime_coordinator.restore_jobs(snapshot.active_jobs, self.event_bus.events())
         return project, ProductionGraph(graph, self.event_bus, self.trace_id)
 
     def _restore_extra(self, state: dict[str, JSONValue]) -> None:

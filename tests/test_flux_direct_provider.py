@@ -21,6 +21,7 @@ from movie_agent.providers.base import ProviderFailure
 from movie_agent.providers.flux_direct import FluxDirectImageProvider
 from movie_agent.providers.registry import MediaProviderSettings, ProviderFactory
 from tests.test_contracts import sample_shot
+from tests.resource_fakes import fake_resource_runtime
 
 
 def image_request(**updates):
@@ -215,7 +216,8 @@ def test_workflow_image_artifacts_survive_checkpoint_resume(tmp_path):
         settings = MediaProviderSettings(image_provider="flux_direct")
         factory = ProviderFactory.defaults()
         factory.register(MediaModality.IMAGE, "flux_direct", lambda: provider)
-        engine = MockMovieProduction(tmp_path, media_settings=settings, media_provider_factory=factory)
+        engine = MockMovieProduction(tmp_path, media_settings=settings, media_provider_factory=factory,
+                                     runtime_coordinator=fake_resource_runtime("flux_direct"))
         provider.resolver = MediaReferenceBinaryResolver(engine.artifact_store, engine.binary_store)
         result = await engine.run(engine.load_brief(Path(__file__).parent / "fixtures/sample_brief.json"),
                                   stop_after_node="storyboard_planning")
@@ -227,7 +229,8 @@ def test_workflow_image_artifacts_survive_checkpoint_resume(tmp_path):
         assert last.parent_artifact_ids and last.provenance.parameters["source_artifact_uri"].endswith("/v1")
         assert all(job.output_artifact_ids for job in result.jobs if job.task == "frame")
         count = len(fake.calls)
-        resumed = MockMovieProduction(tmp_path, media_settings=settings, media_provider_factory=factory)
+        resumed = MockMovieProduction(tmp_path, media_settings=settings, media_provider_factory=factory,
+                                      runtime_coordinator=fake_resource_runtime("flux_direct"))
         provider.resolver = MediaReferenceBinaryResolver(resumed.artifact_store, resumed.binary_store)
         assert (await resumed.run(resume=True)).completed
         assert len(fake.calls) == count
@@ -258,6 +261,29 @@ def test_routing_failure_is_a_visible_failed_job(tmp_path):
     asyncio.run(run())
 
 
+def test_heavy_media_runtime_requires_a_lease_before_transport(tmp_path):
+    from movie_agent.media.runtime import MediaRuntime
+    from movie_agent.domain import GenerationJob
+    from movie_agent.execution import JobManager, LocalEventBus
+    from movie_agent.providers.registry import ProviderRegistry
+    async def run():
+        fake = FakeFlux()
+        providers = ProviderRegistry()
+        providers.register(fake.provider())
+        events = LocalEventBus()
+        runtime = MediaRuntime(LocalArtifactStore(tmp_path / "artifacts"),
+            LocalBinaryArtifactStore(tmp_path / "media"), providers, events, "trace")
+        runtime.bind_jobs(JobManager(events, "trace"))
+        req = image_request()
+        job = GenerationJob(job_id=req.job_id, project_id=req.project_id,
+                            task="frame", idempotency_key=req.job_id)
+        with pytest.raises(ProviderFailure) as failed:
+            await runtime.generate_image(job, req)
+        assert failed.value.error_type == ProviderErrorType.MODEL_NOT_READY
+        assert not fake.calls
+    asyncio.run(run())
+
+
 def test_api_previews_registered_flux_png_and_reports_mixed_mode(tmp_path):
     from movie_agent.api.app import create_app
     from movie_agent.application.service import ProductionService
@@ -273,7 +299,8 @@ def test_api_previews_registered_flux_png_and_reports_mixed_mode(tmp_path):
             providers = ProviderFactory.defaults()
             providers.register(MediaModality.IMAGE, "flux_direct", lambda: provider)
             engine = ReasoningMovieProduction(tmp_path / pid, FakeReasoningProvider(),
-                media_settings=MediaProviderSettings(image_provider="flux_direct"), media_provider_factory=providers)
+                media_settings=MediaProviderSettings(image_provider="flux_direct"), media_provider_factory=providers,
+                runtime_coordinator=fake_resource_runtime("flux_direct"))
             provider.resolver = MediaReferenceBinaryResolver(engine.artifact_store, engine.binary_store)
             return engine
         service = ProductionService(LocalProjectRepository(tmp_path), factory, auto_approve=True)
