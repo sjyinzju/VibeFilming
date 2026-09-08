@@ -210,6 +210,24 @@ class ProductionService:
         engine.authorize_semantic_revision(scene_id, authorization_reference)
         return self.start(project_id, resume=True)
 
+    def recover_video_job(
+        self,
+        project_id: str,
+        job_id: str,
+        remote_prompt_id: str,
+        authorization_reference: str,
+    ):
+        if self.repository.get(project_id).status != Status.FAILED:
+            raise CommandConflict("Video recovery requires a failed project")
+        if project_id in self.tasks and not self.tasks[project_id].done():
+            raise CommandConflict("Production is already running")
+        engine = self.engine(project_id)
+        try:
+            engine.authorize_video_replay(job_id, remote_prompt_id, authorization_reference)
+        except ValueError as error:
+            raise CommandConflict(str(error)) from error
+        return self.start(project_id, resume=True)
+
     def locate(self, kind, identity, project_id=None):
         matches = []
         for pid in [project_id] if project_id else self.repository.list_ids():

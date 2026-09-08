@@ -10,6 +10,7 @@ from movie_agent.domain import (
     ArtifactType,
     GenerationStrategyType,
     GenerationJob,
+    EventType,
     JobStatus,
     PromptPackage,
     PromptSection,
@@ -322,6 +323,70 @@ def test_local_preflight_failure_gets_a_distinct_adaptation_job(tmp_path) -> Non
     assert job_id == "generate:SCENE_01-SHOT-01:v1:adaptation1"
     assert history == [original_id]
     assert production._restored_jobs[original_id] == original
+
+
+def test_remote_video_replay_requires_matching_explicit_authorization(tmp_path) -> None:
+    production = MockMovieProduction(tmp_path / "project")
+    original_id = "generate:SCENE_02-SHOT-01:v1:adaptation1"
+    prompt_id = "309265ce-389d-471f-9240-5214d142d936"
+    original = GenerationJob(
+        job_id=original_id,
+        project_id="project",
+        scene_id="SCENE_02",
+        shot_id="SCENE_02-SHOT-01",
+        node_id="shot_production",
+        task="video",
+        provider_id="comfyui-video",
+        strategy_type="first_last_frame_to_video",
+        status=JobStatus.FAILED,
+        remote_status=JobStatus.RUNNING,
+        idempotency_key=original_id,
+        failure_reason="media_provider_unavailable",
+    )
+    base_id = "generate:SCENE_02-SHOT-01:v1"
+    production._restored_jobs[base_id] = GenerationJob(
+        job_id=base_id,
+        project_id="project",
+        scene_id="SCENE_02",
+        shot_id="SCENE_02-SHOT-01",
+        node_id="shot_production",
+        task="video",
+        status=JobStatus.FAILED,
+        idempotency_key=base_id,
+        failure_reason="media_provider_unsupported_capability",
+    )
+    production._restored_jobs[original_id] = original
+    production._emit(
+        EventType.MEDIA_JOB_PROGRESS,
+        original.project_id,
+        {"provider_execution_graph": {"remote_prompt_id": prompt_id}},
+        node_id=original.node_id,
+        job_id=original.job_id,
+    )
+
+    try:
+        production._video_job_identity("SCENE_02-SHOT-01", 1)
+    except RuntimeError as error:
+        assert "explicit remote recovery decision" in str(error)
+    else:
+        raise AssertionError("remote job replay must be blocked by default")
+
+    try:
+        production.authorize_video_replay(original_id, "wrong-prompt", "operator check")
+    except ValueError as error:
+        assert "does not match" in str(error)
+    else:
+        raise AssertionError("mismatched remote prompt must not authorize replay")
+
+    production.authorize_video_replay(original_id, prompt_id, "history and output missing")
+    job_id, history = production._video_job_identity("SCENE_02-SHOT-01", 1)
+
+    assert job_id == "generate:SCENE_02-SHOT-01:v1:adaptation2"
+    assert history == [
+        "generate:SCENE_02-SHOT-01:v1",
+        original_id,
+    ]
+    assert production.event_bus.events()[-1].event_type == EventType.MEDIA_JOB_REPLAY_AUTHORIZED
 
 
 def test_resume_reuses_a_successful_partial_shot_output(tmp_path) -> None:

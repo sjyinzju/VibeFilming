@@ -194,6 +194,7 @@ class EventType(StrEnum):
     MEDIA_JOB_COMPLETED = "media_job_completed"
     MEDIA_JOB_FAILED = "media_job_failed"
     MEDIA_JOB_CANCELLED = "media_job_cancelled"
+    MEDIA_JOB_REPLAY_AUTHORIZED = "media_job_replay_authorized"
     MEDIA_EVALUATION_STARTED = "media_evaluation_started"
     MEDIA_EVALUATION_COMPLETED = "media_evaluation_completed"
     MEDIA_REPAIR_STARTED = "media_repair_started"

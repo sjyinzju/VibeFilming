@@ -185,6 +185,7 @@ class MockMovieProduction:
         self.media_repair_plans: list[MediaRepairPlan] = []
         self.timeline: Timeline | None = None
         self._restored_jobs: dict[str, GenerationJob] = {}
+        self._video_replay_authorizations: dict[str, dict[str, str]] = {}
         self._latest_checkpoint_id: str | None = None
         self.pause_requested = False
         self.current_project: Project | None = None
@@ -991,11 +992,60 @@ class MockMovieProduction:
             and not previous.output_artifact_ids
             and previous.failure_reason == "media_provider_unsupported_capability"
         )
-        if not local_preflight_failure:
+        replay_authorization = self._video_replay_authorizations.pop(previous.job_id, None)
+        if not local_preflight_failure and replay_authorization is None:
             raise RuntimeError(
                 f"Video job {previous.job_id} cannot be replayed without an explicit remote recovery decision"
             )
         return candidate, history
+
+    def authorize_video_replay(
+        self,
+        job_id: str,
+        remote_prompt_id: str,
+        authorization_reference: str,
+    ) -> None:
+        """Authorize one replay after an operator proves the remote result is unrecoverable."""
+
+        if not remote_prompt_id.strip() or not authorization_reference.strip():
+            raise ValueError("Remote prompt ID and authorization reference are required")
+        known = {item.job_id: item for item in self._all_jobs()}
+        try:
+            job = known[job_id]
+        except KeyError as error:
+            raise ValueError(f"Unknown video job {job_id}") from error
+        if (
+            job.task != "video"
+            or job.status != JobStatus.FAILED
+            or job.remote_status is None
+            or job.output_artifact_ids
+        ):
+            raise ValueError("Only a failed remote video job without outputs can be replayed")
+        matching_submission = any(
+            event.job_id == job_id
+            and isinstance(event.payload.get("provider_execution_graph"), dict)
+            and event.payload["provider_execution_graph"].get("remote_prompt_id") == remote_prompt_id
+            for event in self.event_bus.events()
+        )
+        if not matching_submission:
+            raise ValueError("Remote prompt ID does not match the audited video submission")
+        if job_id in self._video_replay_authorizations:
+            raise ValueError("Video replay is already authorized")
+        self._video_replay_authorizations[job_id] = {
+            "remote_prompt_id": remote_prompt_id,
+            "authorization_reference": authorization_reference,
+        }
+        self._emit(
+            EventType.MEDIA_JOB_REPLAY_AUTHORIZED,
+            job.project_id,
+            {
+                "remote_prompt_id": remote_prompt_id,
+                "authorization_reference": authorization_reference,
+                "disposition": "confirmed_missing_remote_output",
+            },
+            node_id=job.node_id,
+            job_id=job.job_id,
+        )
 
     async def _technical_qc(self, project: Project) -> None:
         for shot in project.shots:
