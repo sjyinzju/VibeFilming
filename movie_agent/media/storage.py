@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 _SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,255}")
 _SAFE_EXTENSION = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+-]{0,15}")
-_SAFE_MIME = re.compile(r"(image|video|audio)/[A-Za-z0-9.+-]+")
+_SAFE_MIME = re.compile(r"(?:(image|video|audio)/[A-Za-z0-9.+-]+|application/json|application/x-subrip|text/plain)")
 
 
 def artifact_uri(artifact_id: str, version: int) -> str:
@@ -183,4 +183,3 @@ class LocalBinaryArtifactStore(BinaryArtifactStore):
             del self._index[uri]
             self._persist()
             return True
-

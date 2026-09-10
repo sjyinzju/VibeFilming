@@ -11,6 +11,7 @@ from movie_agent.domain import (
     IssueSeverity,
     RepairActionType,
     Shot,
+    Vector3,
 )
 
 
@@ -28,7 +29,9 @@ def _compare_fields(
             continue
         before = getattr(previous, field)
         expected = getattr(required, field)
-        if before != expected:
+        same = (before.model_dump(exclude={'schema_version'}) == expected.model_dump(exclude={'schema_version'})
+                if isinstance(before,Vector3) and isinstance(expected,Vector3) else before == expected)
+        if not same:
             issues.append(
                 EvaluationIssue(
                     issue_type=EvaluationIssueType.CONTINUITY_CONFLICT,

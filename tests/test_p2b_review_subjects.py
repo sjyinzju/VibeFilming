@@ -88,4 +88,14 @@ def test_all_current_gates_have_subjects(tmp_path):
         assert final.artifacts[0].provenance.tool == 'mock_timeline_assembly'
         assert final.source_node_id == 'full_film_review'
         assert final.evaluations and final.evaluations[0].passed
+        # A pinned real cut cannot inherit passes from another version or a
+        # historical unversioned Mock assessment with the same artifact ID.
+        artifact=final.artifacts[0].model_copy(update={'version':2,'metadata':{'sha256':'a'*64}})
+        review=snapshot.reviews[2].model_copy(update={'target_artifact_id':artifact.artifact_id,
+            'target_artifact_version':2,'target_sha256':'a'*64})
+        legacy=final.evaluations[0].model_copy(update={'target_artifact_version':None})
+        old=legacy.model_copy(update={'target_artifact_version':1})
+        current=legacy.model_copy(update={'target_artifact_version':2,'summary':'Current version QC'})
+        pinned=project_review_subject(review,snapshot.graph,[artifact],evaluations=[legacy,old,current])
+        assert [e.summary for e in pinned.sources[0].evaluations]==['Current version QC']
     asyncio.run(scenario())

@@ -1,5 +1,11 @@
 # Phase 3 — Media Runtime Foundation
 
+P4C update: `FFmpegPostProcessor` is now a real local adapter registered as
+`MOVIE_AGENT_POST_PROVIDER=ffmpeg`. Real Qwen, FLUX, H3/native audio, Qwen3-VL,
+Resource Runtime and FFmpeg/final export have acceptance evidence. Independent
+TTS/music/SFX/Foley and cinematic aesthetic critic remain Mock. The historical
+foundation defaults below remain useful for tests. See [P4C](p4c_post_export.md).
+
 Status: **media foundation ready; FLUX Direct is the first real ImageProvider; the ComfyUI video bridge is compiled and fake-HTTP verified**. No real video model is activated.
 
 Layer 1 adds a standalone [FLUX Direct Image Service](../services/flux_image/README.md)
@@ -32,6 +38,10 @@ The reasoning roles, `Shot`, continuity validation, workflow graph, and role run
 - `MockVisionProvider` returns structured scores, issues, evidence, and decisions.
 - `MockAudioProvider` returns valid WAV fixtures for speech, music, SFX, Foley, ambience, and mix.
 - `MockPostProcessor` returns a valid MP4 fixture from a typed Timeline.
+- `FFmpegPostProcessor` executes a hash-pinned `PostRenderPlan` derived from the same
+  Timeline, streams the real output into immutable storage and emits actual per-pass
+  progress. Real rough cut and final film have distinct jobs and an exact approval
+  boundary. Post executes locally with concurrency one, without a Spark model lease.
 - `ComfyUIVideoProvider` resolves immutable frame Artifacts, uploads bytes, compiles a registered API-format workflow, observes remote execution, retrieves declared outputs, and returns video plus optional native-audio payloads. Its bundled tests use a fake HTTP service; there is no bundled H3 workflow.
 - Every output follows the same Provider → Job → Artifact → Event path intended for real adapters.
 

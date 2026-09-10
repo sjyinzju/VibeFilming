@@ -71,6 +71,30 @@ def test_semantic_rejections(bad):
         validate_semantics(request(), draft(proposed_decision="repair", **bad))
 
 
+@pytest.mark.parametrize('kind',['wardrobe_drift','prop_drift','missing_character','hand_artifact','detail_loss'])
+@pytest.mark.parametrize('action',['regenerate_first_frame','regenerate_last_frame'])
+def test_still_spatial_defects_allow_conditioned_boundary_repair(kind,action):
+    still=request().model_copy(update={'video_artifact_id':None,'image_artifact_id':'frame',
+        'source_duration_seconds':None,'source_frame_count':1})
+    proposal=draft(proposed_decision='repair',issues=[issue(issue_type=kind,suggested_action=action,time_ranges=[])])
+    assert VisionDecisionPolicy().decide(still,proposal)[0]=='repair'
+    proposal.proposed_decision='pass'
+    with pytest.raises(ValueError,match='contradicts'):
+        validate_semantics(still,proposal)
+
+
+def test_modality_contract_rejects_temporal_inference_from_still_and_explains_actions():
+    from movie_agent.quality.vision import inspection_draft_schema,repair_issue_guidance
+    still=request().model_copy(update={'video_artifact_id':None,'image_artifact_id':'frame',
+        'source_duration_seconds':None,'source_frame_count':1})
+    assert 'motion_failure' not in inspection_draft_schema(still)['$defs']['MediaIssueType']['enum']
+    assert 'wardrobe_drift' in repair_issue_guidance(still)['regenerate_first_frame']
+    with pytest.raises(ValueError,match='requires temporal/audio evidence'):
+        validate_semantics(still,draft(proposed_decision='repair',issues=[issue(time_ranges=[])]))
+    with pytest.raises(ValueError,match='identity_drift / change_camera_control'):
+        validate_semantics(request(),draft(proposed_decision='repair',issues=[issue(issue_type='identity_drift')]))
+
+
 @pytest.mark.parametrize("score", [-.01, 1.01, float('nan')])
 def test_score_bounds(score):
     with pytest.raises(ValueError):

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from fractions import Fraction
+
 from movie_agent.cinematic.frame_planning import RuleBasedFramePlanner
 from movie_agent.domain import AspectRatio, ResourceClass, Shot
 from movie_agent.media.compilers import GenericImagePromptCompiler, ImagePromptCompiler
@@ -36,6 +38,20 @@ def fit_canvas_to_provider_bounds(
     if min(fitted_width, fitted_height) < min_dimension:
         raise ValueError("Canvas aspect ratio cannot fit the provider dimension limits")
     return fitted_width, fitted_height
+
+
+def reference_canvas(aspect_ratio: AspectRatio | str) -> tuple[int,int]:
+    """Reference/frame working canvas; delivery resolution remains a post concern.
+
+    Reuse the installed image profile's 1024-pixel bound and 16-pixel alignment,
+    preserving the project's orientation instead of imposing landscape footage.
+    """
+    numerator,denominator=str(aspect_ratio).split(':')
+    ratio=Fraction(numerator)/Fraction(denominator)
+    if ratio<=0:raise ValueError('Canvas aspect ratio must be positive')
+    width,height=(1024,round(1024/ratio)) if ratio>=1 else (round(1024*ratio),1024)
+    return fit_canvas_to_provider_bounds(width,height,max_width=1024,max_height=1024,
+        dimension_multiple=16,min_dimension=256)
 
 
 class MediaFramePlanner:

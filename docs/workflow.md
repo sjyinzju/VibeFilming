@@ -1,5 +1,28 @@
 # Workflow, Jobs, and Recovery
 
+## P4C local post and export
+
+The existing `audio_post → rough_cut → full_film_review → final_gate → final_render`
+nodes are unchanged. With FFmpeg selected, audio_post does not dispatch Mock audio;
+rough_cut commits an exact Timeline/RenderPlan and real playable MP4. Full-film
+review is deterministic technical QC, with no additional VLM inference or aesthetic
+score. FINAL_CUT_APPROVAL pins the rough-cut identity/version/hash. Final rendering
+uses that approved plan even if newer shot artifacts appear.
+
+Committed outputs are verified and reused before any encoder dispatch; a missing
+manifest can be recovered after an output commit. Unregistered partials are never
+artifacts. Interrupted deterministic jobs may retry the same projection. A local
+semaphore limits rendering to one; no Spark GPU/model lease is requested.
+
+`POST /projects/{project_id}/exports/reexport` is an explicit post-only revision.
+It can change resolution, fps, quality, subtitle sidecar, ordered shot subset and
+audio gain, or explicitly repin selected source versions. It invalidates only these
+five post nodes and supersedes their gates, preserving upstream jobs, media and
+canonical Shot content. A new rough-cut approval is required. Notes on rejected
+gates retain the existing held-state semantics; free-text notes are not executable
+FFmpeg commands. Story/content changes still require the existing revision/repair
+mechanisms. See [P4C](p4c_post_export.md) for API details and real restart evidence.
+
 ## Graph contract
 
 `WorkflowGraph` is an explicit validated DAG. Nodes carry execution state plus neutral display metadata; edges carry dependency, condition, success, failure, repair, or human-gate semantics. Graph validation rejects duplicate IDs, dangling references, invalid entry nodes, and cycles.

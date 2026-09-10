@@ -248,6 +248,55 @@
         }
       }
     },
+    "/projects/{project_id}/reference-acceptances": {
+      "post": {
+        "summary": "Accept Reference Bundle",
+        "operationId": "accept_reference_bundle_projects__project_id__reference_acceptances_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HumanReferenceAcceptance"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/{project_id}/image-references": {
       "post": {
         "summary": "Upload Project Reference",
@@ -1080,6 +1129,196 @@
         }
       }
     },
+    "/projects/{project_id}/artifacts/{artifact_id}/versions/{version}/download": {
+      "get": {
+        "summary": "Download Artifact",
+        "operationId": "download_artifact_projects__project_id__artifacts__artifact_id__versions__version__download_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artifact Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/exports/final": {
+      "get": {
+        "summary": "Download Final",
+        "operationId": "download_final_projects__project_id__exports_final_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/exports/reexport": {
+      "post": {
+        "summary": "Reexport Final",
+        "operationId": "reexport_final_projects__project_id__exports_reexport_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostExportCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/audio": {
+      "post": {
+        "summary": "Produce Audio",
+        "operationId": "produce_audio_projects__project_id__audio_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AudioProductionCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/artifacts/{artifact_id}/select": {
       "post": {
         "summary": "Select Artifact",
@@ -1512,6 +1751,42 @@
   },
   "components": {
     "schemas": {
+      "AcceptedReferenceBinding": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "subject_id": {
+            "type": "string",
+            "title": "Subject Id"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ReferenceRole"
+          },
+          "reference": {
+            "$ref": "#/components/schemas/MediaReference"
+          },
+          "known_limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Known Limitations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "subject_id",
+          "role",
+          "reference"
+        ],
+        "title": "AcceptedReferenceBinding"
+      },
       "AnchorKind": {
         "type": "string",
         "enum": [
@@ -1705,8 +1980,40 @@
             "type": "string",
             "title": "Artifact Id"
           },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "source_in_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Source In Seconds",
+            "default": 0
+          },
           "gain_db": {
             "type": "number",
+            "maximum": 12.0,
+            "minimum": -60.0,
             "title": "Gain Db",
             "default": 0
           },
@@ -1743,6 +2050,22 @@
               }
             ],
             "title": "Shot Id"
+          },
+          "dialogue_cue_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dialogue Cue Id"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
           }
         },
         "additionalProperties": false,
@@ -1754,6 +2077,155 @@
           "artifact_id"
         ],
         "title": "AudioCue"
+      },
+      "AudioProductionCommand": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "produce",
+              "redesign_voice",
+              "regenerate_speech",
+              "music",
+              "listening_result"
+            ],
+            "title": "Action"
+          },
+          "character_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Character Id"
+          },
+          "cue_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cue Id"
+          },
+          "scene_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
+          "voice_description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Description"
+          },
+          "emotion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emotion"
+          },
+          "pace": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "slow",
+                  "medium",
+                  "fast"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "intensity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intensity"
+          },
+          "listening_passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Listening Passed"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "AudioProductionCommand"
       },
       "AudioPurpose": {
         "type": "string",
@@ -1780,6 +2252,11 @@
           "track_id": {
             "type": "string",
             "title": "Track Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": ""
           },
           "cues": {
             "items": {
@@ -1986,6 +2463,51 @@
         ],
         "title": "CameraSpec",
         "description": "Lens, size, angle, composition, and motion choices."
+      },
+      "CandidateAcceptancePolicy": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "minimum_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Minimum Seconds",
+            "default": 20
+          },
+          "minimum_shots": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Minimum Shots",
+            "default": 3
+          },
+          "required_scene_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Scene Ids"
+          },
+          "required_dialogue_shot_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Dialogue Shot Ids"
+          },
+          "export_before_optional_work": {
+            "type": "boolean",
+            "title": "Export Before Optional Work",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CandidateAcceptancePolicy"
       },
       "CanonicalProjectState": {
         "properties": {
@@ -2211,6 +2733,95 @@
         ],
         "title": "CharacterState",
         "description": "Mutable character facts at a precise continuity boundary."
+      },
+      "CharacterVoiceProfile": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "voice_profile_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Voice Profile Id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version",
+            "default": 1
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "design_instruction": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Design Instruction"
+          },
+          "reference_artifact_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Reference Artifact Id"
+          },
+          "reference_artifact_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Reference Artifact Version"
+          },
+          "reference_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Reference Sha256"
+          },
+          "reference_text": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Reference Text"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "provider_id": {
+            "type": "string",
+            "title": "Provider Id"
+          },
+          "model_profile": {
+            "type": "string",
+            "title": "Model Profile"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "voice_profile_id",
+          "project_id",
+          "character_id",
+          "design_instruction",
+          "reference_artifact_id",
+          "reference_artifact_version",
+          "reference_sha256",
+          "reference_text",
+          "language",
+          "provider_id",
+          "model_profile"
+        ],
+        "title": "CharacterVoiceProfile",
+        "description": "Versioned canonical voice identity; production evidence, not a story fact."
       },
       "CommandAccepted": {
         "properties": {
@@ -2799,6 +3410,16 @@
               }
             ],
             "title": "Draft Id"
+          },
+          "production_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FilmProductionPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -3017,6 +3638,105 @@
         ],
         "title": "Dialogue",
         "description": "One spoken screenplay line referring to a declared character."
+      },
+      "DialogueCue": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "cue_id": {
+            "type": "string",
+            "title": "Cue Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "scene_id": {
+            "type": "string",
+            "title": "Scene Id"
+          },
+          "shot_id": {
+            "type": "string",
+            "title": "Shot Id"
+          },
+          "character_id": {
+            "type": "string",
+            "title": "Character Id"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Text"
+          },
+          "voice_profile_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Voice Profile Id"
+          },
+          "voice_profile_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Voice Profile Version",
+            "default": 1
+          },
+          "target_start_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Target Start Seconds"
+          },
+          "target_end_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Target End Seconds"
+          },
+          "emotion": {
+            "type": "string",
+            "title": "Emotion",
+            "default": ""
+          },
+          "pace": {
+            "type": "string",
+            "title": "Pace",
+            "default": "medium"
+          },
+          "prosody": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Prosody"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "overlapping_speech": {
+            "type": "boolean",
+            "title": "Overlapping Speech",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cue_id",
+          "project_id",
+          "scene_id",
+          "shot_id",
+          "character_id",
+          "text",
+          "voice_profile_id",
+          "target_start_seconds",
+          "target_end_seconds",
+          "language"
+        ],
+        "title": "DialogueCue",
+        "description": "Core-owned exact committed text, with shot-relative cue-level placement."
       },
       "Evaluation": {
         "properties": {
@@ -3342,6 +4062,160 @@
           "reference_unbound"
         ],
         "title": "EventType"
+      },
+      "EvidenceStatus": {
+        "type": "string",
+        "enum": [
+          "pass",
+          "fail",
+          "unknown",
+          "human_required"
+        ],
+        "title": "EvidenceStatus"
+      },
+      "FilmProductionPolicy": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "revision": {
+            "type": "string",
+            "title": "Revision",
+            "default": "film-production-1"
+          },
+          "review_planning": {
+            "type": "boolean",
+            "title": "Review Planning",
+            "default": false
+          },
+          "require_real_providers": {
+            "type": "boolean",
+            "title": "Require Real Providers",
+            "default": true
+          },
+          "candidate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CandidateAcceptancePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "minimum_candidate_coverage": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Minimum Candidate Coverage",
+            "default": 0.8
+          },
+          "quality_budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QualityBudget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FilmProductionPolicy"
+      },
+      "FilmQualityReport": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/QualityProfile"
+          },
+          "shots": {
+            "items": {
+              "$ref": "#/components/schemas/ShotQualityReport"
+            },
+            "type": "array",
+            "title": "Shots"
+          },
+          "scenes": {
+            "items": {
+              "$ref": "#/components/schemas/SceneQualityReport"
+            },
+            "type": "array",
+            "title": "Scenes"
+          },
+          "accepted_seconds": {
+            "type": "number",
+            "title": "Accepted Seconds"
+          },
+          "accepted_shots": {
+            "type": "integer",
+            "title": "Accepted Shots"
+          },
+          "minimum_runtime_met": {
+            "type": "boolean",
+            "title": "Minimum Runtime Met"
+          },
+          "minimum_shots_met": {
+            "type": "boolean",
+            "title": "Minimum Shots Met"
+          },
+          "human_aesthetically_approved": {
+            "type": "boolean",
+            "title": "Human Aesthetically Approved",
+            "default": false
+          },
+          "review_proxy_artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Proxy Artifact Id"
+          },
+          "cinematic_evaluation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cinematic Evaluation Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "profile",
+          "shots",
+          "scenes",
+          "accepted_seconds",
+          "accepted_shots",
+          "minimum_runtime_met",
+          "minimum_shots_met"
+        ],
+        "title": "FilmQualityReport"
       },
       "FrameAnchor": {
         "properties": {
@@ -3946,6 +4820,60 @@
         ],
         "title": "HumanGateType"
       },
+      "HumanReferenceAcceptance": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "acceptance_id": {
+            "type": "string",
+            "title": "Acceptance Id"
+          },
+          "workflow_node_id": {
+            "type": "string",
+            "title": "Workflow Node Id"
+          },
+          "bindings": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptedReferenceBinding"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Bindings"
+          },
+          "user_statement": {
+            "type": "string",
+            "minLength": 1,
+            "title": "User Statement"
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Question"
+          },
+          "superseded_review_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Superseded Review Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "acceptance_id",
+          "workflow_node_id",
+          "bindings",
+          "user_statement",
+          "question"
+        ],
+        "title": "HumanReferenceAcceptance"
+      },
       "HumanRepairDirective": {
         "properties": {
           "schema_version": {
@@ -4312,6 +5240,121 @@
         "title": "HumanReviewRequest",
         "description": "Persisted pause point that can be resolved and resumed later."
       },
+      "IdentityReference": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "artifact_id": {
+            "type": "string",
+            "title": "Artifact Id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Sha256"
+          },
+          "reference_type": {
+            "$ref": "#/components/schemas/ReferenceType"
+          },
+          "reference_role": {
+            "$ref": "#/components/schemas/ReferenceRole"
+          },
+          "subject_id": {
+            "type": "string",
+            "title": "Subject Id"
+          },
+          "selected": {
+            "type": "boolean",
+            "title": "Selected",
+            "default": false
+          },
+          "quality_status": {
+            "$ref": "#/components/schemas/VisionDecision",
+            "default": "human_review"
+          },
+          "inspection_result_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inspection Result Id"
+          },
+          "human_review_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Human Review Id"
+          },
+          "acceptance_artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acceptance Artifact Id"
+          },
+          "known_limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Known Limitations"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "created_from": {
+            "items": {
+              "$ref": "#/components/schemas/MediaReference"
+            },
+            "type": "array",
+            "title": "Created From"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "artifact_id",
+          "version",
+          "sha256",
+          "reference_type",
+          "reference_role",
+          "subject_id"
+        ],
+        "title": "IdentityReference"
+      },
       "ImageCapabilities": {
         "properties": {
           "schema_version": {
@@ -4355,6 +5398,23 @@
             "type": "boolean",
             "title": "Multi Reference",
             "default": false
+          },
+          "reference_sheet": {
+            "type": "boolean",
+            "title": "Reference Sheet",
+            "default": false
+          },
+          "max_reference_images": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Reference Images"
           },
           "character_reference": {
             "type": "boolean",
@@ -5100,6 +6160,61 @@
                 "type": "null"
               }
             ]
+          },
+          "observed_subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Subject"
+          },
+          "observed_mismatch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Mismatch"
+          },
+          "blocking_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocking Reason"
+          },
+          "core_usability_affected": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Core Usability Affected"
+          },
+          "reference_aspect": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Aspect"
           }
         },
         "additionalProperties": false,
@@ -5231,6 +6346,35 @@
           },
           "reference_type": {
             "$ref": "#/components/schemas/ReferenceType"
+          },
+          "semantic_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semantic Role"
+          },
+          "human_acceptance_artifact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Human Acceptance Artifact Id"
+          },
+          "accepted_limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Accepted Limitations"
           },
           "artifact_id": {
             "type": "string",
@@ -5922,6 +7066,103 @@
         ],
         "title": "PerformanceSpec",
         "description": "Character performance over the duration of a shot."
+      },
+      "PostExportCommand": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{1,3}x[1-9][0-9]{1,3}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "fps": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 120.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fps"
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "standard",
+                  "high"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality"
+          },
+          "subtitles": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitles"
+          },
+          "shot_order": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shot Order"
+          },
+          "audio_gain_db": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 12.0,
+                "minimum": -60.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Gain Db"
+          },
+          "use_selected_sources": {
+            "type": "boolean",
+            "title": "Use Selected Sources",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PostExportCommand"
       },
       "ProductionStatus": {
         "type": "string",
@@ -7343,10 +8584,132 @@
         "title": "ProviderView",
         "description": "Public provider capability and availability without runtime credentials."
       },
+      "QualityBudget": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "h3_total": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "H3 Total",
+            "default": 18
+          },
+          "h3_per_shot": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "H3 Per Shot",
+            "default": 2
+          },
+          "frame_edits_per_chain": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Frame Edits Per Chain",
+            "default": 2
+          },
+          "inspection_revisions": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Inspection Revisions",
+            "default": 3
+          },
+          "tts_per_cue_revision": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "Tts Per Cue Revision",
+            "default": 2
+          },
+          "music_per_scene": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "Music Per Scene",
+            "default": 2
+          },
+          "critic_dispatches_per_policy": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Critic Dispatches Per Policy",
+            "default": 3
+          },
+          "critic_dispatches_total_per_subject": {
+            "type": "integer",
+            "maximum": 6.0,
+            "minimum": 1.0,
+            "title": "Critic Dispatches Total Per Subject",
+            "default": 6
+          },
+          "material_failures_per_policy": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "Material Failures Per Policy",
+            "default": 2
+          },
+          "frame_generations_per_chain": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Frame Generations Per Chain",
+            "default": 3
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "QualityBudget"
+      },
+      "QualityDimension": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "status": {
+            "$ref": "#/components/schemas/EvidenceStatus",
+            "default": "unknown"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "QualityDimension"
+      },
       "QualityProfile": {
         "type": "string",
         "enum": [
           "draft",
+          "showcase",
           "standard",
           "high",
           "final"
@@ -7365,6 +8728,34 @@
         ],
         "title": "ReferenceBindingScope"
       },
+      "ReferenceIdentitySet": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/IdentityReference"
+            },
+            "type": "array",
+            "title": "References"
+          },
+          "canonical_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Canonical Constraints"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReferenceIdentitySet"
+      },
       "ReferencePurpose": {
         "type": "string",
         "enum": [
@@ -7380,6 +8771,24 @@
           "last_frame"
         ],
         "title": "ReferencePurpose"
+      },
+      "ReferenceRole": {
+        "type": "string",
+        "enum": [
+          "face_identity",
+          "portrait",
+          "full_body",
+          "profile",
+          "silhouette",
+          "wardrobe",
+          "contextual",
+          "environment",
+          "lighting_palette",
+          "landmark",
+          "prop",
+          "style"
+        ],
+        "title": "ReferenceRole"
       },
       "ReferenceType": {
         "type": "string",
@@ -8668,6 +10077,48 @@
         "title": "Scene",
         "description": "Narrative scene and references to its ordered production shots."
       },
+      "SceneQualityReport": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "scene_id": {
+            "type": "string",
+            "title": "Scene Id"
+          },
+          "shot_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Shot Ids"
+          },
+          "accepted_seconds": {
+            "type": "number",
+            "title": "Accepted Seconds"
+          },
+          "blocking_issue_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocking Issue Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scene_id",
+          "shot_ids",
+          "accepted_seconds",
+          "blocking_issue_ids"
+        ],
+        "title": "SceneQualityReport"
+      },
       "SceneSeed": {
         "properties": {
           "schema_version": {
@@ -9228,6 +10679,134 @@
         "title": "ShotPlan",
         "description": "One scene's cinematography using existing Shot and ContinuityChain contracts."
       },
+      "ShotQualityReport": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Schema Version",
+            "description": "Version of this serialized contract for future migrations.",
+            "default": "1.0.0"
+          },
+          "shot_id": {
+            "type": "string",
+            "title": "Shot Id"
+          },
+          "scene_id": {
+            "type": "string",
+            "title": "Scene Id"
+          },
+          "artifact_id": {
+            "type": "string",
+            "title": "Artifact Id"
+          },
+          "artifact_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Artifact Version"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Sha256"
+          },
+          "duration_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Duration Seconds"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/QualityProfile"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShotQualityStatus"
+          },
+          "dimensions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/QualityDimension"
+            },
+            "type": "object",
+            "title": "Dimensions"
+          },
+          "evaluation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evaluation Ids"
+          },
+          "inspection_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Inspection Ids"
+          },
+          "blocking_issue_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocking Issue Ids"
+          },
+          "human_review_items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Human Review Items"
+          },
+          "visual_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visual Score"
+          },
+          "cinematic_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cinematic Score"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "shot_id",
+          "scene_id",
+          "artifact_id",
+          "artifact_version",
+          "sha256",
+          "duration_seconds",
+          "profile",
+          "status",
+          "dimensions",
+          "evaluation_ids",
+          "inspection_ids",
+          "blocking_issue_ids"
+        ],
+        "title": "ShotQualityReport"
+      },
+      "ShotQualityStatus": {
+        "type": "string",
+        "enum": [
+          "accepted",
+          "repairing",
+          "human_review",
+          "rejected"
+        ],
+        "title": "ShotQualityStatus"
+      },
       "ShotSize": {
         "type": "string",
         "enum": [
@@ -9390,6 +10969,64 @@
               }
             ],
             "title": "Event Cursor"
+          },
+          "film_quality": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FilmQualityReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quality_history": {
+            "items": {
+              "$ref": "#/components/schemas/ShotQualityReport"
+            },
+            "type": "array",
+            "title": "Quality History"
+          },
+          "identity_set": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReferenceIdentitySet"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "voice_profiles": {
+            "items": {
+              "$ref": "#/components/schemas/CharacterVoiceProfile"
+            },
+            "type": "array",
+            "title": "Voice Profiles"
+          },
+          "dialogue_cues": {
+            "items": {
+              "$ref": "#/components/schemas/DialogueCue"
+            },
+            "type": "array",
+            "title": "Dialogue Cues"
+          },
+          "audio_controls": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Audio Controls"
+          },
+          "audio_listening_result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Listening Result"
           },
           "graph": {
             "$ref": "#/components/schemas/WorkflowGraph"
@@ -9812,6 +11449,30 @@
           "artifact_id": {
             "type": "string",
             "title": "Artifact Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
           },
           "start_time_seconds": {
             "type": "number",

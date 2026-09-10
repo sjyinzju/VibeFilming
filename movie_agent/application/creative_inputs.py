@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import Field, field_validator
 from movie_agent.domain import ContractModel, ProjectBrief, new_id
 from movie_agent.media.contracts import MediaReference
+from movie_agent.quality.production import FilmProductionPolicy
 from movie_agent.orchestration.runtime.context import ContextBuilder, content_hash
 
 
@@ -48,6 +49,7 @@ class CreateProjectInput(ProjectBrief):
     target_duration: float = Field(default=30, gt=0)
     creative_hints: CreativeHints = Field(default_factory=CreativeHints)
     draft_id: str | None = Field(default=None, pattern=r"^draft_[A-Za-z0-9-]{8,80}$")
+    production_policy: FilmProductionPolicy | None = None
 
     @field_validator("story_description", "title", "logline")
     @classmethod
@@ -57,7 +59,7 @@ class CreateProjectInput(ProjectBrief):
         return value.strip()
 
     def canonical_brief(self) -> ProjectBrief:
-        return ProjectBrief.model_validate(self.model_dump(exclude={"creative_hints", "draft_id"}))
+        return ProjectBrief.model_validate(self.model_dump(exclude={"creative_hints", "draft_id", "production_policy"}))
 
 
 class CreativeInputContextBuilder(ContextBuilder):

@@ -12,7 +12,8 @@ from movie_agent.media.contracts import (
     VisionScore, TimeRange, VisionInspectionProfile,
 )
 
-PROMPT_VERSION = "p4b.2"
+PROMPT_VERSION = "p5.3"
+SEMANTIC_VALIDATION_VERSION = "modality-scoped-repair-1"
 SCHEMA_VERSION = "p4b.1"
 
 # Reuse canonical field definitions; only Core-owned identity/version fields are
@@ -42,6 +43,20 @@ class VisionInspectionDraft(BaseModel):
     summary: str
 
 
+def inspection_draft_schema(request):
+    schema=VisionInspectionDraft.model_json_schema()
+    if request.image_artifact_id:
+        schema['$defs']['MediaIssueType']['enum']=sorted(i.value for i in IMAGE_ISSUES)
+    from movie_agent.quality.reference_policy import calibrated_policy
+    if calibrated_policy(request):
+        issue=schema['$defs']['DraftIssue']
+        issue['required']=list(issue['properties'])
+        issue['properties']['evidence'].update(minItems=1,items={'type':'string','minLength':8})
+        schema['properties']['evidence'].update(minItems=1,items={'type':'string','minLength':8})
+        schema['required']=list(schema['properties'])
+    return schema
+
+
 SUPPORTED_VIDEO_REPAIRS = frozenset({A.REWRITE_PROMPT, A.REGENERATE_VIDEO, A.CHANGE_CAMERA_CONTROL,
                                      A.REGENERATE_FIRST_FRAME, A.REGENERATE_LAST_FRAME})
 ACTION_ISSUES = {
@@ -50,6 +65,22 @@ ACTION_ISSUES = {
                              I.SCENE_DRIFT, I.STYLE_MISMATCH, I.LIGHTING_MISMATCH},
     A.REGENERATE_LAST_FRAME: {I.LAST_FRAME_MISMATCH, I.ACTION_INCOMPLETE, I.CONTINUITY_ERROR},
 }
+IMAGE_ISSUES = frozenset(set(I) - {I.MOTION_FAILURE, I.ACTION_INCOMPLETE,
+    I.CAMERA_MOTION_MISMATCH, I.TEMPORAL_FLICKER, I.AUDIO_SYNC_ERROR,
+    I.SPEECH_ERROR, I.MUSIC_MISMATCH})
+
+
+def repair_issue_contract(request):
+    """One modality-scoped contract shared by proposal instructions and validation."""
+    if request.image_artifact_id:
+        return {A.CHANGE_CAMERA_CONTROL: set(),
+                A.REGENERATE_FIRST_FRAME: IMAGE_ISSUES, A.REGENERATE_LAST_FRAME: IMAGE_ISSUES}
+    return ACTION_ISSUES
+
+
+def repair_issue_guidance(request):
+    return {action.value: sorted(i.value for i in issues)
+            for action, issues in repair_issue_contract(request).items()}
 BLOCKING = {IssueSeverity.MAJOR, IssueSeverity.CRITICAL}
 
 
@@ -60,11 +91,20 @@ def inspection_fingerprint(request: VisionInspectionRequest) -> str:
              "profiles": sorted(p.value for p in request.profiles),
              "schema": request.critic_schema_version, "prompt": PROMPT_VERSION,
              "critic_configuration": request.critic_configuration_fingerprint,
+             "reference_role": request.reference_role,
+             "quality_policy_revision": request.quality_policy_revision,
+             "critic_config_revision": request.critic_config_revision,
+             "recovery_authorization": request.recovery_authorization,
              "revision": request.inspection_revision, "sampling": request.sampling_policy,
              "ranges": [r.model_dump(mode="json") for r in request.targeted_time_ranges],
              "expected": request.expected_shot.model_dump(mode="json") if request.expected_shot else None,
              "requirements": request.expected_requirements, "language": request.output_language,
              "references": sorted((r.artifact_id, r.version, r.sha256) for r in request.reference_assets)}
+    scoped=[{'artifact_id':r.artifact_id,'version':r.version,'semantic_role':r.semantic_role,
+        'human_acceptance_artifact_id':r.human_acceptance_artifact_id,'accepted_limitations':r.accepted_limitations}
+        for r in request.reference_assets if r.semantic_role or r.human_acceptance_artifact_id]
+    if scoped:value['reference_semantics']=scoped
+    if request.quality_profile.value!='standard':value['quality_profile']=request.quality_profile.value
     return sha256(json.dumps(value, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
@@ -80,22 +120,45 @@ def critic_configuration_fingerprint(provider, supported_actions=None):
     policy=getattr(provider, 'policy', VisionDecisionPolicy())
     settings=getattr(provider, 'settings', None)
     value={'provider_id':provider.provider_id, 'model':getattr(settings,'vision_model',None),
+           'semantic_validation_revision':SEMANTIC_VALIDATION_VERSION,
            'policy':policy.model_dump(mode='json'),
            'sampling_frames':[getattr(settings,'vision_fast_frames',None),getattr(settings,'vision_full_frames',None)],
            'video_transport':getattr(settings,'vision_video_transport',None),
+           'reasoning_parser':getattr(settings,'vision_reasoning_parser',None),
+           'temperature':getattr(settings,'vision_temperature',0),'seed':getattr(settings,'vision_seed',1234),
+           'max_tokens':getattr(settings,'vision_max_tokens',None),
+           'structured_output':getattr(settings,'vision_structured_output',None),
            'supported_repairs':sorted(supported_actions) if supported_actions is not None else None}
     return sha256(json.dumps(value,sort_keys=True).encode()).hexdigest()
 
 
+def effective_vision_policy(request, policy):
+    if request.reference_role:
+        from movie_agent.quality.reference_policy import ReferenceAcceptancePolicy
+        return ReferenceAcceptancePolicy()
+    if request.quality_profile.value=='draft':
+        from movie_agent.quality.reports import QualityThresholds
+        return policy.model_copy(update={'minimum_score':QualityThresholds.for_profile(request.quality_profile).visual_minimum})
+    return policy
+
+
 def validate_semantics(request: VisionInspectionRequest, draft: VisionInspectionDraft) -> None:
+    from movie_agent.quality.reference_policy import validate_core_evidence
+    validate_core_evidence(request, draft)
     profiles = [s.profile for s in draft.scores]
     if len(set(profiles)) != len(profiles) or not set(profiles) <= set(request.profiles):
         raise ValueError("scores must be unique and belong to requested profiles")
     for issue in draft.issues:
         if issue.severity in BLOCKING and not any(e.strip() for e in issue.evidence):
             raise ValueError("major/critical issue requires observable evidence")
-        if issue.suggested_action in ACTION_ISSUES and issue.issue_type not in ACTION_ISSUES[issue.suggested_action]:
-            raise ValueError("issue type and repair action conflict")
+        if request.image_artifact_id and issue.issue_type not in IMAGE_ISSUES:
+            raise ValueError(f"Still-image issue {issue.issue_type.value} requires temporal/audio evidence; "
+                             "describe only observed pose/framing/appearance using a spatial issue type")
+        compatible = repair_issue_contract(request)
+        if issue.suggested_action in compatible and issue.issue_type not in compatible[issue.suggested_action]:
+            allowed=', '.join(sorted(i.value for i in compatible[issue.suggested_action])) or 'none for this modality'
+            raise ValueError(f"issue type and repair action conflict: {issue.issue_type.value} / "
+                             f"{issue.suggested_action.value}; compatible issue types: {allowed}")
         for time_range in issue.time_ranges:
             if (request.source_duration_seconds is None or
                 not 0 <= time_range.start_seconds <= time_range.end_seconds <= request.source_duration_seconds):
@@ -161,6 +224,12 @@ class VisionDecisionPolicy(BaseModel):
             issues.append(MediaIssue.model_validate(payload))
         fingerprint = inspection_fingerprint(request)
         parameters = {**(metadata or {}), "model": model, "prompt_version": PROMPT_VERSION,
+                      "quality_policy_revision": request.quality_policy_revision,
+                      "quality_profile": request.quality_profile.value,
+                      "critic_config_revision": request.critic_config_revision,
+                      "recovery_authorization": request.recovery_authorization,
+                      "reference_role": request.reference_role.value if request.reference_role else None,
+                      "critic_configuration_fingerprint": request.critic_configuration_fingerprint,
                       "critic_schema_version": request.critic_schema_version,
                       "target_artifact_id": target, "target_artifact_version": request.target_artifact_version,
                       "target_sha256": request.target_sha256, "inspection_fingerprint": fingerprint,

@@ -234,10 +234,22 @@ class MockMovieProduction:
                 self.job_manager._jobs[restored.job_id] = restored.model_copy(deep=True)
                 self.job_manager._idempotency[restored.idempotency_key] = restored.job_id
 
-        for node in sorted(
-            production.graph.nodes,
-            key=lambda item: item.display_order if item.display_order is not None else 0,
-        ):
+        while True:
+            from movie_agent.services.audio_production import install_nodes
+            install_nodes(self, project)
+            unfinished = [n for n in production.graph.nodes if n.status != WorkflowNodeStatus.SUCCEEDED]
+            if not unfinished:
+                break
+            independent_review = getattr(self, 'continue_independent_on_review', False)
+            ready = [n for n in unfinished if (not independent_review or n.status != WorkflowNodeStatus.WAITING_HUMAN)
+                     and all(production.node(d).status == WorkflowNodeStatus.SUCCEEDED for d in n.dependencies)
+                     and self.node_eligible(n,project,production)]
+            if not ready:
+                if independent_review and any(n.status == WorkflowNodeStatus.WAITING_HUMAN for n in unfinished):
+                    self._save_checkpoint(project, production)
+                    return self._result(False, project, production)
+                raise RuntimeError('Production DAG has unfinished nodes without satisfied dependencies')
+            node = min(ready, key=lambda item: (item.display_order if item.display_order is not None else 0, item.node_id))
             current = production.node(node.node_id)
             if current.status == WorkflowNodeStatus.SUCCEEDED:
                 continue
@@ -255,6 +267,8 @@ class MockMovieProduction:
                 if not should_continue:
                     project.updated_at = utc_now()
                     self._save_checkpoint(project, production)
+                    if independent_review and production.node(node.node_id).status == WorkflowNodeStatus.WAITING_HUMAN:
+                        continue
                     return self._result(False, project, production)
                 production.set_status(node.node_id, WorkflowNodeStatus.SUCCEEDED)
                 project.canonical_state.completed_node_ids = [
@@ -281,6 +295,10 @@ class MockMovieProduction:
         )
         return self._result(True, project, production)
 
+    def node_eligible(self, node, project, production):
+        """Additional policy eligibility; explicit DAG dependencies always apply first."""
+        return True
+
     async def _execute_node(
         self,
         node_id: str,
@@ -289,6 +307,18 @@ class MockMovieProduction:
         *,
         auto_approve: bool,
     ) -> bool:
+        if node_id.startswith(('audio_voice:', 'audio_speech:', 'audio_music:')) or node_id == 'audio_prepare':
+            from movie_agent.services.audio_production import execute
+            from movie_agent.media.dialogue import DialogueTimingReview
+            try:
+                await execute(self, project, node_id)
+            except DialogueTimingReview as error:
+                production.set_status(node_id, WorkflowNodeStatus.WAITING_HUMAN)
+                if self.human_gates.pending_for_node(node_id) is None:
+                    self.human_gates.request(project.project_id, node_id, HumanGateType.AGENT_ESCALATION,
+                        str(error), ['dialogue_cues'])
+                return False
+            return True
         handlers = {
             "brief": self._brief,
             "creative_expansion": self._creative_expansion,
@@ -330,6 +360,8 @@ class MockMovieProduction:
                     gate_types[node_id],
                     f"Approve {production.node(node_id).label}?",
                     production.node(node_id).input_refs,
+                    target_artifact=(self._required_artifact("rough_cut")
+                        if node_id == "final_gate" and self._required_artifact("rough_cut").metadata.get("mock") is False else None),
                 )
             if not auto_approve:
                 return False
@@ -863,7 +895,8 @@ class MockMovieProduction:
         }
 
         for shot in shots:
-            references = self._media_references(project, shot)
+            context = repair_contexts.get(shot.shot_id)
+            references = self._media_references(project, shot, repair_context=context)
             media_strategy = self.strategy_planner.plan(shot, capabilities, references)
             if media_strategy.split_shot:
                 raise RuntimeError("split_shot requires Director replanning before provider execution")
@@ -901,7 +934,9 @@ class MockMovieProduction:
                 continue
 
             context = repair_contexts.get(shot.shot_id)
-            prompt = self.video_prompt_compiler.compile(shot, media_strategy, references, repair_context=context)
+            from movie_agent.services.audio_production import has_authoritative_dialogue
+            prompt = self.video_prompt_compiler.compile(shot, media_strategy, references, repair_context=context,
+                has_authoritative_dialogue=has_authoritative_dialogue(self, shot))
             next_version = len(self.artifact_store.list_versions(f"video_{shot.shot_id}")) + 1
             if shot.shot_id in target_versions and next_version != target_versions[shot.shot_id]:
                 raise ValueError("repair generation version changed after planning")
@@ -965,6 +1000,7 @@ class MockMovieProduction:
                 repair_context=context,
             )
             # Prompt package is an immutable input artifact alongside frame/reference assets.
+            request = self._prepare_video_request(project, shot, request)
             job.input_artifact_ids = list(dict.fromkeys([prompt_artifact.artifact_id,
                                                         *job.input_artifact_ids]))
             artifact = await self.media_runtime.generate_video(job, request)
@@ -1133,6 +1169,7 @@ class MockMovieProduction:
             reference_assets=references, expected_shot=shot, output_language=project.brief.output_language,
             expected_requirements=shot.visual_requirements, profiles=profiles,
             inspection_revision=inspection_revision,
+            quality_profile=shot.quality_profile,
             sampling_policy="targeted" if target_ranges else "fast", targeted_time_ranges=target_ranges,
             retry_budget=shot.retry_budget, retry_count=video.version - 1,
             output_artifact_id=f"inspection_{shot.shot_id}_v{video.version}"), self.artifact_store, self.binary_store)
@@ -1190,6 +1227,13 @@ class MockMovieProduction:
         return await run_repair_loop(self, project)
 
     async def _audio_post(self, project: Project) -> None:
+        from movie_agent.services.audio_production import enabled, assemble
+        if enabled(self):
+            assemble(self, project)
+            return
+        from movie_agent.services.post_production import real_post
+        if real_post(self):
+            return  # Real audio conform/normalization is executed by the post provider.
         duration = sum(shot.duration_seconds for shot in project.shots)
         shot = project.shots[0]
         selected_videos = [self._latest_video(item.shot_id).artifact_id for item in project.shots]
@@ -1265,6 +1309,9 @@ class MockMovieProduction:
         await self._run_audio_request(project, mix_request)
 
     async def _rough_cut(self, project: Project) -> None:
+        from movie_agent.services.post_production import real_post, rough_cut
+        if real_post(self):
+            return await rough_cut(self, project)
         selected_videos = [self._latest_video(shot.shot_id) for shot in project.shots]
         offset = 0.0
         clips = []
@@ -1320,6 +1367,9 @@ class MockMovieProduction:
         )
 
     async def _full_film_review(self, project: Project) -> None:
+        from movie_agent.services.post_production import real_post, full_film_review
+        if real_post(self):
+            return await full_film_review(self, project)
         rough_cut = self._required_artifact("rough_cut")
         # Explicit subject relation for the quality node and its downstream human gate.
         if self.current_production:
@@ -1337,6 +1387,9 @@ class MockMovieProduction:
         )
 
     async def _final_render(self, project: Project) -> None:
+        from movie_agent.services.post_production import real_post, final_render
+        if real_post(self):
+            return await final_render(self, project)
         rough_cut = self._required_artifact("rough_cut")
         full_review_ids = [
             evaluation.evaluation_id
@@ -1505,7 +1558,10 @@ class MockMovieProduction:
         ]
         return list(dict.fromkeys(item for item in ids if item))
 
-    def _media_references(self, project: Project, shot: Shot) -> list[MediaReference]:
+    def _prepare_video_request(self, project, shot, request):
+        return request
+
+    def _media_references(self, project: Project, shot: Shot, *, repair_context=None) -> list[MediaReference]:
         scene = next((item for item in project.scenes if item.scene_id == shot.scene_id), None)
         references = self._resolved_uploaded_references(project, shot, scene)
         references.extend(

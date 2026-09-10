@@ -19,8 +19,11 @@ from .resources import ModelResidency, ResourceSnapshot, ResourceRuntimeSettings
 CONTAINERS = {
     "qwen": "movie-agent-llm",
     "flux": "movie-agent-flux-direct",
+    "kontext": "movie-agent-kontext",
     "comfyui": "movie-agent-comfyui",
     "vlm": "movie-agent-vlm",
+    "tts": "movie-agent-tts",
+    "music": "movie-agent-music",
 }
 
 
@@ -51,7 +54,7 @@ class SparkDockerServiceController:
             await process.wait()
             raise
         if process.returncode:
-            raise ProviderFailure("Spark control command failed", ProviderErrorType.UNAVAILABLE)
+            raise ProviderFailure(f"Spark control command failed (exit {process.returncode})", ProviderErrorType.UNAVAILABLE)
         return stdout.decode("utf-8")
 
     def _container(self, service_id):
@@ -105,7 +108,7 @@ class SparkDockerServiceController:
         # No shell fragments from Domain. CUDA total/free is diagnostic only on GB10.
         raw = await self.runner("cat /proc/meminfo", 20)
         values = {line.split(":", 1)[0]: int(line.split()[1]) * 1024
-                  for line in raw.splitlines() if line.startswith(("MemTotal:", "MemAvailable:"))}
+                  for line in raw.splitlines() if line.startswith(("MemTotal:", "MemAvailable:", "MemFree:"))}
         if not 0 <= values.get("MemAvailable", -1) <= values.get("MemTotal", 0):
             raise ProviderFailure("invalid unified memory telemetry", ProviderErrorType.UNAVAILABLE)
         return values
@@ -120,6 +123,7 @@ class SparkResourceTelemetry:
         return ResourceSnapshot(total_unified_memory_bytes=values["MemTotal"],
             available_unified_memory_bytes=values["MemAvailable"],
             diagnostics={"pool": "GB10 unified host memory", "source": "/proc/meminfo",
+                         "free_unified_memory_bytes": values.get("MemFree"),
                          "cuda_is_same_pool": True})
 
 
@@ -130,17 +134,28 @@ class SparkDockerModelService(ModelService):
         self.health_path, self.idle_path, self.kind = health_path, idle_path, kind
         self.headers = headers or {}
 
-    async def _get(self, path):
+    async def _get(self, path, *, allow_unready=False):
         async with httpx.AsyncClient(timeout=8, trust_env=False) as client:
             response = await client.get(self.descriptor.endpoint + path, headers=self.headers)
-            response.raise_for_status()
+            if not (allow_unready and response.status_code == 503):
+                response.raise_for_status()
             return response
 
     async def health(self):
         try:
-            response = await self._get(self.health_path)
-            if self.kind == "flux":
+            response = await self._get(self.health_path, allow_unready=self.kind == 'flux')
+            if self.kind == 'flux':
+                payload = response.json()
+                self.descriptor.metadata['reported_state'] = payload.get('state')
+                self.descriptor.metadata['load_error_code'] = payload.get('load_error_code')
+            if self.kind in {"flux", "tts", "kontext"}:
                 return response.json().get("ready") is True
+            if self.kind == 'music':
+                data = response.json().get('data', {})
+                if not isinstance(data, dict) or not isinstance(data.get('models'), list):
+                    return False
+                return any(isinstance(m, dict) and m.get('name') == self.descriptor.runtime_profile.model_profile_id
+                           and m.get('is_loaded') is True for m in data['models'])
             if self.kind == "comfyui":
                 return isinstance(response.json().get("system"), dict)
             model_id = self.descriptor.metadata.get("served_model", self.descriptor.runtime_profile.model_profile_id)
@@ -153,14 +168,21 @@ class SparkDockerModelService(ModelService):
         if not state.get("Running"):
             return True
         try:
-            response = await self._get(self.idle_path)
+            response = await self._get(self.idle_path, allow_unready=self.kind == 'flux')
             if self.kind == "comfyui":
                 data = response.json()
                 return data.get("queue_running") == [] and data.get("queue_pending") == []
-            if self.kind == "flux":
+            if self.kind == 'kontext':
+                data = response.json()
+                return data.get('ready') is True and data.get('busy') is False
+            if self.kind in {"flux", "tts"}:
                 data = response.json()
                 # Legacy services without the activity contract are not safely evictable.
-                return data.get("state") == "ready"
+                return data.get("state") == "ready" or (self.kind == 'flux'
+                    and data.get('state') == 'failed' and bool(data.get('load_error_code')))
+            if self.kind == 'music':
+                data = response.json().get('data', {})
+                return data.get('queue_size') == 0 and data.get('jobs', {}).get('running') == 0 and data.get('jobs', {}).get('queued') == 0
             running = re.findall(r'^vllm:num_requests_(?:running|waiting)(?:\{[^\n]*\})?\s+([0-9.eE+-]+)',
                                  response.text, flags=re.MULTILINE)
             return len(running) >= 2 and all(float(value) == 0 for value in running)
@@ -179,6 +201,8 @@ class SparkDockerModelService(ModelService):
             status = self.descriptor.status
         else:
             status = ModelServiceStatus.READY if await self.health() else ModelServiceStatus.WARMING
+            if self.kind == 'flux' and self.descriptor.metadata.get('reported_state') == 'failed':
+                status = ModelServiceStatus.FAILED
         self.descriptor.status = status
         return status
 
@@ -201,6 +225,8 @@ class SparkDockerModelService(ModelService):
             return False
 
     async def start(self):
+        if self.kind == 'flux' and self.descriptor.metadata.get('reported_state') == 'failed':
+            await self.stop()  # Failed loader has no accepted generation; restart only after verified idle.
         self.descriptor.status = ModelServiceStatus.STARTING
         started = perf_counter()
         await self.controller.action(self.descriptor.service_id, "start")
@@ -209,8 +235,15 @@ class SparkDockerModelService(ModelService):
         self.descriptor.status = ModelServiceStatus.WARMING
         # FLUX and Qwen health includes initial model loading; ComfyUI does not.
         while not await self.health():
+            if self.kind == 'flux' and self.descriptor.metadata.get('reported_state') == 'failed':
+                code = self.descriptor.metadata.get('load_error_code')
+                raise ProviderFailure('FLUX loader failed: '+str(code),
+                    ProviderErrorType.RESOURCE_EXHAUSTED_OOM if code == 'RESOURCE_EXHAUSTED'
+                    else ProviderErrorType.MODEL_NOT_READY)
             if await self.oom_killed():
                 raise ProviderFailure("RESOURCE_EXHAUSTED_OOM", ProviderErrorType.RESOURCE_EXHAUSTED_OOM)
+            if not (await self.controller.inspect(self.descriptor.service_id)).get("Running"):
+                raise ProviderFailure("service exited before readiness", ProviderErrorType.MODEL_NOT_READY)
             await asyncio.sleep(2)
         self.descriptor.status = ModelServiceStatus.READY
         self.warmup_seconds = perf_counter() - warming

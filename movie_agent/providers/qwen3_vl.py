@@ -22,11 +22,24 @@ SYSTEM_PROMPT = """You are a film shot quality inspector, not a screenwriter.
 OBSERVE, COMPARE expected vs observed, DIAGNOSE with visible EVIDENCE, SUGGEST ACTION.
 The canonical Shot and user requirements are authoritative. Do not invent StoryBible
 facts, unseen identities, sounds, intermediate frames, or precise frame-level observations.
-Inspect only the requested profiles. If identity references or evidence are insufficient,
-say so and propose human_review. Do not assume a defect must exist: a faithful shot may PASS.
+Inspect only the requested profiles. If an identity COMPARISON is requested and its
+reference evidence is insufficient, say so and propose human_review. For an initial
+canonical reference with no identity comparison requested, evaluate visible appearance
+and image quality; its assigned name is a label, not an unseen face to recognize.
+Do not assume a defect must exist: a faithful shot may PASS.
+Never propose pass when any unresolved issue has severity major or critical. If unsure,
+propose human_review and preserve the observable issue evidence.
 Report observations for characters, setting, action progression and camera motion.
 Give approximate source-video time ranges only when supported by sampled visual evidence.
+For a static image there is no timeline: time_ranges must be [], frame timestamp_seconds
+must be null, and the only valid target frame_number is 0. Do not judge action progression
+or camera motion from a still image; compare only visible pose, framing and appearance.
+For still-image framing use first_frame_mismatch or last_frame_mismatch; missing visual
+details use detail_loss. missing_character means an absent person, never a missing detail.
+Use the supplied repair_issue_compatibility contract; an empty list forbids that action.
 Populate top-level evidence with observations as well as each issue's evidence. For
+each distinct defect, report it once; do not repeat equivalent missing-character or
+lighting claims. Prioritize observable major/critical defects and keep evidence concise. For
 localized issues, also fill structured time_ranges using the supplied source times;
 omit a range when the evidence cannot localize it. Never invent missing evidence.
 Do not change canonical story/shot intent. Do not output provider parameters, ComfyUI node IDs,
@@ -79,7 +92,7 @@ class Qwen3VLVisionProvider(VisionProvider):
 
     async def prepare_request(self, request):
         if not request.video_artifact_id:
-            return request
+            return request.model_copy(update={'source_duration_seconds':None, 'source_frame_count':1})
         if self.resolver is None or request.target_artifact_version is None or request.target_sha256 is None:
             raise ProviderFailure("vision requires immutable source metadata", ProviderErrorType.INVALID_REQUEST)
         if request.target_sha256 not in self._stream_metadata:
@@ -99,6 +112,7 @@ class Qwen3VLVisionProvider(VisionProvider):
                                           'source_frame_count':stream['frame_count']})
 
     async def prepare(self, request: VisionInspectionRequest):
+        from movie_agent.quality.vision import repair_issue_guidance
         request = await self.prepare_request(request)
         if self.resolver is None or request.target_artifact_version is None or request.target_sha256 is None:
             raise ProviderFailure("vision requires an exact artifact resolver", ProviderErrorType.INVALID_REQUEST)
@@ -130,6 +144,10 @@ class Qwen3VLVisionProvider(VisionProvider):
             indices=uniform_indices(stream['frame_count'],count)
             sampling.update({'source_fps':stream['fps'],'source_frame_count':stream['frame_count'],
                              'planned_frame_indices':indices,'planned_timestamps_seconds':[i/stream['fps'] for i in indices]})
+        else:
+            sampling.update({'method':'single_image','source_frame_count':1,'sample_count':1,
+                'sample_count_is_requested_bound':False,'native_parameters':{},
+                'timestamp_precision':'not applicable: still image; omit all temporal ranges and timestamps'})
         video_url=media.url
         if request.video_artifact_id and self.settings.vision_video_transport == 'jpeg_sequence':
             frames=await self.video_sampler(content,indices)
@@ -147,7 +165,10 @@ class Qwen3VLVisionProvider(VisionProvider):
             "output_language": request.output_language,
             "expected_shot": request.expected_shot.model_dump(mode="json") if request.expected_shot else None,
             "expected_requirements": request.expected_requirements,
+            "reference_role": request.reference_role.value if request.reference_role else None,
+            "quality_policy_revision": request.quality_policy_revision,
             "inspection_profiles": [p.value for p in request.profiles],
+            "repair_issue_compatibility": repair_issue_guidance(request),
             "sampling": sampling,
             "targeted_time_ranges": [t.model_dump(mode="json") for t in request.targeted_time_ranges],
         }, ensure_ascii=False)}]
@@ -179,18 +200,29 @@ class Qwen3VLVisionProvider(VisionProvider):
             if sha256(resolved.content).hexdigest() != ref.sha256:
                 raise ProviderFailure("reference hash mismatch", ProviderErrorType.MEDIA_CORRUPT)
             reference = await self.stager.stage(resolved.content, resolved.mime_type)
-            payload.extend([{"type": "text", "text": f"Immutable reference: {ref.reference_type.value}; {ref.purpose or ''}"},
+            scope=(f' HUMAN ACCEPTED WITH KNOWN LIMITATIONS for semantic role {ref.semantic_role}: '
+                +'; '.join(ref.accepted_limitations)+'. Do not re-reject this accepted baseline for those limitations. '
+                'Judge new output defects; only a new critical technical problem may challenge the accepted reference itself.'
+                if ref.human_acceptance_artifact_id else '')
+            payload.extend([{"type": "text", "text": f"Immutable reference: {ref.reference_type.value}; semantic role={ref.semantic_role}; entity={ref.entity_id or 'not assigned'}; {ref.artifact_id}@v{ref.version}; {ref.purpose or ''}"+scope},
                             {"type": "image_url", "image_url": {"url": reference.url}}])
             staged.append({"role": ref.reference_type.value, "artifact_uri": ref.artifact_uri,
                            "sha256": reference.sha256, "size_bytes": reference.size_bytes})
-        schema = VisionInspectionDraft.model_json_schema()
+        from movie_agent.quality.vision import inspection_draft_schema
+        schema = inspection_draft_schema(request)
         response_format = ({"type": "json_schema", "json_schema": {"name": "vision_inspection_draft", "strict": True, "schema": schema}}
                            if self.settings.vision_structured_output == "json_schema" else {"type": "json_object"})
         messages = [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": payload}]
+        if request.quality_policy_revision:
+            messages[0]['content'] += ('\nP5R calibrated usability: major/critical require specific observable subject, mismatch, '
+                'blocking_reason and core_usability_affected=true. Minor motion/composition/lighting imperfections are warnings. '
+                'Reference roles use their supplied scoped usability policy; do not impose unrelated global requirements. '
+                'For stills evaluate start or end pose only, never require the entire action to have completed.')
         if self.settings.vision_structured_output == "json_object":
             messages[0]["content"] += "\nJSON schema: " + json.dumps(schema)
         body = {"model": self.settings.vision_model, "messages": messages,
-                "max_tokens": self.settings.vision_max_tokens, "temperature": 0,
+                "max_tokens": self.settings.vision_max_tokens, "temperature": self.settings.vision_temperature,
+                "seed":self.settings.vision_seed,
                 "response_format": response_format,
                 "media_io_kwargs": {"video": sampling['native_parameters']}}
         return body, {"model": self.settings.vision_model, "sampling": sampling,
@@ -211,6 +243,7 @@ class Qwen3VLVisionProvider(VisionProvider):
             # At most one targeted JSON/semantic repair after a definitely completed
             # response. Transport uncertainty is never retried here.
             for attempt in range(2):
+                draft = None
                 sent_at = utc_now()
                 call_started = perf_counter()
                 try:
@@ -242,13 +275,19 @@ class Qwen3VLVisionProvider(VisionProvider):
                                      "reasoning_separate": bool(message.get("reasoning") or message.get("reasoning_content"))})
                     if choice.get("finish_reason") != "stop":
                         raise ValueError("response did not complete within token budget")
+                    if self.settings.vision_reasoning_parser and not attempts[-1]['reasoning_separate']:
+                        raise ValueError('Configured Thinking parser did not return separate reasoning evidence')
                     draft = VisionInspectionDraft.model_validate_json(message["content"])
                     validate_semantics(request, draft)
                     metadata.update({"attempts": attempts, "started_at": started_at.isoformat(),
                                      "latency_seconds": perf_counter() - started,
                                      "inference_seconds": sum(a.get('latency_seconds',0) for a in attempts),
-                                     "usage": data.get("usage", {})})
-                    result = self.policy.commit(request, draft, provider_id=self.provider_id,
+                                     "usage": data.get("usage", {}),
+                                     'reasoning_parser_expected':self.settings.vision_reasoning_parser,
+                                     'temperature':self.settings.vision_temperature,'seed':self.settings.vision_seed})
+                    from movie_agent.quality.vision import effective_vision_policy
+                    policy = effective_vision_policy(request,self.policy)
+                    result = policy.commit(request, draft, provider_id=self.provider_id,
                                                  model=self.settings.vision_model, metadata=metadata)
                     self.results[request.request_id] = result
                     return result
@@ -256,10 +295,16 @@ class Qwen3VLVisionProvider(VisionProvider):
                     # Do not include raw model text or exception input in diagnostics.
                     diagnostic = ("; ".join(f"{'.'.join(map(str,e['loc']))}: {e['type']}" for e in error.errors(include_input=False))
                                   if isinstance(error, ValidationError) else str(error)[:240])
+                    if attempts:
+                        attempts[-1]['validation_diagnostic'] = diagnostic
+                        if draft is not None:
+                            # Preserve rejected observable proposals, never raw Thinking text.
+                            attempts[-1]['rejected_proposal'] = draft.model_dump(mode='json')
                     if attempt:
                         failure = ProviderFailure("VLM structured/semantic output invalid after bounded repair", ProviderErrorType.GENERATION_FAILED)
                         failure.request_dispatched, failure.attempts = True, attempts
                         raise failure from error
-                    body["messages"].append({"role": "user", "content": "The completed proposal failed validation: " + diagnostic +
+                    body["messages"].append({"role":"assistant","content":message['content']})
+                    body["messages"].append({"role": "user", "content": "The completed proposal above failed validation: " + diagnostic +
                         ". Re-inspect the supplied evidence and return a complete valid JSON proposal. Never invent evidence to satisfy validation."})
         raise AssertionError("unreachable")

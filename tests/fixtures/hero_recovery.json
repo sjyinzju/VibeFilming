@@ -1,0 +1,241 @@
+{
+  "project_id": "project_58ad9203c92a4e4fb8c3fe18b8d1a839",
+  "references": {
+    "CHAR_LYNNE_001": {
+      "reference_type": "character",
+      "purpose": "character_plate",
+      "regenerate": true,
+      "description": "Clean neutral character reference plate, exactly one youthful pale-skinned man named Lynne. Clearly recognizable unobscured face, short dark hair, bare head, NO HOOD, no head covering. Pale blue suspension suit: translucent outer technical fabric over fully opaque inner clothing, faint blue luminous cuffs. Three-quarter body portrait, face large and well lit, natural proportions, restrained worried curiosity. Plain neutral grey studio background, cinematic realistic materials, no text, no other people. The face, pale skin and defining pale-blue technical costume must be usable as a recurring identity reference."
+    },
+    "LOC_SKY_CITY_001": {
+      "reference_type": "location",
+      "purpose": "location_plate",
+      "regenerate": false,
+      "description": "Empty high-tech interior of the suspension city: cool cyan/silver light, smooth curved surfaces, a readable raised suspension platform with an exposed near edge and visible air gap above a lower base. Judge the floating-platform concept and spatial legibility, not an exact height measurement without scale. No people or spacecraft; one coherent location."
+    },
+    "LOC_FALL_ZONE_001": {
+      "reference_type": "location",
+      "purpose": "location_plate",
+      "regenerate": true,
+      "description": "An EMPTY grounded city canyon at the boundary of an elevated city and the earth. Tall FIXED rectangular buildings with ordinary straight rooflines, continuous empty hazy air between them. Rough ochre and rust-colored dirt in the foreground, warm low sunlight, suspended dust and deep shadows. Only stationary architecture, rough earth and empty air. Single wide cinematic location plate. No people, vehicles, aircraft, UFOs, flying discs, text or floating objects."
+    },
+    "PROP_SUSPENDER_001": {
+      "reference_type": "prop",
+      "purpose": "style_frame",
+      "regenerate": false,
+      "description": "Isolated suspension device: the same mechanical story object with readable core geometry and a blue luminous emitter. Assess correct object and defining core shape/design. Glow intensity, softness, small material or lighting variations are decorative warnings and do not make the object unusable. No character or location context is required."
+    },
+    "VB_LYNNE_ELLA_001": {
+      "reference_type": "style",
+      "purpose": "style_frame",
+      "regenerate": true,
+      "description": "UNINHABITED architectural palette and material study for a cinematic cyberpunk/wasteland world. Cool cyan, silver and pale blue smooth upper architecture contrasts with warm ochre, rusty brown textured stone and earth below. A simple empty corridor opens onto a dusty courtyard. Filmic contrast, diffuse cool light, warm shadows, tactile materials. Only architecture and surfaces. No people, silhouettes, mannequins, statues, clothing, faces, vehicles or text. This establishes visual mood and render language, not an entire story or character sheet."
+    }
+  },
+  "repair_instructions": {
+    "CHAR_LYNNE_001": "Wide full-length studio photograph. One young man is visible completely from bare head to boots, with both arms and both wrists fully inside the picture. Leave generous empty space around his entire body. Short straight black hair, clearly readable face, very pale porcelain skin. NO HOOD, bare head. He wears a visibly TRANSPARENT pale-blue polymer outer oversuit over opaque light-blue inner clothes. Transparent outer sleeves clearly reveal the inner garment through the material. BOTH wrist cuffs emit faint cyan light. The transparent outer suit has a smooth seamless collar, not an ordinary zipped sports jacket. Neutral grey studio backdrop, soft even white light. Full body costume reference, not a face close-up. Natural realistic proportions, cinematic realism, no text.",
+    "LOC_SKY_CITY_001": "Wide low side view of an EMPTY futuristic suspension chamber. In the center a broad thick rectangular silver PLATFORM FLOATS freely in midair, one meter above a separate lower floor. The entire near vertical edge and dark underside of the floating slab are clearly visible. A LARGE OPEN AIR GAP separates the platform from the floor; the distant wall is visible through this gap. No legs, no columns, no supports touch the hovering platform. Cool cyan lights, silver curved walls, smooth surfaces. Camera is outside the platform looking obliquely across its side and underneath it, never standing on it. The platform is large enough to walk on. No people, spacecraft, vehicles or text. Cinematic architectural photograph."
+  },
+  "final_instruction": "Full length photograph of one youthful man in a elegant futuristic fitted spacesuit. The complete man, both wrists and boots fit comfortably within the frame. Short straight black hair, porcelain pale skin, recognizable natural face. A fitted opaque pale-blue crew-neck inner jumpsuit is covered by a thin transparent ice-blue organza outer tunic and transparent long sleeves. The neck opening is a simple flat round crew neckline lying flush against the collarbone. The back of the neck is fully exposed above the flat neckline. The shoulders are smooth and flat. Glowing cyan bracelets encircle both wrists, visible through sheer outer cuffs. Tailored elegant science-fiction costume, smooth fine textile, natural proportions. Straight-on full body view against plain neutral grey studio background. Soft even daylight. Cinematic realism.",
+  "previous_core_shots": [
+    "SCENE_001-SHOT-01",
+    "SCENE_001-SHOT-02",
+    "SCENE_001-SHOT-03",
+    "SCENE_002-SHOT-01",
+    "SCENE_002-SHOT-03",
+    "SCENE_002-SHOT-04",
+    "SCENE_003-SHOT-02",
+    "SCENE_003-SHOT-04"
+  ],
+  "human_acceptance": {
+    "subject_id": "CHAR_LYNNE_001",
+    "artifact_id": "identity_CHAR_LYNNE_001",
+    "bindings": [
+      {
+        "role": "portrait",
+        "version": 3,
+        "sha256": "2a86ea85cbe8a7a30b67d26ca7c501f59248309729ceead50158550d7a6213c7",
+        "known_limitations": [
+          "Use the visible face only; this crop does not establish body, sleeve or cuff design."
+        ]
+      },
+      {
+        "role": "wardrobe",
+        "version": 5,
+        "sha256": "fbf976012ff21c14673b6f636e2e99117b79cbd202716e96b518231da1934be3",
+        "known_limitations": [
+          "Use the clothing and body only; back/profile framing is not the face identity reference."
+        ]
+      }
+    ],
+    "user_reply": "人工接受这组互补参考",
+    "acceptance_id": "human_reference_acceptance_01",
+    "workflow_node_id": "p5r_reference_human_bundle_01",
+    "question": "Accept the shown face and wardrobe/body images as complementary semantic references with their stated limitations?"
+  },
+  "budget_amendment": {
+    "subject": "identity_CHAR_LYNNE_001",
+    "material_limit": 3,
+    "user_reply": "允许最后一次修复和审核"
+  },
+  "technical_supersession_user_reply": "允许技术审核被新版本替代",
+  "plan": {
+    "plan_revision": "integration-recovery-1",
+    "namespace": "p5r",
+    "reference_actions": [
+      {
+        "node_id": "p5r_reference:CHAR_ELLA_001",
+        "subject_id": "CHAR_ELLA_001",
+        "reference_type": "character",
+        "artifact_id": "identity_CHAR_ELLA_001",
+        "purpose": "character_plate",
+        "strategy": "reuse_selected",
+        "instruction": "Reuse the selected canonical reference.",
+        "expected_description": "Reuse the selected canonical reference.",
+        "roles": [
+          "portrait",
+          "silhouette",
+          "wardrobe"
+        ],
+        "priority": 20
+      },
+      {
+        "node_id": "p5r_reference:CHAR_LYNNE_001",
+        "subject_id": "CHAR_LYNNE_001",
+        "reference_type": "character",
+        "artifact_id": "identity_CHAR_LYNNE_001",
+        "purpose": "character_plate",
+        "strategy": "generate",
+        "instruction": "Clean neutral character reference plate, exactly one youthful pale-skinned man named Lynne. Clearly recognizable unobscured face, short dark hair, bare head, NO HOOD, no head covering. Pale blue suspension suit: translucent outer technical fabric over fully opaque inner clothing, faint blue luminous cuffs. Three-quarter body portrait, face large and well lit, natural proportions, restrained worried curiosity. Plain neutral grey studio background, cinematic realistic materials, no text, no other people. The face, pale skin and defining pale-blue technical costume must be usable as a recurring identity reference.",
+        "expected_description": "Clean neutral character reference plate, exactly one youthful pale-skinned man named Lynne. Clearly recognizable unobscured face, short dark hair, bare head, NO HOOD, no head covering. Pale blue suspension suit: translucent outer technical fabric over fully opaque inner clothing, faint blue luminous cuffs. Three-quarter body portrait, face large and well lit, natural proportions, restrained worried curiosity. Plain neutral grey studio background, cinematic realistic materials, no text, no other people. The face, pale skin and defining pale-blue technical costume must be usable as a recurring identity reference.",
+        "roles": [
+          "portrait",
+          "silhouette",
+          "wardrobe"
+        ],
+        "priority": 20
+      },
+      {
+        "node_id": "p5r_reference_repair:CHAR_LYNNE_001",
+        "subject_id": "CHAR_LYNNE_001",
+        "reference_type": "character",
+        "artifact_id": "identity_CHAR_LYNNE_001",
+        "purpose": "character_plate",
+        "strategy": "generate",
+        "instruction": "Wide full-length studio photograph. One young man is visible completely from bare head to boots, with both arms and both wrists fully inside the picture. Leave generous empty space around his entire body. Short straight black hair, clearly readable face, very pale porcelain skin. NO HOOD, bare head. He wears a visibly TRANSPARENT pale-blue polymer outer oversuit over opaque light-blue inner clothes. Transparent outer sleeves clearly reveal the inner garment through the material. BOTH wrist cuffs emit faint cyan light. The transparent outer suit has a smooth seamless collar, not an ordinary zipped sports jacket. Neutral grey studio backdrop, soft even white light. Full body costume reference, not a face close-up. Natural realistic proportions, cinematic realism, no text.",
+        "expected_description": "Clean neutral character reference plate, exactly one youthful pale-skinned man named Lynne. Clearly recognizable unobscured face, short dark hair, bare head, NO HOOD, no head covering. Pale blue suspension suit: translucent outer technical fabric over fully opaque inner clothing, faint blue luminous cuffs. Three-quarter body portrait, face large and well lit, natural proportions, restrained worried curiosity. Plain neutral grey studio background, cinematic realistic materials, no text, no other people. The face, pale skin and defining pale-blue technical costume must be usable as a recurring identity reference.",
+        "roles": [
+          "portrait",
+          "silhouette",
+          "wardrobe"
+        ],
+        "priority": 19
+      },
+      {
+        "node_id": "p5r_reference_final_repair:CHAR_LYNNE_001",
+        "subject_id": "CHAR_LYNNE_001",
+        "reference_type": "character",
+        "artifact_id": "identity_CHAR_LYNNE_001",
+        "purpose": "character_plate",
+        "strategy": "generate",
+        "instruction": "Full length photograph of one youthful man in a elegant futuristic fitted spacesuit. The complete man, both wrists and boots fit comfortably within the frame. Short straight black hair, porcelain pale skin, recognizable natural face. A fitted opaque pale-blue crew-neck inner jumpsuit is covered by a thin transparent ice-blue organza outer tunic and transparent long sleeves. The neck opening is a simple flat round crew neckline lying flush against the collarbone. The back of the neck is fully exposed above the flat neckline. The shoulders are smooth and flat. Glowing cyan bracelets encircle both wrists, visible through sheer outer cuffs. Tailored elegant science-fiction costume, smooth fine textile, natural proportions. Straight-on full body view against plain neutral grey studio background. Soft even daylight. Cinematic realism.",
+        "expected_description": "Clean neutral character reference plate, exactly one youthful pale-skinned man named Lynne. Clearly recognizable unobscured face, short dark hair, bare head, NO HOOD, no head covering. Pale blue suspension suit: translucent outer technical fabric over fully opaque inner clothing, faint blue luminous cuffs. Three-quarter body portrait, face large and well lit, natural proportions, restrained worried curiosity. Plain neutral grey studio background, cinematic realistic materials, no text, no other people. The face, pale skin and defining pale-blue technical costume must be usable as a recurring identity reference.",
+        "roles": [
+          "portrait",
+          "silhouette",
+          "wardrobe"
+        ],
+        "priority": 19
+      },
+      {
+        "node_id": "p5r_reference:LOC_FALL_ZONE_001",
+        "subject_id": "LOC_FALL_ZONE_001",
+        "reference_type": "location",
+        "artifact_id": "identity_LOC_FALL_ZONE_001",
+        "purpose": "location_plate",
+        "strategy": "generate",
+        "instruction": "An EMPTY grounded city canyon at the boundary of an elevated city and the earth. Tall FIXED rectangular buildings with ordinary straight rooflines, continuous empty hazy air between them. Rough ochre and rust-colored dirt in the foreground, warm low sunlight, suspended dust and deep shadows. Only stationary architecture, rough earth and empty air. Single wide cinematic location plate. No people, vehicles, aircraft, UFOs, flying discs, text or floating objects.",
+        "expected_description": "An EMPTY grounded city canyon at the boundary of an elevated city and the earth. Tall FIXED rectangular buildings with ordinary straight rooflines, continuous empty hazy air between them. Rough ochre and rust-colored dirt in the foreground, warm low sunlight, suspended dust and deep shadows. Only stationary architecture, rough earth and empty air. Single wide cinematic location plate. No people, vehicles, aircraft, UFOs, flying discs, text or floating objects.",
+        "roles": [
+          "environment",
+          "lighting_palette",
+          "landmark"
+        ],
+        "priority": 30
+      },
+      {
+        "node_id": "p5r_reference:LOC_SKY_CITY_001",
+        "subject_id": "LOC_SKY_CITY_001",
+        "reference_type": "location",
+        "artifact_id": "identity_LOC_SKY_CITY_001",
+        "purpose": "location_plate",
+        "strategy": "inspect_existing",
+        "instruction": "Empty high-tech interior of the suspension city: cool cyan/silver light, smooth curved surfaces, a readable raised suspension platform with an exposed near edge and visible air gap above a lower base. Judge the floating-platform concept and spatial legibility, not an exact height measurement without scale. No people or spacecraft; one coherent location.",
+        "expected_description": "Empty high-tech interior of the suspension city: cool cyan/silver light, smooth curved surfaces, a readable raised suspension platform with an exposed near edge and visible air gap above a lower base. Judge the floating-platform concept and spatial legibility, not an exact height measurement without scale. No people or spacecraft; one coherent location.",
+        "roles": [
+          "environment",
+          "lighting_palette",
+          "landmark"
+        ],
+        "priority": 30
+      },
+      {
+        "node_id": "p5r_reference_repair:LOC_SKY_CITY_001",
+        "subject_id": "LOC_SKY_CITY_001",
+        "reference_type": "location",
+        "artifact_id": "identity_LOC_SKY_CITY_001",
+        "purpose": "location_plate",
+        "strategy": "generate",
+        "instruction": "Wide low side view of an EMPTY futuristic suspension chamber. In the center a broad thick rectangular silver PLATFORM FLOATS freely in midair, one meter above a separate lower floor. The entire near vertical edge and dark underside of the floating slab are clearly visible. A LARGE OPEN AIR GAP separates the platform from the floor; the distant wall is visible through this gap. No legs, no columns, no supports touch the hovering platform. Cool cyan lights, silver curved walls, smooth surfaces. Camera is outside the platform looking obliquely across its side and underneath it, never standing on it. The platform is large enough to walk on. No people, spacecraft, vehicles or text. Cinematic architectural photograph.",
+        "expected_description": "Empty high-tech interior of the suspension city: cool cyan/silver light, smooth curved surfaces, a readable raised suspension platform with an exposed near edge and visible air gap above a lower base. Judge the floating-platform concept and spatial legibility, not an exact height measurement without scale. No people or spacecraft; one coherent location.",
+        "roles": [
+          "environment",
+          "lighting_palette",
+          "landmark"
+        ],
+        "priority": 19
+      },
+      {
+        "node_id": "p5r_reference:PROP_SUSPENDER_001",
+        "subject_id": "PROP_SUSPENDER_001",
+        "reference_type": "prop",
+        "artifact_id": "identity_PROP_SUSPENDER_001",
+        "purpose": "style_frame",
+        "strategy": "reuse_selected",
+        "instruction": "Isolated suspension device: the same mechanical story object with readable core geometry and a blue luminous emitter. Assess correct object and defining core shape/design. Glow intensity, softness, small material or lighting variations are decorative warnings and do not make the object unusable. No character or location context is required.",
+        "expected_description": "Isolated suspension device: the same mechanical story object with readable core geometry and a blue luminous emitter. Assess correct object and defining core shape/design. Glow intensity, softness, small material or lighting variations are decorative warnings and do not make the object unusable. No character or location context is required.",
+        "roles": [
+          "prop"
+        ],
+        "priority": 20
+      },
+      {
+        "node_id": "p5r_reference:VB_LYNNE_ELLA_001",
+        "subject_id": "VB_LYNNE_ELLA_001",
+        "reference_type": "style",
+        "artifact_id": "identity_VB_LYNNE_ELLA_001",
+        "purpose": "style_frame",
+        "strategy": "generate",
+        "instruction": "UNINHABITED architectural palette and material study for a cinematic cyberpunk/wasteland world. Cool cyan, silver and pale blue smooth upper architecture contrasts with warm ochre, rusty brown textured stone and earth below. A simple empty corridor opens onto a dusty courtyard. Filmic contrast, diffuse cool light, warm shadows, tactile materials. Only architecture and surfaces. No people, silhouettes, mannequins, statues, clothing, faces, vehicles or text. This establishes visual mood and render language, not an entire story or character sheet.",
+        "expected_description": "UNINHABITED architectural palette and material study for a cinematic cyberpunk/wasteland world. Cool cyan, silver and pale blue smooth upper architecture contrasts with warm ochre, rusty brown textured stone and earth below. A simple empty corridor opens onto a dusty courtyard. Filmic contrast, diffuse cool light, warm shadows, tactile materials. Only architecture and surfaces. No people, silhouettes, mannequins, statues, clothing, faces, vehicles or text. This establishes visual mood and render language, not an entire story or character sheet.",
+        "roles": [
+          "style"
+        ],
+        "priority": 30
+      }
+    ],
+    "reference_gate_nodes": {
+      "CHAR_ELLA_001": "p5r_reference:CHAR_ELLA_001",
+      "CHAR_LYNNE_001": "p5r_reference_final_repair:CHAR_LYNNE_001",
+      "LOC_FALL_ZONE_001": "p5r_reference:LOC_FALL_ZONE_001",
+      "LOC_SKY_CITY_001": "p5r_reference_repair:LOC_SKY_CITY_001",
+      "PROP_SUSPENDER_001": "p5r_reference:PROP_SUSPENDER_001",
+      "VB_LYNNE_ELLA_001": "p5r_reference:VB_LYNNE_ELLA_001"
+    },
+    "candidate": {
+      "minimum_seconds": 20,
+      "minimum_shots": 3
+    },
+    "quality_profile": "draft"
+  }
+}

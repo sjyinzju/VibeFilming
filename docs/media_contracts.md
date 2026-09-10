@@ -50,3 +50,21 @@ Proactive feedback uses the same commands; completed-project reopening is unsupp
 ## Post
 
 `Timeline`, `TimelineClip`, `VideoTrack`, `AudioTrack`, `SubtitleTrack`, `PostProductionRequest`, and `PostProductionResult` form the provider-neutral assembly boundary.
+
+P4C adds optional `version` and `sha256` to the existing clip/cue references for
+legacy compatibility. Real post requires both. Audio cues also support source-in.
+The immutable Timeline artifact is pinned in PostProductionRequest by identity,
+version and SHA256; request carries delivery fps/dimensions and STANDARD/HIGH quality.
+
+`PostRenderPlan` (`media/post.py`) is an execution projection, not an editable
+timeline. It records the exact Timeline, decoder facts and exact video/audio sources,
+frame/sample boundaries, source in/out, planned/actual/effective durations, actions,
+encoding, loudness targets and optional Timeline subtitle cues. Canonical Shot
+durations remain unchanged. CUT is the supported transition; unsupported transitions,
+overlaps and audio arrangements fail explicitly. Sidecar SRT uses explicit cues or
+opt-in shot-level dialogue intervals; no word-level or ASR alignment is claimed.
+
+Final MP4, SRT and JSON manifest are independent immutable artifacts. Their public
+identities never include paths. Final metadata/provenance include measured codecs,
+duration, fps, sample rate, size, SHA256, QC, exact plan/hash and all source versions.
+See [post/export policy and acceptance](p4c_post_export.md).

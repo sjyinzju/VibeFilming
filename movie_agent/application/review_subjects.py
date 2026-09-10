@@ -103,12 +103,19 @@ def project_review_subject(review: HumanReviewRequest, graph: WorkflowGraph,
         if kind == "FinalCut":
             refs.update(node.input_refs)
             media = [a for a in versions.values() if a.artifact_id in refs
-                     and a.artifact_type == "timeline"]
+                     and a.artifact_type in {"timeline", "video"}]
+            if review.target_artifact_version:
+                media = [a for a in artifacts if a.artifact_id == review.target_artifact_id
+                         and a.version == review.target_artifact_version
+                         and a.metadata.get('sha256') == review.target_sha256]
             if media:
                 media_ids = {a.artifact_id for a in media}
+                media_versions = {(a.artifact_id, a.version) for a in media}
                 subject.sources.append(ReviewSource(source_node_id=source_id, artifacts=media,
                     evaluations=[e for e in evaluations or []
                                  if e.target_artifact_id in media_ids
+                                 and ((e.target_artifact_id, e.target_artifact_version) in media_versions
+                                      or (not review.target_artifact_version and e.target_artifact_version is None))
                                  and e.created_at <= review.requested_at]))
             continue
         for artifact in versions.values():

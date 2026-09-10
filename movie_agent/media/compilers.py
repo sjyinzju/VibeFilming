@@ -9,8 +9,25 @@ from movie_agent.media.contracts import AudioPurpose, ImagePurpose, MediaGenerat
 
 
 def _reference_section(references: list[MediaReference]) -> PromptSection:
-    values = [f"{item.reference_type.value}:{item.artifact_id}" for item in references]
+    values = [f"{item.reference_type.value}:{item.artifact_uri} sha256={item.sha256 or 'unresolved'}" for item in references]
     return PromptSection(name="references", content="; ".join(values) or "none")
+
+
+def continuity_sections(shot):
+    def describe(state):
+        facts = []
+        for cid, value in sorted(state.character_states.items()):
+            facts.append(f'{cid}: visible={value.visible}; wardrobe={value.wardrobe}; pose={value.pose}; '
+                         f'emotion={value.emotion}; physical state={value.damage_state}; holds={", ".join(value.held_prop_ids)}')
+        for lid, value in sorted(state.location_states.items()):
+            facts.append(f'{lid}: {"; ".join(value.scene_state)}; lighting={value.lighting_state}')
+        for pid, value in sorted(state.prop_states.items()):
+            facts.append(f'{pid}: {value.condition.value}; holder={value.holder_character_id}; {value.notes or ""}')
+        return '; '.join([*facts,*state.scene_state,*([state.lighting_state] if state.lighting_state else [])])
+    return [PromptSection(name=name,content=value) for name,value in (
+        ('current_state',describe(shot.state_before)),
+        ('intended_change',describe(shot.expected_state_after)),
+        ('must_not_change','; '.join(shot.camera.composition.preserve))) if value]
 
 
 class ImagePromptCompiler(Protocol):
@@ -28,6 +45,8 @@ class VideoPromptCompiler(Protocol):
         shot: Shot,
         strategy: MediaGenerationStrategy,
         references: list[MediaReference],
+        *,
+        has_authoritative_dialogue: bool = False,
     ) -> PromptPackage: ...
 
 
@@ -63,6 +82,7 @@ class GenericImagePromptCompiler:
             PromptSection(name="continuity", content="; ".join(shot.visual_requirements)),
             _reference_section(references),
         ]
+        sections.extend(continuity_sections(shot))
         return PromptPackage(
             compiler_id=self.compiler_id,
             compiler_version=self.compiler_version,
@@ -83,6 +103,7 @@ class GenericVideoPromptCompiler:
         strategy: MediaGenerationStrategy,
         references: list[MediaReference],
         repair_context=None,
+        has_authoritative_dialogue: bool = False,
     ) -> PromptPackage:
         performances = "; ".join(
             f"{item.character_id}: {item.action}" for item in shot.performances
@@ -107,6 +128,11 @@ class GenericVideoPromptCompiler:
         ]
         if repair_context:
             sections.extend(repair_prompt_sections(repair_context))
+        sections.extend(continuity_sections(shot))
+        if has_authoritative_dialogue:
+            sections.append(PromptSection(name='production_sound', content=(
+                'No intelligible spoken dialogue. Generate environmental ambience, '
+                'foley and non-verbal vocal sounds only.')))
         return PromptPackage(
             compiler_id=self.compiler_id,
             compiler_version=self.compiler_version,

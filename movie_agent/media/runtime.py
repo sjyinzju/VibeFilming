@@ -97,6 +97,22 @@ class MediaRuntime:
         await self.router.refresh()
         return self.router.capabilities.all()
 
+    def reserve_quality_work(self, kind, subject, request):
+        ledger = getattr(self, 'quality_ledger', None)
+        if ledger is None:
+            return
+        from movie_agent.quality.budget import BudgetExhausted
+        payload = request.model_dump(mode='json')
+        def stable(value):
+            if isinstance(value, dict):
+                return {k:stable(v) for k,v in value.items() if k not in {
+                    'request_id','job_id','reference_id','prompt_package_id','created_at'}}
+            return [stable(v) for v in value] if isinstance(value,list) else value
+        key, fresh = ledger.reserve(kind, subject, inputs=stable(payload),
+                                    config={'providers':sorted(p.provider_id for p in self.providers.all())})
+        if not fresh:
+            raise BudgetExhausted('Dispatch already reserved without a recovered output; human review required: '+key)
+
     async def generate_image(
         self,
         job: GenerationJob,
@@ -130,6 +146,10 @@ class MediaRuntime:
                 self._request_routes[active.job_id] = (provider.provider_id, request.request_id)
                 active = active.model_copy(update={"provider_id": provider.provider_id})
                 self.job_manager._jobs[active.job_id] = active
+                if request.mode.value == 'image_edit':
+                    self.reserve_quality_work('frame_edit', request.output_artifact_id, request)
+                elif getattr(self,'inspection_context',None):
+                    self.reserve_quality_work('frame_regenerate', request.output_artifact_id, request)
                 response = await provider.generate(request)
                 if self.job_manager.get(active.job_id).cancellation_requested:
                     from movie_agent.providers.base import ProviderFailure
@@ -150,9 +170,14 @@ class MediaRuntime:
                 return normalize_media_provider_error(request.request_id, error)
 
         await self._execute(job, initial_provider_id, request.request_id, operation, preflight_error=routing_error)
-        return self._required(request.output_artifact_id)
+        return self._required(request.output_artifact_id,job_id=job.job_id)
 
     async def generate_video(self, job: GenerationJob, request: VideoGenerationRequest) -> Artifact:
+        from movie_agent.media.video_conditioning import validate_reviewed_boundaries
+        validate_reviewed_boundaries(request,self.artifact_store)
+        if request.reference_conditioning:
+            job=job.model_copy(update={'provenance':job.provenance.model_copy(update={'parameters':{
+                **job.provenance.parameters,'reference_conditioning':request.reference_conditioning.model_dump(mode='json')}})})
         required_by_mode = {
             "image_to_video": ["image_to_video"],
             "first_frame_to_video": ["first_frame"],
@@ -181,6 +206,7 @@ class MediaRuntime:
             input_artifact_ids=list(job.input_artifact_ids),
         )
         preflight = await provider.preflight(request, strategy=strategy)
+        validate_reviewed_boundaries(preflight.effective_request,self.artifact_store)
         effective_request = preflight.effective_request
         preflight_parameters = {
             "requested_delivery_dimensions": preflight.requested_delivery_dimensions.model_dump(mode="json"),
@@ -224,11 +250,14 @@ class MediaRuntime:
                         provider_execution_update=update.provider_execution_update,
                     )
 
+                self.reserve_quality_work('video_regenerate', effective_request.shot_id, effective_request)
                 response = await provider.generate(
                     effective_request, strategy=strategy, on_progress=progress
                 )
                 input_ids = list(dict.fromkeys([
                     *[item.artifact_id for item in effective_request.references],
+                    *[item.artifact_id for item in (effective_request.reference_conditioning.reference_assets
+                        if effective_request.reference_conditioning else [])],
                     *[item.artifact_id for item in (
                         effective_request.first_frame,
                         effective_request.last_frame,
@@ -277,12 +306,15 @@ class MediaRuntime:
         await self._execute(job, selection.provider_id, effective_request.request_id, operation,
             preflight_error=None if preflight.compatible else ProviderFailure(
                 "Video generation preflight failed", ProviderErrorType.UNSUPPORTED_CAPABILITY))
-        return self._required(request.output_artifact_id)
+        return self._required(request.output_artifact_id,job_id=job.job_id)
 
     async def inspect(self, job: GenerationJob, request: VisionInspectionRequest) -> VisionInspectionResult:
         from movie_agent.media.inspection import pin_inspection
         from movie_agent.quality.vision import (inspection_fingerprint, draft_from_result,
             VisionDecisionPolicy, critic_configuration_fingerprint, supported_repair_actions)
+        context=getattr(self,'inspection_context',None)
+        if context:
+            request=request.model_copy(update={k:v for k,v in context.items() if not getattr(request,k,None)})
         request = pin_inspection(request, self.artifact_store, self.binary_store)
         selection = await self.router.select(MediaRoutingRequest(
             modality=MediaModality.VISION, task="inspect",
@@ -305,6 +337,11 @@ class MediaRuntime:
                        and i.provider_id == selection.provider_id), None)
         if cached:
             # The immutable, validated result proves this read-only request ended.
+            ledger=getattr(self,'quality_ledger',None)
+            if ledger and request.quality_policy_revision:
+                reservation=next((r for r in ledger.critic_records() if r['key']==fingerprint),None)
+                if reservation:
+                    ledger.finish_critic(reservation,result=cached)
             if self.runtime_coordinator:
                 for lease in list(self.runtime_coordinator.active_leases()):
                     if lease.job_id == job.job_id and lease.project_id == job.project_id:
@@ -316,21 +353,30 @@ class MediaRuntime:
                 self.job_manager._jobs[job.job_id] = recovered
                 self.job_manager._idempotency[job.idempotency_key] = job.job_id
             return cached
+        ledger=getattr(self,'quality_ledger',None)
+        if ledger:
+            ledger.ensure_inspection_available(request.video_artifact_id or request.image_artifact_id,request)
         result: VisionInspectionResult | None = None
         async def operation(active: GenerationJob) -> ProviderResult:
             nonlocal result
+            critic_reservation=None
             try:
                 self._emit(EventType.MEDIA_EVALUATION_STARTED, job.project_id,
                     {"request_id": request.request_id, "target_artifact_id": request.video_artifact_id or request.image_artifact_id,
                      "target_artifact_version": request.target_artifact_version, "provider_id": provider.provider_id,
                      "status": "evaluating"}, job=job)
+                if ledger and request.quality_policy_revision:
+                    critic_reservation=ledger.reserve_critic(request,fingerprint)
+                else:
+                    self.reserve_quality_work('vlm_inspection', request.video_artifact_id or request.image_artifact_id, request)
                 proposal = await provider.inspect(request)
                 target = request.video_artifact_id or request.image_artifact_id
                 if (proposal.request_id != request.request_id or proposal.target_artifact_id != target
                     or proposal.target_artifact_version not in {None, request.target_artifact_version}
                     or proposal.target_sha256 not in {None, request.target_sha256}):
                     raise ValueError("provider returned an inspection for a different immutable target")
-                policy = getattr(provider, "policy", VisionDecisionPolicy())
+                from movie_agent.quality.vision import effective_vision_policy
+                policy = effective_vision_policy(request,getattr(provider, "policy", VisionDecisionPolicy()))
                 result = policy.commit(request, draft_from_result(proposal), provider_id=selection.provider_id,
                     model=proposal.provider_metadata.get("model"), metadata=proposal.provider_metadata,
                     supported_actions=supported_actions)
@@ -341,6 +387,8 @@ class MediaRuntime:
                         "inspection_fingerprint": fingerprint, "target_artifact_version": request.target_artifact_version,
                         "target_sha256": request.target_sha256})
                 self.inspections.append(result)
+                if critic_reservation:
+                    ledger.finish_critic(critic_reservation,result=result)
                 self._artifact_event(artifact, job)
                 if self.checkpoint_callback:
                     self.checkpoint_callback()
@@ -348,6 +396,8 @@ class MediaRuntime:
                     artifact_ids=[artifact.artifact_id], metadata={"inspection_result_id": result.result_id,
                         "attempts": result.provider_metadata.get("attempts", [])})
             except BaseException as error:
+                if critic_reservation:
+                    ledger.finish_critic(critic_reservation,error=error)
                 return normalize_media_provider_error(request.request_id, error)
 
         await self._execute(job, selection.provider_id, request.request_id, operation)
@@ -362,6 +412,27 @@ class MediaRuntime:
         return result
 
     async def generate_audio(self, job: GenerationJob, request: AudioRequestBase) -> Artifact:
+        from movie_agent.media.post import fingerprint, stream_hash
+        content = request.model_dump(mode='json', exclude={'request_id', 'job_id', 'created_at', 'output_artifact_id', 'prompt_package'})
+        for ref in content.get('references', []):
+            ref.pop('reference_id', None)
+            for field in ('semantic_role','human_acceptance_artifact_id','accepted_limitations'):
+                if not ref.get(field):ref.pop(field,None)
+        if content.get('reference_voice'):
+            content['reference_voice'].pop('reference_id', None)
+            for field in ('semantic_role','human_acceptance_artifact_id','accepted_limitations'):
+                if not content['reference_voice'].get(field):content['reference_voice'].pop(field,None)
+        content['prompt'] = request.prompt_package.positive_prompt
+        content['provider_bindings'] = sorted(p.provider_id for p in self.providers.all() if isinstance(p, AudioProvider))
+        content['models'] = [getattr(getattr(p, 'settings', None), name, None)
+            for p in self.providers.all() if isinstance(p, AudioProvider) for name in ('tts_model', 'music_model')]
+        key = fingerprint(content)
+        for saved in self.artifact_store.list_versions(request.output_artifact_id):
+            if saved.metadata.get('audio_request_fingerprint') == key:
+                with self.binary_store.open(saved.uri) as stream:
+                    if stream_hash(stream) != saved.metadata['sha256']:
+                        raise ValueError('Committed audio hash mismatch')
+                return saved
         selection = await self.router.select(MediaRoutingRequest(
             modality=MediaModality.AUDIO, task=request.purpose.value,
             required_capabilities=[item.capability for item in request.required_capabilities if item.required],
@@ -373,6 +444,8 @@ class MediaRuntime:
 
         async def operation(active: GenerationJob) -> ProviderResult:
             try:
+                self.reserve_quality_work('music' if request.purpose.value == 'music' else 'tts',
+                    request.scene_id if request.purpose.value == 'music' else request.output_artifact_id, request)
                 response = await provider.generate(request)
                 artifact = self._register_response(
                     job=active, response=response, modality=MediaModality.AUDIO,
@@ -381,7 +454,9 @@ class MediaRuntime:
                     prompt=request.prompt_package, seed=request.seed,
                     duration=response.result.duration_seconds,
                     encoding=response.result.encoding,
-                    extra={"sample_rate": response.result.sample_rate,
+                    extra={**response.result.provider_metadata,
+                           'audio_request_fingerprint': key,
+                           "sample_rate": response.result.sample_rate,
                            "channels": response.result.channels,
                            "loudness_lufs": response.result.loudness_lufs},
                 )
@@ -392,7 +467,7 @@ class MediaRuntime:
                 return normalize_media_provider_error(request.request_id, error)
 
         await self._execute(job, selection.provider_id, request.request_id, operation)
-        return self._required(request.output_artifact_id)
+        return self._required(request.output_artifact_id,job_id=job.job_id)
 
     async def post_process(self, job: GenerationJob, request: PostProductionRequest) -> Artifact:
         selection = await self.router.select(MediaRoutingRequest(
@@ -401,6 +476,9 @@ class MediaRuntime:
         provider = self.providers.get(selection.provider_id)
         if not isinstance(provider, PostProcessor):
             raise TypeError("selected provider does not implement PostProcessor")
+        if selection.provider_id == "ffmpeg-post":
+            from movie_agent.media.post_runtime import run_real_post
+            return await run_real_post(self, provider, job, request)
 
         async def operation(active: GenerationJob) -> ProviderResult:
             try:
@@ -420,7 +498,7 @@ class MediaRuntime:
                 return normalize_media_provider_error(request.request_id, error)
 
         await self._execute(job, selection.provider_id, request.request_id, operation)
-        return self._required(request.output_artifact_id)
+        return self._required(request.output_artifact_id,job_id=job.job_id)
 
     async def _execute(
         self,
@@ -457,13 +535,14 @@ class MediaRuntime:
             except BaseException as error:
                 return normalize_media_provider_error(request_id, error)
         completed = await LocalJobExecutor(self.job_manager).execute(job.job_id, leased_operation,
-                                                                    manage_resources=preflight_error is None)
+            manage_resources=preflight_error is None and provider_id != "ffmpeg-post")
         if completed.status != JobStatus.SUCCEEDED:
             # Do not expose raw SDK/remote details through the workflow surface.
             if completed.status == JobStatus.CANCELLED:
                 error_type = ProviderErrorType.CANCELLED
             elif completed.status == JobStatus.WAITING_RESOURCE:
-                error_type = ProviderErrorType.RESOURCE_EXHAUSTED
+                from movie_agent.model_services.coordinator import ResourceAdmissionWait
+                raise ResourceAdmissionWait(completed.failure_reason or 'Resource admission pending')
             else:
                 prefix = "media_provider_"
                 normalized = completed.failure_reason or ""
@@ -537,6 +616,8 @@ class MediaRuntime:
             "duration_seconds": output.duration_seconds,
             "sample_rate": output.sample_rate,
             "channels": output.channels,
+            "authoritative_speech": False,
+            "native_audio_semantics": "production sound / ambience / foley-like sound; non-canonical dialogue",
         }
         parent_ids = list(dict.fromkeys([
             response.result.primary_artifact_id,
@@ -678,7 +759,7 @@ class MediaRuntime:
             raise ValueError("provider result did not include the primary binary payload")
         version = len(self.artifact_store.list_versions(primary)) + 1
         thumbnail_id: str | None = None
-        if artifact_type in {ArtifactType.VIDEO, ArtifactType.FINAL_FILM}:
+        if artifact_type in {ArtifactType.VIDEO, ArtifactType.FINAL_FILM} and response.result.provider_id != "ffmpeg-post":
             thumbnail_id = f"thumbnail_{primary}"
             thumbnail_version = len(self.artifact_store.list_versions(thumbnail_id)) + 1
             thumbnail_binary = self.binary_store.put(thumbnail_id, thumbnail_version, _png(),
@@ -709,10 +790,14 @@ class MediaRuntime:
             encoding=encoding, mock=bool(response.result.provider_metadata.get("mock")),
             test_asset=bool(response.result.provider_metadata.get("test_asset")),
             preview_artifact_id=primary, thumbnail_artifact_id=thumbnail_id,
-            waveform=[0.0, 0.15, -0.1, 0.2, -0.05, 0.0] if modality == MediaModality.AUDIO else [],
+            waveform=[0.0, 0.15, -0.1, 0.2, -0.05, 0.0] if modality == MediaModality.AUDIO and response.result.provider_metadata.get('mock') else [],
         )
         metadata = {"media": media.model_dump(mode="json"), "mime_type": payload.mime_type,
                     "size_bytes": binary.size, "mock": media.mock}
+        if modality in {MediaModality.AUDIO, MediaModality.IMAGE, MediaModality.VIDEO}:
+            from movie_agent.media.post import stream_hash
+            with self.binary_store.open(binary.uri) as stream:
+                metadata['sha256'] = stream_hash(stream)
         if dimensions:
             metadata.update({"width": dimensions.width, "height": dimensions.height})
         if duration:
@@ -756,8 +841,9 @@ class MediaRuntime:
             node_id=job.node_id, job_id=job.job_id, payload=payload,
         ))
 
-    def _required(self, artifact_id: str) -> Artifact:
-        artifact = self.artifact_store.get(artifact_id)
+    def _required(self, artifact_id: str, *, job_id: str | None = None) -> Artifact:
+        artifact = (next((a for a in reversed(self.artifact_store.list_versions(artifact_id))
+                         if a.source_job_id==job_id),None) if job_id is not None else self.artifact_store.get(artifact_id))
         if artifact is None:
             raise LookupError(artifact_id)
         return artifact

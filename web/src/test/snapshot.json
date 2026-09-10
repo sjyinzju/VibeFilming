@@ -1,4 +1,11 @@
 {
+  "film_quality": null,
+  "quality_history": [],
+  "identity_set": null,
+  "voice_profiles": [],
+  "dialogue_cues": [],
+  "audio_controls": {},
+  "audio_listening_result": null,
   "human_media_directives": [],
   "human_overrides": [],
   "resource_runtime": null,

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from datetime import datetime
 from enum import StrEnum
 
@@ -226,6 +228,9 @@ class ResourceProfile(ContractModel):
 class MediaReference(ContractModel):
     reference_id: str = Field(default_factory=lambda: new_id("reference"))
     reference_type: ReferenceType
+    semantic_role: str | None = None
+    human_acceptance_artifact_id: str | None = None
+    accepted_limitations: list[str] = Field(default_factory=list)
     artifact_id: str = Field(min_length=1)
     version: int | None = Field(default=None, ge=1)
     sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
@@ -292,6 +297,7 @@ class ImageGenerationRequest(MediaRequestBase):
     aspect_ratio: AspectRatio | str
     source_image: MediaReference | None = None
     mask_artifact_id: str | None = None
+    reference_conditioning: Literal['native', 'reference_sheet'] | None = None
 
     @property
     def input_artifact_ids(self) -> list[str]:
@@ -324,6 +330,14 @@ class EndState(ContractModel):
     frame_reference: MediaReference | None = None
 
 
+class VideoReferenceConditioning(ContractModel):
+    mode: Literal['reviewed_boundary_frames'] = 'reviewed_boundary_frames'
+    reference_assets: list[MediaReference] = Field(min_length=1)
+    boundary_frames: list[MediaReference] = Field(min_length=1)
+    frame_gate: MediaReference
+    reference_fingerprint: str = Field(pattern=r'^[a-f0-9]{64}$')
+
+
 class VideoGenerationRequest(MediaRequestBase):
     shot_id: str
     mode: VideoGenerationMode
@@ -340,6 +354,7 @@ class VideoGenerationRequest(MediaRequestBase):
     start_state: StartState = Field(default_factory=StartState)
     end_state: EndState = Field(default_factory=EndState)
     repair_context: RepairContext | None = None
+    reference_conditioning: VideoReferenceConditioning | None = None
 
 
 class VideoPreflightIssue(ContractModel):
@@ -369,6 +384,58 @@ class AudioRequestBase(MediaRequestBase):
     duration_target_seconds: PositiveFloat | None = None
 
 
+class CharacterVoiceProfile(ContractModel):
+    """Versioned canonical voice identity; production evidence, not a story fact."""
+
+    voice_profile_id: str = Field(min_length=1)
+    version: int = Field(default=1, ge=1)
+    project_id: str
+    character_id: str
+    design_instruction: str = Field(min_length=1)
+    reference_artifact_id: str = Field(min_length=1)
+    reference_artifact_version: int = Field(ge=1)
+    reference_sha256: str = Field(pattern=r'^[a-f0-9]{64}$')
+    reference_text: str = Field(min_length=1)
+    language: str
+    provider_id: str
+    model_profile: str
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class DialogueCue(ContractModel):
+    """Core-owned exact committed text, with shot-relative cue-level placement."""
+
+    cue_id: str
+    project_id: str
+    scene_id: str
+    shot_id: str
+    character_id: str
+    text: str = Field(min_length=1)
+    voice_profile_id: str = Field(min_length=1)
+    voice_profile_version: int = Field(default=1, ge=1)
+    target_start_seconds: float = Field(ge=0, allow_inf_nan=False)
+    target_end_seconds: float = Field(gt=0, allow_inf_nan=False)
+    emotion: str = ''
+    pace: str = 'medium'
+    prosody: list[str] = Field(default_factory=list)
+    language: str
+    overlapping_speech: bool = False
+
+    @model_validator(mode='after')
+    def positive_slot(self):
+        if self.target_end_seconds <= self.target_start_seconds:
+            raise ValueError('Dialogue cue requires a positive slot')
+        return self
+
+
+class VoiceDesignRequest(AudioRequestBase):
+    purpose: AudioPurpose = AudioPurpose.SPEECH
+    character_id: str
+    text: str = Field(min_length=1)
+    design_instruction: str = Field(min_length=1)
+    language: str = 'zh'
+
+
 class SpeechGenerationRequest(AudioRequestBase):
     purpose: AudioPurpose = AudioPurpose.SPEECH
     text: str = Field(min_length=1)
@@ -379,6 +446,9 @@ class SpeechGenerationRequest(AudioRequestBase):
     pace: str = "medium"
     prosody: list[str] = Field(default_factory=list)
     reference_voice: MediaReference | None = None
+    voice_profile_version: int | None = Field(default=None, ge=1)
+    reference_text: str = ''
+    dialogue_cue_id: str | None = None
 
 
 class EmotionPoint(ContractModel):
@@ -397,6 +467,7 @@ class MusicGenerationRequest(AudioRequestBase):
     instrument_preferences: list[str] = Field(default_factory=list)
     loop: bool = False
     extend_artifact_id: str | None = None
+    instrumental: bool = True
 
 
 class SpatialPlacement(ContractModel):
@@ -503,6 +574,11 @@ class MediaIssue(ContractModel):
     time_ranges: list[TimeRange] = Field(default_factory=list)
     frame_references: list[FrameReference] = Field(default_factory=list)
     suggested_action: MediaRepairActionType | None = None
+    observed_subject: str | None = None
+    observed_mismatch: str | None = None
+    blocking_reason: str | None = None
+    core_usability_affected: bool | None = None
+    reference_aspect: str | None = None
 
 
 class VisionInspectionRequest(ContractModel):
@@ -521,6 +597,11 @@ class VisionInspectionRequest(ContractModel):
     inspection_revision: int = Field(default=1, ge=1)
     critic_schema_version: str = "p4b.1"
     critic_configuration_fingerprint: str | None = None
+    quality_policy_revision: str | None = None
+    critic_config_revision: str | None = None
+    recovery_authorization: str | None = None
+    quality_profile: QualityProfile = QualityProfile.STANDARD
+    reference_role: ReferenceType | None = None
     sampling_policy: str = Field(default="fast", pattern=r"^(fast|full|targeted)$")
     targeted_time_ranges: list[TimeRange] = Field(default_factory=list)
     retry_budget: int = Field(default=2, ge=0)
@@ -680,16 +761,23 @@ class AudioCue(ContractModel):
     duration_seconds: PositiveFloat
     cue_type: AudioPurpose
     artifact_id: str
-    gain_db: float = 0
+    version: int | None = Field(default=None, ge=1)
+    sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    source_in_seconds: float = Field(default=0, ge=0)
+    gain_db: float = Field(default=0, ge=-60, le=12, allow_inf_nan=False)
     fade_in_seconds: float = Field(default=0, ge=0)
     fade_out_seconds: float = Field(default=0, ge=0)
     scene_id: str | None = None
     shot_id: str | None = None
+    dialogue_cue_id: str | None = None
+    enabled: bool = True
 
 
 class TimelineClip(ContractModel):
     clip_id: str = Field(default_factory=lambda: new_id("clip"))
     artifact_id: str
+    version: int | None = Field(default=None, ge=1)
+    sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     start_time_seconds: float = Field(ge=0)
     source_in_seconds: float = Field(default=0, ge=0)
     duration_seconds: PositiveFloat
@@ -705,6 +793,7 @@ class VideoTrack(ContractModel):
 
 class AudioTrack(ContractModel):
     track_id: str = Field(default_factory=lambda: new_id("audiotrack"))
+    name: str = ''
     cues: list[AudioCue] = Field(default_factory=list)
 
 
@@ -735,12 +824,18 @@ class PostProductionRequest(ContractModel):
     project_id: str
     timeline: Timeline
     output_artifact_id: str
+    export_intent: Literal['preview','candidate','approved_final'] = 'preview'
     output_format: str = "mp4"
     video_codec: str = "h264"
     audio_codec: str = "aac"
     width: int = Field(gt=0)
     height: int = Field(gt=0)
     fps: PositiveFloat
+    quality_profile: QualityProfile = QualityProfile.STANDARD
+    timeline_artifact_id: str | None = None
+    timeline_version: int | None = Field(default=None, ge=1)
+    timeline_sha256: str | None = None
+    render_plan: dict[str, JSONValue] | None = None
     resource_class: ResourceClass = ResourceClass.MEDIUM
 
 
@@ -758,6 +853,8 @@ class ImageCapabilities(ContractModel):
     outpaint: bool = False
     upscale: bool = False
     multi_reference: bool = False
+    reference_sheet: bool = False
+    max_reference_images: int | None = Field(default=None, ge=1)
     character_reference: bool = False
     max_width: int | None = Field(default=None, gt=0)
     max_height: int | None = Field(default=None, gt=0)

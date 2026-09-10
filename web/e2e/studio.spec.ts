@@ -4,6 +4,19 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('studio:v1:language', JSON.stringify('en')));
 });
 
+test('quality dashboard exposes pending evidence and filters without inventing acceptance', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Your story').fill('An adult engineer examines a silent machine.');
+  await page.getByRole('button', { name: 'Start Film', exact: true }).click();
+  await expect(page).toHaveURL(/project=project_/);
+  await page.locator('.react-flow__node[data-id="story_gate"]').click({ force: true });
+  await page.getByRole('tab', { name: 'Quality', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Quality dashboard' })).toBeVisible();
+  await expect(page.getByText('Human aesthetic and listening review pending')).toBeVisible();
+  await page.getByLabel('Quality filter').selectOption('human_review');
+  await expect(page.getByLabel('Quality filter')).toHaveValue('human_review');
+});
+
 test('browser image upload persists, previews, binds, and reaches fake remote unchanged', async ({
   page,
 }) => {

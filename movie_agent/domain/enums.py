@@ -26,6 +26,7 @@ class CreativeFreedomLevel(StrEnum):
 
 class QualityProfile(StrEnum):
     DRAFT = "draft"
+    SHOWCASE = "showcase"
     STANDARD = "standard"
     HIGH = "high"
     FINAL = "final"

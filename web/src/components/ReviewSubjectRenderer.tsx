@@ -113,6 +113,8 @@ function TypedSummary({ content }: { content: Content }) {
   }
 }
 
+import { PostFilmPanel } from './PostFilmPanel';
+
 export function ReviewSubjectRenderer({
   subject,
   onSource,
@@ -155,6 +157,10 @@ export function ReviewSubjectRenderer({
               </pre>
             ) : source.content ? (
               <TypedSummary content={source.content} />
+            ) : source.artifacts.some((a) => a.metadata.render_plan) ? (
+              source.artifacts
+                .filter((a) => a.metadata.render_plan)
+                .map((a) => <PostFilmPanel key={`${a.artifact_id}:${a.version}`} artifact={a} />)
             ) : (
               <>
                 <span className="badge mock">{t('MOCK')}</span>

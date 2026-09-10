@@ -144,16 +144,23 @@ class LocalArtifactStore(ArtifactStore):
             temporary = target.with_suffix(".tmp")
             temporary.write_text(json.dumps(content, ensure_ascii=False, indent=2), encoding="utf-8")
             temporary.replace(target)
+            from hashlib import sha256
+            digest = sha256(target.read_bytes()).hexdigest()
             return self.register(Artifact(artifact_id=artifact_id, artifact_type=artifact_type, uri=uri,
                 version=version, source_job_id=source_job_id, parent_artifact_ids=parent_artifact_ids or [],
-                metadata={"mime_type": "application/json", **(metadata or {})}, provenance=provenance or Provenance()))
+                metadata={"mime_type": "application/json", **(metadata or {}), "sha256": digest}, provenance=provenance or Provenance()))
 
     def read_structured(self, artifact: Artifact) -> JSONValue:
         from movie_agent.media.storage import parse_artifact_uri
         identity, version = parse_artifact_uri(artifact.uri)
         if identity != artifact.artifact_id or version != artifact.version:
             raise ValueError("structured evidence URI mismatch")
-        return json.loads((self.data_dir / identity / f"v{version}.json").read_text(encoding="utf-8"))
+        data = (self.data_dir / identity / f"v{version}.json").read_bytes()
+        if artifact.metadata.get("sha256"):
+            from hashlib import sha256
+            if sha256(data).hexdigest() != artifact.metadata["sha256"]:
+                raise ValueError("structured artifact hash mismatch")
+        return json.loads(data)
 
     def list_versions(self, artifact_id: str) -> list[Artifact]:
         return sorted(

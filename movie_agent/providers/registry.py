@@ -119,6 +119,12 @@ class MediaRouter:
 class MediaProviderSettings(BaseModel):
     model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
     image_provider: str = "mock"
+    kontext_enabled: bool = False
+    kontext_endpoint: str = 'http://127.0.0.1:9002'
+    kontext_resident_gib: float = Field(default=25, ge=0)
+    kontext_peak_gib: float = Field(default=35, ge=0)
+    kontext_startup_seconds: float = Field(default=10, ge=0)
+    kontext_estimate_basis: str = 'P5 GB10 2026-09-09 isolated 1024x576 28-step edit: sampled peak unified pressure 30.161 GiB, after 24.522 GiB, startup 9.296s, inference 88.447s. Resident rounded to 25; peak ceil(30.161)+4=35; separate P4A 12 GiB headroom. Stock Comfy NVFP4, existing clip/T5/AE, Torch 2.14 nv26.08 CUDA13.4; sampled pressure, not allocator peak.'
     video_provider: str = "mock"
     vision_provider: str = "mock"
     vision_endpoint: str = "http://127.0.0.1:8001/v1"
@@ -126,6 +132,9 @@ class MediaProviderSettings(BaseModel):
     vision_timeout: float = Field(default=600, gt=0, le=1800, allow_inf_nan=False)
     vision_media_remote_root: str = "/home/Developer/runtime/vlm-media"
     vision_max_tokens: int = Field(default=6000, ge=256, le=16000)
+    vision_reasoning_parser: str | None = Field(default=None, pattern=r'^qwen3$')
+    vision_temperature: float = Field(default=0, ge=0, le=2)
+    vision_seed: int = Field(default=1234, ge=0)
     vision_minimum_score: float = Field(default=0.80, ge=0, le=1)
     vision_profile_thresholds: dict[str, float] = Field(default_factory=dict)
     vision_structured_output: str = Field(default="json_schema", pattern=r"^(json_schema|json_object)$")
@@ -136,7 +145,38 @@ class MediaProviderSettings(BaseModel):
     vision_peak_gib: float = Field(default=92, gt=0, allow_inf_nan=False)
     vision_estimate_basis: str = "P4B GB10 2026-09-08: isolated Scene01 24-frame JPEG video plus two references, successful sampled pressure 86.42 GiB (CLI) / 86.52 GiB (browser); worst observed cold-start pressure 87.74 GiB. Resident rounded to 88 GiB; peak rounded up plus 4 GiB to 92 GiB. Separate P4A 12 GiB headroom remains. Sampled unified-memory pressure, not an allocator guarantee; FULL/targeted workloads unbenchmarked."
     audio_provider: str = "mock"
+    tts_endpoint: str = 'http://127.0.0.1:8002'
+    tts_model: str = 'qwen3-tts-base'
+    tts_timeout: float = Field(default=600, gt=0, allow_inf_nan=False)
+    music_endpoint: str = 'http://127.0.0.1:8003'
+    music_model: str = 'acestep-v15-turbo'
+    music_timeout: float = Field(default=900, gt=0, allow_inf_nan=False)
+    audio_poll_interval: float = Field(default=1, gt=0, le=30)
+    audio_task_state_root: str = 'workspace/_audio_tasks'
+    dialogue_pre_roll_seconds: float = Field(default=.4, ge=0, le=5)
+    dialogue_post_roll_seconds: float = Field(default=.4, ge=0, le=5)
+    dialogue_minimum_gap_seconds: float = Field(default=.25, ge=0, le=5)
+    native_audio_duck_db: float = Field(default=-16, ge=-48, le=0)
+    music_duck_db: float = Field(default=-6, ge=-24, le=0)
+    audio_duck_attack_seconds: float = Field(default=.12, gt=0, le=2)
+    audio_duck_release_seconds: float = Field(default=.35, gt=0, le=5)
+    music_gain_db: float = Field(default=-14, ge=-60, le=0)
+    tts_resident_gib: float = Field(default=11, ge=0)
+    tts_peak_gib: float = Field(default=16, ge=0)
+    music_resident_gib: float = Field(default=11, ge=0)
+    music_peak_gib: float = Field(default=15, ge=0)
+    tts_startup_seconds: float = Field(default=64, ge=0)
+    music_startup_seconds: float = Field(default=34, ge=0)
+    tts_estimate_basis: str = 'P4D GB10 2026-09-09, image ba45190f4901: isolated VoiceDesign + Base (two Chinese and one English cue), cold/startup/ready/inference/after/TTL sampled with P4A. Resident pressure 10.4606 GiB; sampled peak 11.9348 GiB. Resident rounded up to 11; peak rounded up plus 4 GiB to 16; separate 12 GiB P4A headroom. Sampled unified-memory pressure, not an allocator guarantee; long-form workloads unbenchmarked.'
+    music_estimate_basis: str = 'P4D GB10 2026-09-09, image 1df7161cefef: isolated ACE-Step v15 turbo, 15-second instrumental, SDPA, optional LM disabled, cold/startup/ready/inference/after/TTL sampled with P4A. Resident pressure 10.5171 GiB; sampled peak 10.5785 GiB. Resident rounded up to 11; peak rounded up plus 4 GiB to 15; separate 12 GiB P4A headroom. Sampled unified-memory pressure, not an allocator guarantee; longer music/LM workloads unbenchmarked.'
+    post_subtitle_mode: str = Field(default='sidecar', pattern=r'^(sidecar|burn-in)$')
     post_provider: str = "mock"
+    post_ffmpeg: str = "ffmpeg"
+    post_ffprobe: str = "ffprobe"
+    post_timeout: float = Field(default=1800, gt=0, allow_inf_nan=False)
+    post_temp_root: str | None = None
+    post_loudness_lufs: float = Field(default=-16, ge=-30, le=-10, allow_inf_nan=False)
+    post_true_peak_db: float = Field(default=-1.5, ge=-9, le=-0.1, allow_inf_nan=False)
     flux_endpoint: str = "http://127.0.0.1:9001"
     flux_timeout: float = Field(default=660, gt=0, allow_inf_nan=False)
     comfyui_endpoint: str = "http://127.0.0.1:8188"
@@ -144,7 +184,7 @@ class MediaProviderSettings(BaseModel):
     comfyui_websocket_timeout: float = Field(default=3600, gt=0, allow_inf_nan=False)
     comfyui_workflow_profile: str = "minimax_h3_fl2va"
 
-    @field_validator("flux_endpoint")
+    @field_validator("flux_endpoint", "tts_endpoint", "music_endpoint")
     @classmethod
     def validate_flux_endpoint(cls, value):
         from movie_agent.providers.flux_direct import validate_endpoint
@@ -233,6 +273,9 @@ class ProviderFactory:
         factory.register(MediaModality.IMAGE, "flux_direct", lambda: FluxDirectImageProvider(
             endpoint=factory._settings.flux_endpoint, timeout=factory._settings.flux_timeout, resolver=resolver))
         factory.register(MediaModality.IMAGE, "comfyui", ComfyUIImageProvider)
+        from movie_agent.providers.flux_kontext import FluxKontextImageProvider
+        factory.register(MediaModality.IMAGE, 'flux_kontext', lambda: FluxKontextImageProvider(
+            endpoint=factory._settings.kontext_endpoint, timeout=factory._settings.flux_timeout, resolver=resolver))
         factory.register(MediaModality.VIDEO, "mock", MockVideoProvider)
         factory.register(MediaModality.VIDEO, "comfyui", lambda: ComfyUIVideoProvider(
             client=comfyui_client or ComfyUIClient(
@@ -259,7 +302,16 @@ class ProviderFactory:
         factory.register(MediaModality.VISION, "qwen3_vl", lambda: Qwen3VLVisionProvider(
             settings=factory._settings, resolver=resolver))
         factory.register(MediaModality.AUDIO, "mock", MockAudioProvider)
+        from movie_agent.providers.qwen3_tts import Qwen3TTSAudioProvider
+        from movie_agent.providers.ace_step import AceStepMusicProvider
+        factory.register(MediaModality.AUDIO, 'qwen3_tts', lambda: Qwen3TTSAudioProvider(
+            settings=factory._settings, resolver=resolver))
+        factory.register(MediaModality.AUDIO, 'ace_step', lambda: AceStepMusicProvider(
+            settings=factory._settings, resolver=resolver))
         factory.register(MediaModality.POST, "mock", MockPostProcessor)
+        from movie_agent.providers.ffmpeg_post import FFmpegPostProcessor
+        factory.register(MediaModality.POST, "ffmpeg", lambda: FFmpegPostProcessor(
+            settings=factory._settings, resolver=resolver))
         return factory
 
     def build_registry(self, settings: MediaProviderSettings) -> ProviderRegistry:
@@ -273,5 +325,11 @@ class ProviderFactory:
             MediaModality.POST: settings.post_provider,
         }
         for modality, binding in bindings.items():
-            registry.register(self.create(modality, binding))
+            if modality == MediaModality.AUDIO and binding == 'real':
+                for audio_binding in ('qwen3_tts', 'ace_step'):
+                    registry.register(self.create(modality, audio_binding))
+            else:
+                registry.register(self.create(modality, binding))
+        if settings.kontext_enabled and settings.image_provider != 'flux_kontext':
+            registry.register(self.create(MediaModality.IMAGE, 'flux_kontext'))
         return registry

@@ -11,7 +11,7 @@ import zlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from collections.abc import Awaitable, Callable
-from typing import Generic, TypeVar
+from typing import BinaryIO, Generic, TypeVar
 
 from movie_agent.domain import JobStatus, ProviderErrorType, ProviderKind, ProviderResult, ResourceClass, QualityProfile
 from movie_agent.providers.base import ProviderFailure
@@ -72,7 +72,7 @@ class BinaryPayload:
     """Process-local binary transfer; it is deliberately not JSON serializable."""
 
     artifact_id: str
-    content: bytes
+    content: bytes | BinaryIO
     mime_type: str
     extension: str
     purpose: str
@@ -165,8 +165,11 @@ class AudioProvider(MediaProvider):
 
 
 class PostProcessor(MediaProvider):
+    async def prepare_request(self, request: PostProductionRequest) -> PostProductionRequest:
+        return request
+
     @abstractmethod
-    async def process(self, request: PostProductionRequest) -> ProviderMediaResponse[PostProductionResult]: ...
+    async def process(self, request: PostProductionRequest, *, on_progress=None) -> ProviderMediaResponse[PostProductionResult]: ...
 
 
 class _MockState:
@@ -396,7 +399,7 @@ class MockPostProcessor(_MockState, PostProcessor):
             resource_profiles=_resource_profiles(), quality_profiles=list(QualityProfile),
         )
 
-    async def process(self, request: PostProductionRequest) -> ProviderMediaResponse[PostProductionResult]:
+    async def process(self, request: PostProductionRequest, *, on_progress=None) -> ProviderMediaResponse[PostProductionResult]:
         encoding = MediaEncoding(mime_type="video/mp4", format=request.output_format, codec=request.video_codec)
         result = PostProductionResult(
             request_id=request.request_id, artifact_ids=[request.output_artifact_id],

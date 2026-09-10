@@ -33,11 +33,15 @@ class ProductionService:
         self.reference_uploads = ImageReferenceUploadService(repository_root / "_draft_references")
 
     def create(self, brief: ProjectBrief, creative_hints: CreativeHints | None = None,
-               draft_id: str | None = None) -> ProjectRecord:
+               draft_id: str | None = None, *, production_policy=None) -> ProjectRecord:
         record = ProjectRecord(project=Project(brief=brief), creative_hints=creative_hints or CreativeHints())
         engine = self.factory(record.project.project_id)
         graph = build_production_graph(record.project.project_id, engine.event_bus, engine.trace_id)
         engine.current_project, engine.current_production = record.project, graph
+        if hasattr(engine,'initialize_project'):
+            engine.initialize_project(record.project,graph,production_policy)
+        elif production_policy is not None:
+            raise CommandConflict('This engine does not support a production policy')
         if draft_id:
             adopted = self.reference_uploads.adopt_draft(
                 draft_id, record.project.project_id,
@@ -132,8 +136,13 @@ class ProductionService:
             raise CommandConflict("Production is terminal")
         if not resume and record.status != Status.CREATED:
             raise CommandConflict("Use resume for an existing production")
+        if resume and hasattr(engine,'reclassify_resource_waits'):
+            engine.reclassify_resource_waits()
         reviews = engine.human_gates.all()
-        if any(r.status != ReviewStatus.APPROVED and r.superseded_at is None for r in reviews):
+        if any(r.status != ReviewStatus.APPROVED and r.superseded_at is None
+               and not (getattr(engine,'continue_independent_on_review',False)
+                        and engine.current_production.node(r.node_id).status==WorkflowNodeStatus.WAITING_HUMAN)
+               for r in reviews):
             raise CommandConflict("Resolve outstanding human review before resume")
         for result in engine.role_results.values():
             if result.failure_code == 'ROLE_OUTPUT_INVALID' and not result.committed:
@@ -280,6 +289,12 @@ class ProductionService:
             result = engine.human_gates.resolve(review_id, approved, notes)
         except ValueError as error:
             raise CommandConflict(str(error)) from error
+        if (approved and engine.current_production.node(review.node_id).status==WorkflowNodeStatus.WAITING_HUMAN
+            and all(r.status==ReviewStatus.APPROVED for r in engine.human_gates.all()
+                    if r.node_id==review.node_id and r.superseded_at is None)):
+            # Independent DAG scheduling skips waiting-human nodes. Explicit approval
+            # makes this node schedulable again; its handler still validates the gate.
+            engine.current_production.set_status(review.node_id,WorkflowNodeStatus.PENDING,progress=0)
         engine._save_checkpoint(engine.current_project, engine.current_production)
         return result
 

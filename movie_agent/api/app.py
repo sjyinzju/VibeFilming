@@ -14,6 +14,9 @@ from movie_agent.application.service import ProductionService, CommandConflict
 from movie_agent.application.repository import ProjectRecord
 from movie_agent.application.views import ProjectSnapshot, WorkflowSnapshot, CommandAccepted, ProviderView
 from movie_agent.application.creative_inputs import CreateProjectInput
+from movie_agent.application.post_commands import PostExportCommand
+from movie_agent.application.audio_commands import AudioProductionCommand
+from movie_agent.quality.recovery import HumanReferenceAcceptance
 from movie_agent.application.studio import StudioSnapshot, studio_snapshot
 from movie_agent.media import (
     ImageReferenceBindingInput,
@@ -49,25 +52,24 @@ class RemoteVideoReplayCommand(BaseModel):
     authorization_reference: str
 
 
-def create_app(service: ProductionService | None = None) -> FastAPI:
+def create_app(service: ProductionService | None = None, *, resource_runtime=None) -> FastAPI:
     """Compose local adapters by default; tests and future storage inject a service."""
     owned_provider = None
-    resource_runtime = None
     if service is None:
         from movie_agent.config import LLMConfig
         from movie_agent.providers.openai_compatible import OpenAICompatibleLLMProvider
         from movie_agent.storage.projects import LocalProjectRepository
         from movie_agent.execution.durable_events import DurableLocalEventBus
-        from movie_agent.services.reasoning_production import ReasoningMovieProduction
+        from movie_agent.application.production_factory import production_engine
         root = Path(os.environ.get("MOVIE_AGENT_WORKSPACE", "workspace/studio")).resolve()
         owned_provider = OpenAICompatibleLLMProvider(LLMConfig.from_env())
         from movie_agent.model_services.wiring import build_spark_runtime
-        from movie_agent.providers.registry import MediaProviderSettings
-        media_settings = MediaProviderSettings.from_env()
+        from movie_agent.application.runtime_configuration import production_media_settings
+        media_settings = production_media_settings(root)
         resource_runtime = build_spark_runtime(owned_provider.config, media_settings)
         def factory(project_id):
             workspace = root / project_id
-            return ReasoningMovieProduction(workspace, owned_provider,
+            return production_engine(workspace, owned_provider,
                 event_bus=DurableLocalEventBus(workspace / "events"),
                 media_settings=media_settings, runtime_coordinator=resource_runtime)
         service = ProductionService(LocalProjectRepository(root), factory)
@@ -124,7 +126,7 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
 
     @app.get("/health")
     async def health():
-        return {"status": "ok", "runtime": "p3_media_foundation", "media": "mock"}
+        return {"status": "ok", "runtime": "film_production", "media": "configured_providers"}
 
     @app.get("/providers", response_model=list[ProviderView])
     async def providers():
@@ -138,7 +140,8 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
 
     @app.post("/projects", status_code=201, response_model=ProjectRecord)
     async def create_project(brief: CreateProjectInput):
-        return service.create(brief.canonical_brief(), brief.creative_hints, brief.draft_id)
+        return service.create(brief.canonical_brief(), brief.creative_hints, brief.draft_id,
+            production_policy=brief.production_policy)
 
     async def read_image(file: UploadFile) -> tuple[bytes, str]:
         mime_type = (file.content_type or "").lower()
@@ -181,6 +184,11 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
     async def remove_draft_reference(draft_id: str, reference_id: str):
         service.reference_uploads.unbind_draft(draft_id, reference_id)
         return Response(status_code=204)
+
+    @app.post('/projects/{project_id}/reference-acceptances',response_model=CommandAccepted)
+    async def accept_reference_bundle(project_id: str, command: HumanReferenceAcceptance):
+        from movie_agent.application.reference_commands import accept_references
+        return accept_references(service,project_id,command)
 
     @app.post("/projects/{project_id}/image-references", status_code=201,
               response_model=ImageReferenceUploadResult)
@@ -283,14 +291,48 @@ def create_app(service: ProductionService | None = None) -> FastAPI:
         result = engine.artifact_store.get(artifact_id, version)
         if result is None:
             raise KeyError(artifact_id)
-        return result
+        from movie_agent.media.download import public_artifact
+        return public_artifact(result)
+
+    @app.get("/projects/{project_id}/artifacts/{artifact_id}/versions/{version}/download")
+    async def download_artifact(project_id: str, artifact_id: str, version: int):
+        from movie_agent.media.download import ArtifactBinaryResolver, download_response
+        if version < 1:
+            raise HTTPException(422, 'Artifact version must be positive')
+        engine = service.engine(project_id)
+        artifact = engine.artifact_store.get(artifact_id, version)
+        resolver = ArtifactBinaryResolver(engine.artifact_store,engine.binary_store)
+        record = await asyncio.to_thread(resolver.resolve,artifact,project_id)
+        return download_response(artifact,record)
+
+    @app.get("/projects/{project_id}/exports/final")
+    async def download_final(project_id: str):
+        engine = service.engine(project_id)
+        final = next((a for a in engine.artifact_store.list_versions('final_film') if a.selected),None)
+        if not final or final.metadata.get('mock') is not False or not final.metadata.get('qc',{}).get('passed'):
+            raise HTTPException(404,'No selected real final film')
+        approval = final.provenance.parameters.get('approved_review_id')
+        if not any(r.review_id==approval and r.status.value=='approved' for r in engine.human_gates.all()):
+            raise HTTPException(409,'Final film has no recorded approval')
+        return await download_artifact(project_id,final.artifact_id,final.version)
+
+    @app.post("/projects/{project_id}/exports/reexport",status_code=202,response_model=CommandAccepted)
+    async def reexport_final(project_id: str, command: PostExportCommand):
+        from movie_agent.application.post_commands import reexport
+        return reexport(service,project_id,command)
+
+    @app.post('/projects/{project_id}/audio',status_code=202,response_model=CommandAccepted)
+    async def produce_audio(project_id: str, command: AudioProductionCommand):
+        from movie_agent.application.audio_commands import audio_command
+        return audio_command(service,project_id,command)
 
     @app.post("/artifacts/{artifact_id}/select", response_model=Artifact)
     async def select_artifact(artifact_id: str, project_id: str | None = None,
                               version: int = Query(..., ge=1)):
         engine, _ = service.locate("artifact", artifact_id, project_id)
         try:
-            return engine._select(engine.current_project, artifact_id, version)
+            from movie_agent.media.download import public_artifact
+            return public_artifact(engine._select(engine.current_project, artifact_id, version))
         except KeyError:
             raise KeyError(artifact_id)
 

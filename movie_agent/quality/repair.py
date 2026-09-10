@@ -123,6 +123,13 @@ class RepairPlanner:
             directive_id=directive.directive_id if directive else None, repair_context=context,
             unsupported_actions=unsupported)
 
+    def estimate_targeted(self, inspection, *, kontext_available=False):
+        """Cost view over existing issues; capability truth determines executable routes."""
+        from movie_agent.quality.budget import RepairCostPolicy
+        policy = RepairCostPolicy()
+        return {issue.issue_id: policy.route(issue.issue_type.value, kontext_available=kontext_available)
+                for issue in inspection.issues}
+
     def plan(
         self,
         evaluation: Evaluation,

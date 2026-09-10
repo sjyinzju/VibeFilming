@@ -9,6 +9,9 @@ from movie_agent.domain import (
 from movie_agent.orchestration.runtime.contracts import RoleResult
 from movie_agent.media import MediaPreview, MediaReference, MediaRepairPlan, Timeline, VisionInspectionResult
 from movie_agent.media import HumanRepairDirective
+from movie_agent.media.contracts import CharacterVoiceProfile, DialogueCue
+from movie_agent.quality.reports import FilmQualityReport, ShotQualityReport
+from movie_agent.quality.references import ReferenceIdentitySet
 from .views import ProjectSnapshot
 from .creative_inputs import CreativeHints
 from .review_subjects import ReviewSubject, project_review_subject
@@ -32,6 +35,13 @@ class ResourceRuntimeView(ContractModel):
 
 
 class StudioSnapshot(ProjectSnapshot):
+    film_quality: FilmQualityReport | None = None
+    quality_history: list[ShotQualityReport] = Field(default_factory=list)
+    identity_set: ReferenceIdentitySet | None = None
+    voice_profiles: list[CharacterVoiceProfile] = Field(default_factory=list)
+    dialogue_cues: list[DialogueCue] = Field(default_factory=list)
+    audio_controls: dict = Field(default_factory=dict)
+    audio_listening_result: dict | None = None
     graph: WorkflowGraph
     creative_hints: CreativeHints
     jobs: list[GenerationJob]
@@ -61,12 +71,24 @@ class StudioSnapshot(ProjectSnapshot):
 def studio_snapshot(service, project_id):
     # Synchronous on the single-worker event loop: state and cursor cannot interleave.
     engine = service.engine(project_id)
-    artifacts = engine.artifact_store.list_all()
+    from movie_agent.media.download import public_artifact
+    artifacts = [public_artifact(a) for a in engine.artifact_store.list_all()]
     reviews = engine.human_gates.all()
     events = engine.event_bus.events()
     providers = [provider.provider_id for provider in engine.media_runtime.providers.all()]
+    from movie_agent.services import audio_production as audio
+    listening=engine.artifact_store.get('audio_listening_result')
+    film_quality=engine.artifact_store.get('film_quality_report')
+    identity_set=engine.artifact_store.get('reference_identity_set')
     mock_count = sum(provider.startswith("mock-") for provider in providers)
     return StudioSnapshot(**service.snapshot(project_id),
+        film_quality=engine.artifact_store.read_structured(film_quality) if film_quality else None,
+        identity_set=engine.artifact_store.read_structured(identity_set) if identity_set else None,
+        quality_history=[engine.artifact_store.read_structured(a) for a in engine.artifact_store.list_all()
+                         if a.metadata.get('purpose')=='shot_quality_report'],
+        voice_profiles=list(audio.profiles(engine).values()),dialogue_cues=audio.cues(engine),
+        audio_controls=audio.controls(engine),
+        audio_listening_result=engine.artifact_store.read_structured(listening) if listening else None,
         graph=engine.current_production.graph,
         creative_hints=service.repository.get(project_id).creative_hints,
         jobs=engine._all_jobs(), artifacts=artifacts,

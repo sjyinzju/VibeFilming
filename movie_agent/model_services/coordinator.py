@@ -141,6 +141,8 @@ class RuntimeCoordinator:
     def can_admit(self, service_id, snapshot):
         target = self.manager.get(service_id).descriptor
         profile = target.runtime_profile
+        if service_id in {'tts','music'} and profile.estimated_peak_bytes == 0:
+            return False, 'Audio runtime profile requires real smoke telemetry before admission'
         leases = self.active_leases()
         if target.status in {ModelServiceStatus.DRAINING, ModelServiceStatus.STOPPING, ModelServiceStatus.BUSY}:
             return False, "service is busy or draining"
@@ -149,6 +151,11 @@ class RuntimeCoordinator:
         if leases and (profile.requires_exclusive_runtime or any(
                 self.manager.get(x.service_id).descriptor.runtime_profile.requires_exclusive_runtime for x in leases)):
             return False, "exclusive runtime lease"
+        minimum_free = target.metadata.get('minimum_cold_start_free_bytes')
+        if minimum_free and target.status != ModelServiceStatus.READY:
+            free = snapshot.diagnostics.get('free_unified_memory_bytes')
+            if free is None or free < minimum_free:
+                return False, 'insufficient physically free unified memory for cold-start allocator; reclaim idle residency'
         headroom = snapshot.system_reserve_bytes + snapshot.safety_margin_bytes
         required = self.reservation(service_id)
         # MemAvailable already excludes resident allocations. Subtract only unmaterialized
@@ -238,6 +245,8 @@ class RuntimeCoordinator:
         sid = self.service_for(provider_id or job.provider_id)
         if sid is None or not self.settings.enabled:
             return None
+        if sid in {'tts','music'} and self.manager.get(sid).descriptor.runtime_profile.estimated_peak_bytes == 0:
+            self._wait(job,sid,'Audio runtime profile requires real smoke telemetry before admission')
         if job.status in {JobStatus.WAITING_HUMAN, JobStatus.BLOCKED, JobStatus.SUCCEEDED,
                            JobStatus.CANCELLED, JobStatus.FAILED}:
             self._wait(job, sid, "job is not eligible for production execution")
@@ -366,7 +375,18 @@ class RuntimeCoordinator:
                        False, "RESOURCE_EXHAUSTED_OOM; submitted work must not be replayed automatically")
 
     async def execute(self, job, operation, *, current_job=None, on_ready=None):
-        lease = await self.acquire(job)
+        try:
+            lease = await self.acquire(job)
+        except ProviderFailure as error:
+            if isinstance(error,ResourceAdmissionWait):raise
+            # Existing job-level transient retry remains owned by LocalJobExecutor.
+            # Direct role calls and non-retryable startup failures need workflow admission handling.
+            if current_job and error.retryable:raise
+            if error.error_type in {ProviderErrorType.UNAVAILABLE,ProviderErrorType.TIMEOUT,ProviderErrorType.MODEL_NOT_READY}:
+                # No inference operation has run. Keep uncertain startup leases quarantined;
+                # the next admission must reconcile them before any submission.
+                raise ResourceAdmissionWait('Admission unavailable: '+error.error_type.value) from error
+            raise
         if current_job and current_job().cancellation_requested:
             if lease:
                 await self.release(lease)

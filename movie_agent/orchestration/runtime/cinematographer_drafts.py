@@ -10,7 +10,7 @@ from movie_agent.domain import (
 from movie_agent.domain.enums import Orientation, PropCondition
 from .contracts import OutputErrorCode as Code, OutputIssue, ValidationReport
 
-MAPPER_VERSION = "cinematographer-draft-mapper/3"
+MAPPER_VERSION = "cinematographer-draft-mapper/4"
 
 
 class CanonicalChainContext(ContractModel):
@@ -149,11 +149,17 @@ class CinematographerDraftMapper:
                         add(Code.SEMANTIC_CONFLICT, path,
                             f"Local {kind} has no canonical initial state to update: {entity_id}")
             for update in delta.character_updates:
+                canonical=scene.initial_state.character_states.get(update.character_id)
+                ambient=set(canonical.held_prop_ids if canonical else [])-allowed['prop']
+                supplied=set(update.held_prop_ids or [])-allowed['prop']
+                if update.held_prop_ids is not None and supplied!=ambient:
+                    add(Code.BROKEN_REFERENCE,f'shots.{shot_index}.held_prop_ids',
+                        'Local character update cannot add/remove canonical ambient prop relationships')
                 for prop_id in update.held_prop_ids or []:
                     if prop_id not in catalogs["prop"]:
                         add(Code.UNKNOWN_ENTITY_ID, f"shots.{shot_index}.held_prop_ids",
                             f"Unknown prop ID: {prop_id}")
-                    elif prop_id not in allowed["prop"]:
+                    elif prop_id not in allowed["prop"] and prop_id not in ambient:
                         add(Code.BROKEN_REFERENCE, f"shots.{shot_index}.held_prop_ids",
                             f"Held prop is not local to {scene.scene_id}: {prop_id}")
             for update in delta.prop_updates:

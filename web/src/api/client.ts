@@ -1,5 +1,6 @@
 import type {
   CreateInput,
+  AudioProductionInput,
   ImageReferenceUpload,
   ReferenceBindingInput,
   Schema,
@@ -60,6 +61,11 @@ export const api = {
   create: (brief: CreateInput) =>
     request<Schema['ProjectRecord']>('/projects', { method: 'POST', body: JSON.stringify(brief) }),
   snapshot: (pid: string) => request<Snapshot>(`/projects/${id(pid)}/studio`),
+  audio: (pid: string, command: AudioProductionInput) =>
+    request<Schema['CommandAccepted']>(`/projects/${id(pid)}/audio`, {
+      method: 'POST',
+      body: JSON.stringify(command),
+    }),
   command: (pid: string, action: 'start' | 'pause' | 'resume' | 'cancel') =>
     request<Schema['CommandAccepted']>(`/projects/${id(pid)}/${action}`, { method: 'POST' }),
   reviseTerminal: (pid: string, sceneId: string) =>

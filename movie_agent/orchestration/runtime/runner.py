@@ -25,7 +25,8 @@ from .contracts import ValidationReport, OutputIssue, OutputErrorCode
 class StructuredOutputAdapter:
     """Export the actual target contract schema into the serving request."""
 
-    def response_format(self, target, *, max_scene_shots: int | None = None, scene: Scene | None = None):
+    def response_format(self, target, *, max_scene_shots: int | None = None, scene: Scene | None = None,
+                        project: Project | None = None):
         schema = target.model_json_schema()
         # Strict serving schemas must require defaulted fields too. Otherwise an
         # LLM can repeatedly omit scene membership/continuity fields that Pydantic
@@ -40,6 +41,24 @@ class StructuredOutputAdapter:
                 for child in value:
                     require_properties(child)
         require_properties(schema)
+        if target.__name__=='ScenePlan' and project is not None:
+            # Scene planning has declared entities already. Constrain dictionary keys
+            # using explicit properties (vLLM rejects propertyNames). Domain validation
+            # still checks scene-specific membership and all canonical invariants.
+            state=schema['$defs']['ContinuityState']['properties']
+            for field,definition,identity,allowed in (
+                ('character_states','CharacterState','character_id',[c.character_id for c in project.characters]),
+                ('location_states','LocationState','location_id',[l.location_id for l in project.locations]),
+                ('prop_states','PropState','prop_id',[p.prop_id for p in project.props])):
+                mapping=state[field];properties={}
+                for key in sorted(set(allowed)):
+                    item=deepcopy(schema['$defs'][definition])
+                    item['properties'][identity]['const']=key
+                    properties[key]=item
+                mapping['properties']=properties
+                mapping['additionalProperties']=False
+            if project.screenplay:
+                schema['$defs']['Scene']['properties']['scene_id']['enum']=[s.scene_id for s in project.screenplay.scenes]
         if max_scene_shots is not None:
             if target.__name__ not in {"ShotPlan", "ShotPlanDraft"} or max_scene_shots < 1:
                 raise ValueError("Scene decoding bounds require a positive ShotPlan budget")
@@ -125,7 +144,7 @@ class RoleRunner:
         original = json.dumps(context.payload, ensure_ascii=False, sort_keys=True)
         prompt = original
         response_format = self.adapter.response_format(target,
-            max_scene_shots=context.payload["scene_shot_budget"] if scene else None, scene=scene)
+            max_scene_shots=context.payload["scene_shot_budget"] if scene else None, scene=scene,project=project)
         revision = invocation.contract_revision
         if result.failure_code == "CONTRACT_STATE_SCOPE_CONFLICT":
             raise RoleOutputInvalid(result)

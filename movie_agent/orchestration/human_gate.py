@@ -28,7 +28,7 @@ class HumanGateManager:
         gate_type: HumanGateType,
         question: str,
         context_artifact_ids: list[str] | None = None,
-        *, inspection=None,
+        *, inspection=None, target_artifact=None,
     ) -> HumanReviewRequest:
         review = HumanReviewRequest(
             project_id=project_id,
@@ -37,9 +37,9 @@ class HumanGateManager:
             question=question,
             context_artifact_ids=context_artifact_ids or [],
             inspection_result_id=inspection.result_id if inspection else None,
-            target_artifact_id=inspection.target_artifact_id if inspection else None,
-            target_artifact_version=inspection.target_artifact_version if inspection else None,
-            target_sha256=inspection.target_sha256 if inspection else None,
+            target_artifact_id=inspection.target_artifact_id if inspection else target_artifact.artifact_id if target_artifact else None,
+            target_artifact_version=inspection.target_artifact_version if inspection else target_artifact.version if target_artifact else None,
+            target_sha256=inspection.target_sha256 if inspection else target_artifact.metadata['sha256'] if target_artifact else None,
         )
         self._reviews[review.review_id] = review
         self._emit(review, EventType.HUMAN_REVIEW_REQUESTED)

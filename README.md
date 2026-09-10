@@ -6,7 +6,7 @@ VibeFilming 是一套面向持续创作的 AI 电影生产系统。它把故事�
 
 ## 当前进度
 
-截至 2026 年 9 月 8 日，项目已完成核心工作流、真实推理、Web Studio、真实媒体链路、P4A 资源运行时及 P4B 真实视觉审核与人工指导修复。真实 VLM、内存校准、浏览器和人工反馈 contract 验收通过，详见 [P4B 记录](docs/p4b_vision_critic.md)。默认配置仍使用 Mock，真实模型必须显式启用，系统不会在真实 Provider 失败时静默回退。
+截至 2026 年 9 月 8 日，项目已完成 P4C 真实后期与导出：复用两个已有 H3 镜头及原生音轨，产出 30 秒、1080p/24 fps 的真实粗剪和成片，通过技术 QC、真实 HTTP 下载哈希、检查点恢复及浏览器验收。详见 [P4C 记录](docs/p4c_post_export.md) 和 [P4B 记录](docs/p4b_vision_critic.md)。默认 Provider 仍为 Mock；真实路径须显式配置，失败不会静默回退。
 
 | 模块 | 当前状态 | 已验证结果 |
 | --- | --- | --- |
@@ -15,11 +15,11 @@ VibeFilming 是一套面向持续创作的 AI 电影生产系统。它把故事�
 | Web Studio | 已完成 | React 工作台、中英文界面、项目控制、SSE 事件、检查器、Artifact 预览 |
 | 图像生成 | 真实接入 | FLUX.1-dev 已生成并保存 1024 x 576 首帧和尾帧 |
 | ComfyUI 桥接 | 已完成 | 版本化 API Workflow、语义 Binding Manifest、编译器、HTTP WebSocket 客户端 |
-| 视频与原生音频 | 定向真实验收通过 | MiniMax H3 FL2VA 生成 608 x 352、22 帧、24 fps 的 0.92 秒视频及原生音频，18 个执行节点全部成功 |
+| 视频与原生音频 | 真实验收通过 | MiniMax H3 既有 Scene 01/02 均为 1024×576、24 fps、362 帧，原生 AAC 双声道音轨已用于 P4C 成片；早期短片也通过 18 节点验收 |
 | Qwen3-VL 视觉审核 | 真实验收通过 | 现有 Scene 01 视频经安全 staging、真实 VLM 和 Core 裁决生成不可变审核 Artifact；Studio、SSE、刷新及人工反馈 contract 通过 |
 | Resource runtime | 真实接入 | P4A 启停、统一内存和租约管理；`vlm` 实测校准为 88 GiB 常驻 / 92 GiB 峰值预算，另保留 12 GiB 余量 |
 | 独立音频 | Mock | TTS、音乐、音效、拟音尚未真实接入 |
-| 后期与完整成片 | 尚未真实验收 | 当前真实链路证明单镜头媒体生产，完整多场景电影仍待联调 |
+| FFmpeg 后期与成片导出 | 真实验收通过 | 两镜头 30 秒，1920×1080/24 fps，H.264/AAC，48 kHz 双声道，A/V 结束差 0 秒；粗剪审核、版本下载、恢复与 Studio 播放通过 |
 
 真实 H3 验收耗时 28.63 秒，视频和音频都写入不可变 Artifact，并进入 Timeline。检查点恢复保留既有输出，没有再次调用 Provider。对应证据保存在 `workspace/flux-agent-acceptance-20260907` 和 `workspace/h3-fl2va-acceptance-20260907`。
 
@@ -149,6 +149,10 @@ npm run dev
 
 ### 显式启用真实媒体 Provider
 
+P5 的正式 API 默认使用 `MOVIE_AGENT_PRODUCTION_PROFILE=installed`，为新项目接入既有真实图像、视频、VLM、语音、音乐和 FFmpeg 后期。`configured` 则尊重各项 Provider 环境配置；能力不足会请求人工配置，不会回退 Mock。创建和启动项目仍是显式命令，不会因为服务启动而自动生成。
+
+新项目经 `FilmProduction` 自动扩展参考与镜头 DAG，无需 Hero 脚本。`POST /projects` 可携带 `production_policy`，配置规划人工审核、候选覆盖和有限计算预算；默认尝试所有独立镜头、要求至少 80% 时长/镜头覆盖。历史项目保持原有引擎与预算。完整新项目、参考变更、音频复用、候选下载和恢复回归见 [P5 平台 checkpoint](docs/p5_platform_checkpoint.md)。
+
 ```powershell
 $env:MOVIE_AGENT_IMAGE_PROVIDER='flux_direct'
 $env:MOVIE_AGENT_FLUX_ENDPOINT='http://127.0.0.1:9001'
@@ -185,8 +189,9 @@ npm run test:e2e
 ## 已知限制和下一步
 
 - 完成当前 Scene 规划中的 canonical fact ownership 修复，避免下游模型重复生成不可变事实。
-- 用真实多场景项目完成从剧本到最终成片的一次完整验收；当前 H3 结论属于单镜头定向验收。
-- P4B 验收已完成；独立 TTS、音乐、音效、拟音和 Post 仍未真实接入，本轮未开始 P4C。
+- P4C 已用既有真实两场景媒体完成后期与导出验收；没有重复上游推理，不等同于电影审美验收。
+- P4D 独立 TTS/Music Docker 已在 Spark 完成真实推理与 P4A 内存/TTL 实测；已生成角色 anchor、正式对白、配乐、三轨/SRT 和经用户批准的真实 final_film v4。人工试听记录为需要修改：片头 H3/TTS 配音重叠、女声偏幼态，尚未全部达到 P4D DoD。默认音频配置仍为 Mock，真实模式不会回退 Mock。
+- P5 增加 SHOWCASE、精确版本参考包、H3 前帧门控、真实证据驱动的 cinematic critic、持久算力预算和 Quality 面板。真实试运行规划 105 秒 / 12 镜头，但参考一致性门禁未通过，accepted 时长为 0，未生成候选 MP4，尚未达到 Hero Film DoD。独立入口：`python -m scripts.run_p5 --run-real`；实际素材、预算及阻断证据见 P5 验收文档，技术候选片不等于人工审美批准。
 - 增加角色一致性、风格持续性和 LoRA 能力；当前 FLUX Provider 会明确拒绝 LoRA，而不是忽略参数。
 - 继续按实测遥测校准模型内存预算；复用 P4A 调度，避免多个大模型无控制地同时驻留。
 - 补齐认证、多用户隔离、公共部署和生产级持久队列。
@@ -199,5 +204,10 @@ npm run test:e2e
 - [角色运行时](docs/role_runtime.md)
 - [Web Studio](docs/p2b_frontend.md)
 - [媒体运行时](docs/p3_media_runtime.md)
+- [P4C 后期、成片与安全下载](docs/p4c_post_export.md)
+- [P4D 对白、声音一致性与配乐进度](docs/p4d_audio.md)
+- [P5 质量、一致性与预算](docs/p5_quality.md)
+- [P5 Hero Film 实际验收](docs/p5_hero_film_acceptance.md)
+- [P5 平台完整性与样片验收分离报告](docs/p5_platform_checkpoint.md)
 - [FLUX Agent 验收](docs/flux_agent_acceptance.md)
 - [ComfyUI 接入方案](docs/comfyui_video_integration_plan.md)

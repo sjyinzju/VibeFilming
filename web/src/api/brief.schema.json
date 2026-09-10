@@ -33,6 +33,7 @@
     "QualityProfile": {
       "enum": [
         "draft",
+        "showcase",
         "standard",
         "high",
         "final"

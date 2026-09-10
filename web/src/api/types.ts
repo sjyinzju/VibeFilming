@@ -9,6 +9,7 @@ type Serialized<T> = T extends (infer U)[]
 export type Schema = { [K in keyof components['schemas']]: Serialized<components['schemas'][K]> };
 export type Brief = Schema['ProjectBrief'];
 export type CreateInput = components['schemas']['CreateProjectInput'];
+export type AudioProductionInput = components['schemas']['AudioProductionCommand'];
 export type Hints = components['schemas']['CreativeHints'];
 export type Snapshot = Schema['StudioSnapshot'];
 export type WorkflowNode = Schema['WorkflowNode'];

@@ -1482,3 +1482,55 @@ html[lang='zh-CN'] .eyebrow {
   border-left: 3px solid #bc8d32;
   padding-left: 9px;
 }
+.post-timeline {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+.post-timeline th,
+.post-timeline td {
+  padding: 0.6rem 0.3rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid #7774;
+  overflow-wrap: anywhere;
+}
+.post-film .review-actions {
+  flex-wrap: wrap;
+}
+.post-film a.button {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #7777;
+  border-radius: 4px;
+  text-decoration: none;
+  color: inherit;
+}
+/* Audio production reuses the inspector and native media controls. */
+.audio-card {
+  border: 1px solid var(--border, #39404a);
+  padding: 14px;
+  margin-block: 12px;
+  border-radius: 8px;
+}
+.audio-card label {
+  display: block;
+  margin-block: 10px;
+}
+.audio-card audio {
+  width: 100%;
+}
+.audio-track {
+  border-left: 3px solid #7994b7;
+  padding-left: 12px;
+  margin-block: 14px;
+}
+.audio-track ol {
+  padding-left: 16px;
+  font-size: 12px;
+}
+.quality-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 16px 0; }
+.quality-card { border: 1px solid var(--border, #34343d); border-radius: 8px; padding: 12px; min-width: 0; }
+.quality-card img, .quality-card video { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #111; }
+.quality-card dl > div { display: flex; justify-content: space-between; gap: 12px; }
+.quality-versions { display: flex; gap: 12px; overflow-x: auto; }
+.quality-versions section { min-width: 220px; }

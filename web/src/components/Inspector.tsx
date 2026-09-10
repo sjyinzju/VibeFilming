@@ -7,6 +7,9 @@ import type { Snapshot, Artifact, Review, Schema } from '../api/types';
 import { ReviewSubjectRenderer } from './ReviewSubjectRenderer';
 import { ImageReferenceInput } from './ImageReferenceInput';
 import { MediaReviewPanel, type MediaResolve } from './MediaReviewPanel';
+import { PostFilmPanel, PostProgress } from './PostFilmPanel';
+import { AudioPanel } from './AudioPanel';
+import { QualityPanel } from './QualityPanel';
 
 export function RawJson({ value }: { value: unknown }) {
   return (
@@ -177,7 +180,11 @@ export function ArtifactCard({
       </summary>
       <p className="mono">{artifact.artifact_id}</p>
       <p>{artifact.provenance?.tool || artifact.provenance?.provider_id || 'Core artifact'}</p>
-      <ArtifactMedia artifact={artifact} preview={preview} />
+      {artifact.metadata.render_plan ? (
+        <PostFilmPanel artifact={artifact} />
+      ) : (
+        <ArtifactMedia artifact={artifact} preview={preview} />
+      )}
       {snapshot?.media_inspections
         .filter(
           (i) =>
@@ -273,13 +280,17 @@ export function Inspector({
         </button>
       </div>
       <div className="inspector-tabs" role="tablist" aria-label={t('Inspector tabs')}>
-        {['Node', 'Models', 'Trace', 'Artifacts', 'Architecture'].map((name) => (
+        {['Node', 'Quality', 'Audio', 'Models', 'Trace', 'Artifacts', 'Architecture'].map((name) => (
           <button key={name} role="tab" aria-selected={tab === name} onClick={() => setTab(name)}>
             {t(name)}
           </button>
         ))}
       </div>
       <div className="inspector-content" role="tabpanel" aria-label={t(tab)}>
+        {tab === 'Audio' && snapshot ? (
+          <AudioPanel snapshot={snapshot} shotId={shot?.shot_id} onChanged={onReferencesChanged} />
+        ) : null}
+        {tab === 'Quality' && snapshot ? <QualityPanel snapshot={snapshot} /> : null}
         {tab === 'Node' && (
           <>
             {node || scene || shot ? (
@@ -297,6 +308,32 @@ export function Inspector({
                   <RawJson value={{ node, scene, shot, roles, jobs, artifacts, reviews }} />
                 ) : (
                   <>
+                    {node && ['rough_cut', 'final_render'].includes(node.node_id) ? (
+                      <>
+                        {jobs
+                          .filter(
+                            (job) =>
+                              job.provider_id === 'ffmpeg-post' && job.status !== 'succeeded',
+                          )
+                          .map((job) => (
+                            <PostProgress key={job.job_id} job={job} />
+                          ))}
+                        {artifacts
+                          .filter(
+                            (artifact) =>
+                              artifact.metadata.render_plan &&
+                              artifact.artifact_id ===
+                                (node.node_id === 'final_render' ? 'final_film' : 'rough_cut') &&
+                              artifact.selected,
+                          )
+                          .map((artifact) => (
+                            <PostFilmPanel
+                              key={`${artifact.artifact_id}:${artifact.version}`}
+                              artifact={artifact}
+                            />
+                          ))}
+                      </>
+                    ) : null}
                     {reviews.map((r) => (
                       <ReviewPanel
                         key={r.review_id}
@@ -405,6 +442,9 @@ export function Inspector({
                     )}
                     {shot && (
                       <>
+                        {snapshot?.dialogue_cues?.some((c) => c.shot_id === shot.shot_id) ? (
+                          <button onClick={() => setTab('Audio')}>查看对白与角色声音</button>
+                        ) : null}
                         <p>{shot.narrative.purpose}</p>
                         <p>
                           {shot.camera.shot_size} · {shot.duration_seconds}

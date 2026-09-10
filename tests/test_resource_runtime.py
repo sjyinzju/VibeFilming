@@ -30,6 +30,22 @@ class Memory:
             diagnostics={"cuda_total": 128 * GiB, "cuda_free": 128 * GiB})
 
 
+@pytest.mark.asyncio
+async def test_startup_exit_fails_without_waiting_for_health_timeout():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    state={'Running':False,'ExitCode':1,'OOMKilled':False}
+    controller=SimpleNamespace(action=AsyncMock(),inspect=AsyncMock(return_value=state),
+        is_controlled_stop=lambda *_:False)
+    service=SparkDockerModelService(Service('music',Memory()).descriptor,controller,
+        health_path='/health',idle_path='/v1/stats',kind='music')
+    service.health=AsyncMock(return_value=False)
+    manager=ModelManager();manager.register(service)
+    with pytest.raises(ProviderFailure,match='exited before readiness'):
+        await asyncio.wait_for(manager.ensure_ready('music'),timeout=.5)
+    assert service.descriptor.status==ModelServiceStatus.FAILED
+
+
 class Service(MockModelService):
     def __init__(self, sid, memory, peak=40, resident=24):
         super().__init__(ModelServiceDescriptor(service_id=sid, modality=MediaModality.VIDEO,
